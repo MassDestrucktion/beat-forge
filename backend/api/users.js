@@ -7,10 +7,10 @@ const usersRouter = Router();
 usersRouter.post('/register', requireBody, async (req, res, next) => {
     try {
         const user = req.body;
-        
+
         res.send(await create_user(user));
     }    
     catch {
-
+        
     }
 });
