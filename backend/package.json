@@ -7,10 +7,11 @@
   "type": "module",
   "main": "app.js",
   "scripts": {
-    "db:schema": "",
+    "db:schema": "psql -U postgres -d beat_forge -f db/schema.sql ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "pg": "^8.22.0"
   }
 }
