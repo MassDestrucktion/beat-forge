@@ -1,67 +1,29 @@
-import * as Tone from "tone";
-import { useState } from "react";
+import { Routes, Route } from "react-router"; // or "react-router-dom"
+import Navbar from "./components/Navbar";
 
-console.log(Tone.context.state);
+import LandingPage from "./landingPage";
+import RegisterPage from "./register";
+import LoginPage from "./login";
+import UserPage from "./userPage";
+import SequencerPage from "./SequencerPage";
+import GettingStarted from "./getingStarted";
 
-const NUM_TRACKS = 4;
-const NUM_STEPS = 16;
-
-const synths = [
-  new Tone.MembraneSynth().toDestination(),
-  new Tone.NoiseSynth({ noise: { type: "white" } }).toDestination(),
-  new Tone.MetalSynth({ frequency: 5 }).toDestination(), //
-  new Tone.Synth().toDestination(), //
-];
-
-function App() {
-  const [grid, setGrid] = useState(() =>
-    Array(NUM_TRACKS)
-      .fill(null)
-      .map(() => Array(NUM_STEPS).fill(false)),
-  );
-
-  const toggleStep = async (trackIndex, stepIndex) => {
-    await Tone.start();
-
-    const updatedGrid = grid.map((track) => [...track]);
-    const isTurningOn = !updatedGrid[trackIndex][stepIndex];
-    updatedGrid[trackIndex][stepIndex] = isTurningOn;
-    setGrid(updatedGrid);
-
-    if (isTurningOn) {
-      if (trackIndex === 0) {
-        synths[0].triggerAttackRelease("A1", "8n");
-      } else if (trackIndex === 1) {
-        synths[1].triggerAttackRelease("1n");
-      } else if (trackIndex === 2) {
-        synths[2].triggerAttackRelease("2n");
-      } else if (trackIndex === 3) {
-        synths[3].triggerAttackRelease("C4", "2n");
-      }
-    }
-  };
-
+export default function App() {
   return (
-    <div>
-      <h2>4-Track Sequencer Grid</h2>
+    <div className="app-container">
+      <Navbar />
 
-      {grid.map((track, trackIndex) => (
-        <div key={trackIndex}>
-          <span>Track {trackIndex + 1} </span>
-
-          {track.map((isActive, stepIndex) => (
-            <button
-              key={stepIndex}
-              onClick={() => toggleStep(trackIndex, stepIndex)}
-              className={isActive ? "active" : ""}
-            >
-              {stepIndex + 1}
-            </button>
-          ))}
-        </div>
-      ))}
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/getting-started" element={<GettingStarted />} />
+          <Route path="/sequencer" element={<SequencerPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/userPage" element={<UserPage />} />
+          <Route path="*" element={<div>404 - Page Not Found</div>} />
+        </Routes>
+      </main>
     </div>
   );
 }
-
-export default App;

@@ -1,16 +1,10 @@
+import { Link } from "react-router-dom";
 
-
-export default function landingPage() {
-    
-    return(
+export default function LandingPage() {
+  return (
     <div>
-    <h1> BeatForge </h1>
-    <h3> Beat sythissizer for collaborative fun</h3>
-
-    <button>Get Started</button>
-    <button>Login</button>
-    <button>Register</button>
+      <h1>BeatForge</h1>
+      <h3>Beat synthesizer for collaborative fun</h3>
     </div>
-    )
-
+  );
 }
