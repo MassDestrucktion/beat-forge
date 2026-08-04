@@ -26,73 +26,166 @@
   align-items: center;
 }
 
-/* Style NavLink anchors or buttons cleanly */
 .nav-links a {
   text-decoration: none;
 }
 
-/* Base button style shared across controls and nav buttons */
 .controls button,
 .nav-links button,
 .nav-links a.nav-btn {
   padding: 10px 18px;
   font-size: 14px;
   font-weight: 700;
-  border-radius: 6px;
+  border-radius: 999px;
   border: none;
-  background-color: #2563eb;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
   color: #ffffff;
   cursor: pointer;
   transition:
-    background-color 0.2s ease,
-    transform 0.1s ease;
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.2s ease;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
 }
 
 .controls button:hover,
 .nav-links button:hover,
 .nav-links a.nav-btn:hover {
-  background-color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.3);
 }
 
-/* Active NavLink highlighting */
 .nav-links a.active button,
 .nav-links a.active.nav-btn {
-  background-color: var(--accent, #c084fc);
-  color: #000000;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #111827;
 }
 
 /* ==========================================
    Main Sequencer Container
    ========================================== */
 .sequencer {
-  max-width: 100%;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 28px 20px 40px;
 }
 
-/* Header & Controls Section */
-.sequencer h2 {
+.hero-card,
+.controls-card {
+  background: linear-gradient(
+    135deg,
+    rgba(17, 24, 39, 0.95),
+    rgba(31, 41, 55, 0.95)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
+}
+
+.hero-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  margin-bottom: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #8b5cf6;
+}
+
+.hero-card h2 {
+  margin: 0 0 8px;
+  font-size: 1.7rem;
+}
+
+.hero-text {
+  margin: 0;
+  color: #d1d5db;
+  max-width: 620px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 700;
+  color: #f9fafb;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+.status-dot.live {
+  background: #22c55e;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+}
+
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.summary-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.controls-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
   margin-bottom: 20px;
 }
 
 .controls {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 12px;
   align-items: center;
 }
 
-.controls label {
-  font-size: 14px;
-  font-weight: 600;
+.bpm-control {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f3f4f6;
 }
 
-/* ==========================================
-   Grid & Track Layout
-   ========================================== */
+.bpm-control input {
+  accent-color: #8b5cf6;
+  cursor: pointer;
+}
+
 .tracks {
   display: flex;
   flex-direction: column;
@@ -101,15 +194,61 @@
 
 .track-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.track-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 16px;
 }
 
 .track-label {
-  width: 90px;
+  min-width: 92px;
   text-align: right;
   font-weight: 700;
   font-size: 14px;
+  color: #e5e7eb;
+}
+
+.track-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.track-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+}
+
+.track-controls span {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.track-controls select,
+.track-controls input {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: #111827;
+  color: #f9fafb;
+  padding: 6px 8px;
+  font-size: 0.9rem;
 }
 
 .step-row {
@@ -118,39 +257,62 @@
   gap: 8px;
 }
 
-/* Step Buttons Base Style */
 .step-row button {
-  width: 38px;
-  height: 38px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  background-color: #1a1a1a;
-  color: #ffffff;
-  font-weight: 600;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background-color: #111827;
+  color: #f9fafb;
+  font-weight: 700;
   cursor: pointer;
   transition:
-    background-color 0.05s ease,
-    box-shadow 0.05s ease;
+    transform 0.12s ease,
+    background-color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
-/* State 1: Active Beat (User toggled ON) */
+.step-row button:hover {
+  transform: translateY(-1px);
+}
+
 .step-row button.active {
-  background-color: #22c55e !important;
-  color: #000000 !important;
+  background: linear-gradient(135deg, #34d399, #10b981);
+  color: #052e16;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
 }
 
-/* State 2: Playhead sweeping over INACTIVE beat (Light Blue) */
 .step-row button:not(.active).playing {
-  background-color: #3b82f6 !important;
-  color: #ffffff !important;
-  border-color: #93c5fd !important;
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.8) !important;
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  color: #eff6ff;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.35);
 }
 
-/* State 3: Playhead sweeping over ACTIVE beat (Bright Neon Green Glow) */
 .step-row button.active.playing {
-  background-color: #4ade80 !important;
-  color: #000000 !important;
-  border-color: #ffffff !important;
-  box-shadow: 0 0 14px rgba(74, 222, 128, 0.9) !important;
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  color: #052e16;
+  box-shadow: 0 0 18px rgba(74, 222, 128, 0.45);
+}
+
+@media (max-width: 760px) {
+  .hero-card,
+  .controls-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .summary-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .track-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .track-label {
+    width: auto;
+    text-align: left;
+  }
 }
