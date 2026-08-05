@@ -23,7 +23,13 @@ usersRouter.post(
 
       const user = await createUser(username, password);
 
-      res.status(201).send(user);
+      if (!user) {
+        res.status(404).send("Incorrect Credentials");
+      }
+
+      const token = await createToken({ id: user.id });
+
+      res.status(201).send(token);
     } catch (error) {
       console.log(error);
       next(error);
