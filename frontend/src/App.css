@@ -315,4 +315,52 @@
     width: auto;
     text-align: left;
   }
+
+  .profileGrid {
+    display: grid;
+    border: 1px solid black;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .pgrid1{
+    border: 1px solid blue;
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+  }
+
+  .pgrid2{
+    border: 1px solid blue;
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+  }
+
+   .pgrid3{
+    border: 1px solid blue;
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+  }
+
+   .pgrid4{
+    border: 1px solid blue;
+  }
+
+  .landingGrid {
+    display: grid;
+    border: 1px solid black;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  .landingItem1{
+    border: 1px solid blue;
+    grid-column: 1 / 2;
+    
+  }
+  .landingItem1{
+    border: 1px solid blue;
+    grid-column: 2 / 3;
+    
+  }
+
 }
