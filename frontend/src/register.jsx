@@ -1,6 +1,7 @@
 import { useActionState } from "react";
 
 async function registerUser(prevState, formData) {
+  console.log("REGISTER ACTION FIRED");
   const username = formData.get("username")?.toString().trim();
   const password = formData.get("password")?.toString();
 
@@ -21,22 +22,30 @@ async function registerUser(prevState, formData) {
   };
 
   try {
-    const response = await fetch("/api/users/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+  const response = await fetch("/api/users/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 
-    const data = await response.json();
+  const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.error || "Registration failed");
-    }
-
-    return { status: "success", message: `Registered ${data.user.username}` };
-  } catch (error) {
-    return { status: "error", message: error.message };
+  if (!response.ok) {
+    throw new Error(data.message || "Registration failed");
   }
+
+  return {
+    status: "success",
+    message: `Registered ${data.username}`,
+  };
+} catch (error) {
+  return {
+    status: "error",
+    message: error.message,
+  };
+}
 }
 
 export default function RegisterPage() {
