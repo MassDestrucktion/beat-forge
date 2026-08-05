@@ -33,7 +33,7 @@ async function loginUser(prevState, formData) {
       throw new Error(data.error || "Login failed");
     }
 
-    return { status: "success", message: `Welcome, ${data.user.username}!` };
+    return { status: "success", message: `Welcome, ${data.username}!` };
   } catch (error) {
     return { status: "error", message: error.message };
   }
