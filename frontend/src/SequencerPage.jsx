@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import "./App.css";
 
 const NUM_TRACKS = 4;
-const NUM_STEPS = 16;
+//const NUM_STEPS = 16;
+
 const TRACK_LABELS = ["Track 1", "Track 2", "Track 3", "Track 4"];
 
 const INSTRUMENT_CONFIG = {
@@ -31,10 +32,12 @@ const stabSynth = new Tone.MembraneSynth().toDestination();
 const padSynth = new Tone.PolySynth(Tone.Synth).toDestination();
 
 export default function App() {
+  const [beatCount, setBeatCount] = useState(16);
+  
   const [grid, setGrid] = useState(() =>
     Array(NUM_TRACKS)
       .fill(null)
-      .map(() => Array(NUM_STEPS).fill(false)),
+      .map(() => Array(beatCount).fill(false)),
   );
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -73,12 +76,12 @@ export default function App() {
 
   useEffect(() => {
     const repeat = (time) => {
-      const step = stepCountRef.current % NUM_STEPS;
+      const step = stepCountRef.current % beatCount;
       setCurrentStep(step);
 
       const currentGrid = gridRef.current;
 
-      for (let trackIdx = 0; trackIdx < NUM_TRACKS; trackIdx++) {
+      for (let trackIdx = 0; trackIdx < beatCount; trackIdx++) {
         if (currentGrid[trackIdx][step]) {
           playTrackSound(trackIdx, time);
         }
@@ -136,7 +139,7 @@ export default function App() {
     setGrid(
       Array(NUM_TRACKS)
         .fill(null)
-        .map(() => Array(NUM_STEPS).fill(false)),
+        .map(() => Array(beatCount).fill(false)),
     );
   };
 

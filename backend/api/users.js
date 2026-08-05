@@ -1,8 +1,13 @@
 import express from "express";
 import { Router } from "express";
-import requireBody from "../middleware/requireBody";
+import requireBody from "../middleware/requireBody.js";
 
 const usersRouter = Router();
+
+
+usersRouter.get('/', async (req, res, next) => {
+    res.send("here!");
+});
 
 
 usersRouter.post('/register', requireBody, async (req, res, next) => {
@@ -31,3 +36,5 @@ usersRouter.get('/login', requireBody, async (req, res, next) => {
         console.log(error);
     }
 });
+
+export default usersRouter;

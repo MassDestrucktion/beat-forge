@@ -1,12 +1,20 @@
 import express from "express";
+import apiRouter from "./api/api.js";
 
 const app = express();
 
-// routers
-app.use('/api', router);
+// Body parsing middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-//body parsing middleware
+// API routes
+app.use("/api", apiRouter);
 
-//error handling middleware
+// Error handling middleware
+app.use((err, req, res, next) => {
+  res.status(err.status || 500).json({
+    message: err.message || "Internal Server Error",
+  });
+});
 
-// logging middleware
+export default app;
