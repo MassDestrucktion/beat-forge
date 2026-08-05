@@ -33,14 +33,17 @@ export async function createUser(username, password) {
     }
 }
 
-export async function userLogin(username, pasword) {
+export async function userLogin(username, password) {
     const SQL = `
     SELECT * 
-    FROM users 
-    WHERE username = $1  
+    FROM app.users 
+    WHERE username = $1 
     `;
     const {rows: [user]} = await db.query(SQL, [username]);
     const authenticate = await bcrypt.compare(password, user.password);
 
-    return user;
+    if (authenticate) {
+        return user;
+    }
+    return null;
 };
