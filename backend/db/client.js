@@ -1,8 +1,10 @@
 import pg from "pg";
 
 const db = new pg.Client({
-  connectionString: process.env.DATABASE_CONNECTION,
-  ssl: false,
+    connectionString: process.env.DATABASE_CONNECTION,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 await db.connect();
