@@ -1,8 +1,10 @@
 import express from "express";
 import { Router } from "express";
 import requireBody from "../middleware/requireBody.js";
+import { createUser } from "../db/queries/users.js";
 
 const usersRouter = Router();
+
 
 
 usersRouter.get('/', async (req, res, next) => {
@@ -10,18 +12,22 @@ usersRouter.get('/', async (req, res, next) => {
 });
 
 
-usersRouter.post('/register', requireBody, async (req, res, next) => {
+usersRouter.post(
+  '/register',
+  requireBody(["username", "password"]),
+  async (req, res, next) => {
     try {
-        const {username, password} = req.body;
-        const user = await createUser(username, pasword);
+      const { username, password } = req.body;
 
-        const token = await createToken({id: user.id})
-       res.status(201).send(token);
-    }    
-    catch {
-        
+      const user = await createUser(username, password);
+
+      res.status(201).send(user);
+    } catch (error) {
+      console.log(error);
+      next(error);
     }
-});
+  }
+);
 
 usersRouter.get('/login', requireBody, async (req, res, next) => {
     try {
@@ -34,6 +40,7 @@ usersRouter.get('/login', requireBody, async (req, res, next) => {
     }    
     catch(error) {
         console.log(error);
+        next(error);
     }
 });
 

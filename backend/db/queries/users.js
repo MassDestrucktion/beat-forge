@@ -1,18 +1,37 @@
-import db from "#db/client";
+import db from "../client.js";
 import bcrypt from "bcrypt";
+import { randomUUID } from "crypto";
 
 export async function createUser(username, password) {
     const SQL = `
-    INSERT INTO users (username, password)
-    VALUES ($1, $2)
-    returning*
+        INSERT INTO app.users (id, username, password)
+        VALUES ($1, $2, $3)
+        RETURNING *
     `;
 
-    const hashedPassword = await bcrypt.hash(password, 12);
-    const{ rows: [user],} = await db.query(SQL, [username, hashedPassword]);
-    
-    return user;
-};
+    try {
+        console.log("Hashing password...");
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        const id = randomUUID();
+
+        console.log("Password hashed. Running database query...");
+        console.log("Database:", process.env.DATABASE_CONNECTION);
+
+        const { rows: [user] } = await db.query(SQL, [
+            id,
+            username,
+            hashedPassword
+        ]);
+
+        console.log("Database query complete:", user);
+
+        return user;
+    } catch (error) {
+        console.error("createUser failed:", error);
+        throw error;
+    }
+}
 
 export async function userLogin(username, pasword) {
     const SQL = `
