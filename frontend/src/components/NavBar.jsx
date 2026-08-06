@@ -1,7 +1,9 @@
 import { NavLink } from "react-router-dom"; // or "react-router"
 
 export default function Navbar() {
+  
   return (
+    
     <nav className="navbar">
       <div className="nav-brand">
         <NavLink to="/">BeatForge</NavLink>
@@ -22,6 +24,7 @@ export default function Navbar() {
             <button className="nav-btn">Sequencer</button>
           </NavLink>
         </li>
+        {}
         <li>
           <NavLink to="/login">
             <button className="nav-btn">Login</button>
