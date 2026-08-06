@@ -1,14 +1,10 @@
 import { useState } from "react";
-import { useAuth } from "./AuthContext/AuthContext";
 import { useNavigate } from "react-router";
-import usersRouter from "../../backend/api/users";
-
-
+import { useAuth } from "./AuthContext/AuthContext";
 
 export default function LoginPage() {
-  const navigate = useNavigate();
-  
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -25,11 +21,12 @@ export default function LoginPage() {
       password: formData.get("password")?.toString(),
     });
 
-    if(result.status !== 'error'){
-      navigate("/userPage")
+    setMessage(result.message);
+
+    if (result.status === "success") {
+      navigate("/userPage");
     }
 
-    setMessage(result.message);
     setPending(false);
   }
 
