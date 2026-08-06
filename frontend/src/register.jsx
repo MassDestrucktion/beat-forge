@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useAuth } from "./AuthContext/AuthContext";
+import { useNavigate } from "react-router";
+import usersRouter from "../../backend/api/users";
+
 
 export default function RegisterPage() {
+  const navigate = useNavigate();
+  
   const { register } = useAuth();
 
   const [pending, setPending] = useState(false);
@@ -18,6 +23,10 @@ export default function RegisterPage() {
       username: formData.get("username")?.toString().trim(),
       password: formData.get("password")?.toString(),
     });
+
+    if(result.status !== 'error'){
+      navigate("/userPage")
+    }
 
     setMessage(result.message);
     setPending(false);

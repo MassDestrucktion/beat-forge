@@ -29,7 +29,7 @@ usersRouter.post(
 
       const token = await createToken({ id: user.id });
 
-      res.status(201).send(token);
+      res.status(201).json({username, token});
     } catch (error) {
       console.log(error);
       next(error);
@@ -44,7 +44,7 @@ usersRouter.post('/login', requireBody(["username", "password"]), async (req, re
 
          if (!user) return res.status(401).send("Invalid username or password.");
     const token = await createToken({ id: user.id });
-    res.send(token);
+    res.json({username, token});
     }    
     catch(error) {
         console.log(error);
