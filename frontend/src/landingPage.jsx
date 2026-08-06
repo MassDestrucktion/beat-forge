@@ -10,7 +10,7 @@ export default function LandingPage() {
       <div>
         <p> BeatForge is a dynamic web-based beat-creating appliacation that allows you to create, save, and share 16-step beat patterns.</p>
       </div>
-      <div className="landingContainer">
+      <div className="landingGrid">
         <div className="landingItem1">
         <h3>Getting Started</h3>
         <img src={prototypeImg} alt="Prototype enclosure" height="300px" width="300" />

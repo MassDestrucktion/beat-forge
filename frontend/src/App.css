@@ -294,29 +294,11 @@
   box-shadow: 0 0 18px rgba(74, 222, 128, 0.45);
 }
 
-@media (max-width: 760px) {
-  .hero-card,
-  .controls-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
-  }
+/* ==========================================
+   Profile Page Container
+   ========================================== */
 
-  .summary-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .track-main {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .track-label {
-    width: auto;
-    text-align: left;
-  }
-
-  .profileGrid {
+ .profileGrid {
     display: grid;
     border: 1px solid black;
     grid-template-columns: 1fr 1fr;
@@ -341,26 +323,51 @@
     grid-row: 2 / 3;
   }
 
-   .pgrid4{
-    border: 1px solid blue;
-  }
+   /* ==========================================
+   Landing Page Container
+   ========================================== */
 
   .landingGrid {
     display: grid;
-    border: 1px solid black;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr;
+    grid-column: 1 / 2;
+    grid-row: 1 /2;
   }
 
   .landingItem1{
-    border: 1px solid blue;
     grid-column: 1 / 2;
-    
-  }
-  .landingItem1{
-    border: 1px solid blue;
+    grid-row: 1 /2;
+ 
+  } 
+
+  .landingItem2{
     grid-column: 2 / 3;
+    grid-row: 1 /2;
     
+  } 
+  
+
+
+@media (max-width: 760px) {
+  .hero-card,
+  .controls-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
   }
+
+  .summary-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .track-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .track-label {
+    width: auto;
+    text-align: left;
+  }
+
 
 }

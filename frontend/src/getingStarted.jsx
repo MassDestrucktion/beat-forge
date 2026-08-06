@@ -17,6 +17,7 @@ export default function getingStarted(){
             </p>
         <h4>General info</h4>
         <p> once you are registered you can see a list and return to your saved projects to keep working! </p>
+        <Button onClick="location.href='another-page.html'">Start Here</Button>
         </div>
     )
 }
