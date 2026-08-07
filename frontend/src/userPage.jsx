@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import ListItem from "./components/projectList";
 import { useAuth } from "./AuthContext/AuthContext";
+import "./styles/userPage.css";
 
 export default function UserPage() {
     const { user } = useAuth();
@@ -10,11 +11,11 @@ export default function UserPage() {
     useEffect(() => {
         async function fetchProjects() {
             try {
-                if (!user?.id) {
-                    return;
-                }
+                if (!user?.id) return;
 
-                const response = await fetch(`/api/projects/user/${user.id}`);
+                const response = await fetch(
+                    `/api/projects/user/${user.id}`
+                );
 
                 if (!response.ok) {
                     throw new Error("Failed to fetch projects");
@@ -23,10 +24,9 @@ export default function UserPage() {
                 const projects = await response.json();
 
                 setUserProjects(projects);
-                console.log("User projects:", projects);
 
             } catch (error) {
-                console.error("Error fetching projects:", error);
+                console.error(error);
             }
         }
 
@@ -35,47 +35,53 @@ export default function UserPage() {
 
 
     return (
-        <div className="profileGrid">
+        <main className="dashboard">
 
-            <img
-                className="pgrid1"
-                src={null}
-                alt="Profile"
-            />
+            <section className="welcomeCard">
+                <h1>
+                    Welcome, {user?.username || "User"}
+                </h1>
 
-
-            <div className="pgrid2">
-                <h1>Profile:</h1>
-
-                {user ? (
-                    <h3>{user.username}</h3>
-                ) : (
-                    <h3>Loading...</h3>
-                )}
-
-            </div>
+                <p>
+                    Manage your music projects below.
+                </p>
+            </section>
 
 
+            <section className="projectsSection">
 
-            <ul className="pgrid3">
-                {userProjects.length > 0 ? (
-                    userProjects.map((project) => (
-                        <ListItem
-                            key={project.id}
-                            project={project}
-                        />
-                    ))
-                ) : (
-                    <li>No projects yet</li>
-                )}
-            </ul>
+                <div className="projectsHeader">
+                    <h2>Your Projects</h2>
+
+                    <button className="newProjectBtn">
+                        + New Project
+                    </button>
+                </div>
 
 
+                <div className="projectsGrid">
 
-            <button>
-                Start New Project
-            </button>
+                    {userProjects.length > 0 ? (
+                        userProjects.map((project) => (
+                            <ListItem
+                                key={project.id}
+                                project={project}
+                            />
+                        ))
+                    ) : (
+                        <div className="emptyProjects">
+                            <h3>No projects yet</h3>
 
-        </div>
+                            <p>
+                                Start creating your first track.
+                            </p>
+                        </div>
+                    )}
+
+                </div>
+
+            </section>
+
+        </main>
     );
 }
