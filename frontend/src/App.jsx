@@ -7,6 +7,7 @@ import LoginPage from "./login";
 import UserPage from "./userPage";
 import SequencerPage from "./SequencerPage";
 import GettingStarted from "./getingStarted";
+import FeaturedProjects from "./featuredprojects"
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/getting-started" element={<GettingStarted />} />
+          <Route path="/featuredprojects" element={<FeaturedProjects />} />
           <Route path="/sequencer" element={<SequencerPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/login" element={<LoginPage />} />
