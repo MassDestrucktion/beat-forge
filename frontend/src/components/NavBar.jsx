@@ -1,10 +1,16 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext/AuthContext.jsx";
 
 export default function Navbar() {
     const { isAuthenticated, token, user, logout } = useAuth();
+    const navigate = useNavigate();
 
-    console.log("Navbar auth:", isAuthenticated, token);
+    console.log("Navbar auth:", isAuthenticated, token, user);
+
+    function handleLogout() {
+        logout();
+        navigate("/login");
+    }
 
     return (
         <nav className="navbar">
@@ -60,7 +66,7 @@ export default function Navbar() {
                         <li>
                             <button
                                 className="nav-btn"
-                                onClick={logout}
+                                onClick={handleLogout}
                             >
                                 Logout
                             </button>

@@ -2,18 +2,25 @@ import { Router } from "express";
 import requireBody from "../middleware/requireBody.js";
 import { createUser, userLogin, getUser } from "../db/queries/users.js";
 import { createToken } from "../jwt/jwt.js";
+import { get_user_projects } from "../db/queries/projects.js";
 
 const usersRouter = Router();
 
 
-
+// Get user by id
 usersRouter.get("/:id", async (req, res, next) => {
     try {
         const { id } = req.params;
 
         const user = await getUser(id);
 
-        res.send(user);
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found"
+            });
+        }
+
+        res.json(user);
 
     } catch (error) {
         console.log(error);
@@ -22,7 +29,23 @@ usersRouter.get("/:id", async (req, res, next) => {
 });
 
 
+// Get user's projects
+usersRouter.get("/:id/projects", async (req, res, next) => {
+    try {
+        const { id } = req.params;
 
+        const projects = await get_user_projects(id);
+
+        res.json(projects);
+
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+});
+
+
+// Register
 usersRouter.post(
     "/register",
     requireBody(["username", "password"]),
@@ -30,34 +53,24 @@ usersRouter.post(
         try {
             const { username, password } = req.body;
 
-
-            const user = await createUser(
-                username,
-                password
-            );
-
+            const user = await createUser(username, password);
 
             if (!user) {
-                return res
-                    .status(404)
-                    .send("Incorrect Credentials");
+                return res.status(400).json({
+                    message: "Unable to create user"
+                });
             }
-
 
             const token = await createToken({
                 id: user.id
             });
 
-
-            // Remove password before sending user data
             const { password: _, ...safeUser } = user;
-
 
             res.status(201).json({
                 user: safeUser,
                 token
             });
-
 
         } catch (error) {
             console.log(error);
@@ -67,7 +80,7 @@ usersRouter.post(
 );
 
 
-
+// Login
 usersRouter.post(
     "/login",
     requireBody(["username", "password"]),
@@ -75,34 +88,31 @@ usersRouter.post(
         try {
             const { username, password } = req.body;
 
+            console.log("LOGIN ATTEMPT:", username);
 
             const user = await userLogin(
                 username,
                 password
             );
 
+            console.log("USER FOUND:", user);
 
             if (!user) {
-                return res
-                    .status(401)
-                    .send("Invalid username or password.");
+                return res.status(401).json({
+                    message: "Invalid username or password."
+                });
             }
-
 
             const token = await createToken({
                 id: user.id
             });
 
-
-            // Remove password before sending user data
             const { password: _, ...safeUser } = user;
-
 
             res.json({
                 user: safeUser,
                 token
             });
-
 
         } catch (error) {
             console.log(error);
@@ -110,7 +120,6 @@ usersRouter.post(
         }
     }
 );
-
 
 
 export default usersRouter;
