@@ -1,33 +1,59 @@
 import express from "express";
 import { Router } from "express";
-import requireBody from "../middleware/requireBody";
+import requireBody from "../middleware/requireBody.js";
+import { createUser } from "../db/queries/users.js";
+import { userLogin } from "../db/queries/users.js";
+import { createToken } from "../jwt/jwt.js";
+import { getUser } from "../db/queries/users.js";
 
 const usersRouter = Router();
 
 
-usersRouter.post('/register', requireBody, async (req, res, next) => {
-    try {
-        const {username, password} = req.body;
-        const user = await createUser(username, pasword);
 
-        const token = await createToken({id: user.id})
-       res.status(201).send(token);
-    }    
-    catch {
-        
-    }
+usersRouter.get('/user/:id', async (req, res, next) => {
+  const{id} = req.params
+  const user = await getUser(id)
+  
+  res.send(user)
 });
 
-usersRouter.get('/login', requireBody, async (req, res, next) => {
+
+usersRouter.post(
+  '/register',
+  requireBody(["username", "password"]),
+  async (req, res, next) => {
+    try {
+      const { username, password } = req.body;
+
+      const user = await createUser(username, password);
+
+      if (!user) {
+        res.status(404).send("Incorrect Credentials");
+      }
+
+      const token = await createToken({ id: user.id });
+
+      res.status(201).json({user: user.id, user: token});
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  }
+);
+
+usersRouter.post('/login', requireBody(["username", "password"]), async (req, res, next) => {
     try {
         const {username, password} = req.body;
         const user = await userLogin(username, password);
 
          if (!user) return res.status(401).send("Invalid username or password.");
     const token = await createToken({ id: user.id });
-    res.send(token);
+    res.json({user: user.id, user: token});
     }    
     catch(error) {
         console.log(error);
+        next(error);
     }
 });
+
+export default usersRouter;

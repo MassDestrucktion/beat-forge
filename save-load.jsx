@@ -11,7 +11,6 @@ const trackConfig = [
     {type: "NoiseSynth", note: "1n"},
     {type: MetalSyth, note: "2n"},
     {type: Synth, note: "c4", "2n"}
-
 ];
 
 

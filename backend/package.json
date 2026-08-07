@@ -7,11 +7,19 @@
   "type": "module",
   "main": "app.js",
   "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
     "db:schema": "psql -U postgres -d beat_forge -f db/schema.sql ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
     "express": "^5.2.1",
+    "nodemon": "^3.1.14",
     "pg": "^8.22.0"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "jsonwebtoken": "^9.0.3"
   }
 }
