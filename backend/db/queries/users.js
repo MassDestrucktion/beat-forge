@@ -47,3 +47,14 @@ export async function userLogin(username, password) {
     }
     return null;
 };
+
+export async function getUser(id) {
+const SQL = `
+    SELECT *
+    FROM users
+    WHERE id = $1
+    RETURNING *
+    `;
+const {rows: [user]} = await db.query(SQL, [id]);
+return user;
+};

@@ -13,11 +13,11 @@ export default function LandingPage() {
       <div className="landingGrid">
         <div className="landingItem1">
         <h3>Getting Started</h3>
-        <img src={prototypeImg} alt="Prototype enclosure" height="300px" width="300" />
+        <img src={prototypeImg} alt="Prototype enclosure" height="200px" width="300" />
         </div>
           <div className="landingItem2">
         <h3>Featured Tracks</h3>
-        <img src={djPic} alt="DJ pic" height="300px" width="300"  />
+        <img src={djPic} alt="DJ pic" height="200px" width="300"  />
         </div>
       </div>
     </div>

@@ -4,9 +4,9 @@ import { useNavigate } from "react-router";
 
 
 export default function RegisterPage() {
-  const navigate = useNavigate();
   
   const { register } = useAuth();
+  const navigate = useNavigate();
 
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -23,6 +23,9 @@ export default function RegisterPage() {
       password: formData.get("password")?.toString(),
     });
 
+    if (result.status === "success") {
+      navigate("/userPage");
+    }
     setMessage(result.message);
     setPending(false);
   }
