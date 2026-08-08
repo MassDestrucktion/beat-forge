@@ -7,6 +7,7 @@ import LoginPage from "./login";
 import UserPage from "./userPage";
 import SequencerPage from "./SequencerPage";
 import GettingStarted from "./getingStarted";
+import FeaturedProjects from "./featuredprojects"
 
 export default function App() {
     return (

@@ -1,12 +1,11 @@
-// ./components/projectList.jsx
+import userPage from "../userPage";
 
-function ListItem({ title, description }) {
-  return (
-    <li className="list-item">
-      <h3>{title}</h3>
-      <p>{description}</p>
-    </li>
-  );
-}
 
-export default ListItem;
+export default function listItem(project) {
+    return(
+        <li>
+            <p>project.name</p>
+        </li>
+    )
+};
+
