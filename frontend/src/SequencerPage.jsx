@@ -143,6 +143,10 @@ export default function App() {
     );
   };
 
+  const startDowload = () => {
+    
+  }
+
   const updateTrackSetting = (trackIndex, key, value) => {
     setTrackSettings((prev) =>
       prev.map((track, index) =>
@@ -175,6 +179,7 @@ export default function App() {
             {isPlaying ? "⏹ Stop" : "▶ Play"}
           </button>
           <button onClick={clearGrid}>Clear Pattern</button>
+          <button onClick={startDowload}>Clear Pattern</button>
         </div>
 
         <label className="bpm-control">

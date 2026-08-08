@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useEffect } from "react";
 import listItem from "./components/projectList";
-import DJ-pic from './media/DJ-pic.jpg';
+import djPic from './media/Dj-pic.jpg';
 
 export default function FeaturedProjects() {
     
@@ -16,6 +16,7 @@ export default function FeaturedProjects() {
         
     
         <div className="featuredGrid">
+            
             <h1>Featured Projects </h1>
             <div className="featuregrid1">
             <img  src={DJ-pic} alt="MyIMG" height="100px" width="150px"/>
