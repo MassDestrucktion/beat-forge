@@ -10,22 +10,21 @@ import GettingStarted from "./getingStarted";
 import FeaturedProjects from "./featuredprojects"
 
 export default function App() {
-  return (
-    <div className="app-container">
-      <Navbar />
+    return (
+        <>
+            <Navbar />
 
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/getting-started" element={<GettingStarted />} />
-          <Route path="/featuredprojects" element={<FeaturedProjects />} />
-          <Route path="/sequencer" element={<SequencerPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/userPage" element={<UserPage />} />
-          <Route path="*" element={<div>404 - Page Not Found</div>} />
-        </Routes>
-      </main>
-    </div>
-  );
+            <main className="main-content">
+                <Routes>
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/getting-started" element={<GettingStarted />} />
+                    <Route path="/sequencer" element={<SequencerPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/userPage" element={<UserPage />} />
+                    <Route path="*" element={<div>404 - Page Not Found</div>} />
+                </Routes>
+            </main>
+        </>
+    );
 }

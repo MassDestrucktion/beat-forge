@@ -1,12 +1,33 @@
-import db from "#db/client";
+import db from "../client.js";
 
-export async function createProject() {
-    const SQL =`
-        INSERT INTO tracks (id, name, tempo)  
-        VALUES ($1, $2, $3)
-        returning *
+export async function createProject(id, user_id, name, description) {
+    const SQL = `
+        INSERT INTO app.projects (id, user_id, name, description)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
     `;
 
-    const { rows: track } = await db.query(SQL, [id, name, tempo]);
-    return track;
-};
+    const { rows: [project] } = await db.query(SQL, [
+        id,
+        user_id,
+        name,
+        description
+    ]);
+
+    return project;
+}
+
+
+export async function get_user_projects(user_id) {
+    const SQL = `
+        SELECT *
+        FROM app.projects
+        WHERE user_id = $1
+    `;
+
+    const { rows } = await db.query(SQL, [
+        user_id
+    ]);
+
+    return rows;
+}
