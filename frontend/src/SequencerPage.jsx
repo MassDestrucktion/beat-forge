@@ -143,8 +143,32 @@ export default function App() {
     );
   };
 
-  const startDowload = () => {
-    
+  const dowloadTrackAsWav = async (scheduleFn, durationInSeconds, filename = "track.wav") => {
+    const buffer = await Tone.OfflineContext(async ({Tone.Transport})) +> {
+      scheduleFn(transport); // build your instruments/sequence here
+    transport.start();
+  }, durationInSeconds);
+
+  const wavData = audioBufferToWav(buffer.get());
+  const blob = new blob([wavData], {type:audio/wav"});
+    const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.dowload = filename;
+  document.body.appendChild(a); // some browsers require it in the DOM
+  a.click();
+  document.body.removeChils(a); 
+  URL.revokeObjectURL(url);// free memory once download starts
+    }
+
+    // Example usage — define your track as a function, pass it in
+downloadTrackAsWav((transport) => {
+  const synth = new Tone.Synth().toDestination();
+  synth.triggerAttackRelease("C4", "8n", 0);
+  synth.triggerAttackRelease("E4", "8n", 0.5);
+  synth.triggerAttackRelease("G4", "8n", 1);
+}, 2); // 2 seconds long
   }
 
   const updateTrackSetting = (trackIndex, key, value) => {
@@ -179,7 +203,7 @@ export default function App() {
             {isPlaying ? "⏹ Stop" : "▶ Play"}
           </button>
           <button onClick={clearGrid}>Clear Pattern</button>
-          <button onClick={startDowload}>Clear Pattern</button>
+          <button onClick={dowloadTrackAsWav}>Download Track</button>
         </div>
 
         <label className="bpm-control">

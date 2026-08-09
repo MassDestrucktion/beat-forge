@@ -19,14 +19,14 @@ export default function FeaturedProjects() {
             
             <h1>Featured Projects </h1>
             <div className="featuregrid1">
-            <img  src={DJ-pic} alt="MyIMG" height="100px" width="150px"/>
+            <img  src={djPic} alt="MyIMG" height="100px" width="150px"/>
             <h4>Chill Groove</h4>
             <h5> A relaxing mellow groove to help relax and chill.
                 created by Dj JohnnyLaw
             </h5>
             </div>
             <div className="featuregrid1">
-            <img  src={DJ-pic}alt="MyIMG" height="100px" width="150px"/>
+            <img  src={djPic}alt="MyIMG" height="100px" width="150px"/>
             <h4>Chill Groove</h4>
             <h5> A relaxing mellow groove to help relax and chill.
                 created by Dj JohnnyLaw
