@@ -93,7 +93,7 @@ export default function userPage() {
 
         try {
             const response = await fetch(
-                `/api/projects/${projectId}`,
+                `/api/users/${user?.id}/projects/${projectId}`,
                 {
                     method: "DELETE",
                     headers: {
