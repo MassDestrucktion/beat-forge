@@ -1,23 +1,40 @@
-DROP TABLE if exists users CASCADE;
-DROP TABLE if exists tracks CASCADE;
-DROP TABLE if exists users_tracks CASCADE;
+DROP TABLE IF EXISTS tracks CASCADE;
+DROP TABLE IF EXISTS projects CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
 
 CREATE TABLE users (
     id UUID PRIMARY KEY,
-    username text NOT NULL UNIQUE,
-    password text NOT NULL,
-    bio text
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    bio TEXT
 );
+
+
+CREATE TABLE projects (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    tempo INTEGER DEFAULT 120,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 
 CREATE TABLE tracks (
     id UUID PRIMARY KEY,
-    name text NOT NULL,
-    description text
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE users_tracks (
-    id serial PRIMARY KEY,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
-    UNIQUE (user_id, track_id)
-);
+
+CREATE INDEX idx_projects_user_id
+ON projects(user_id);
+
+
+CREATE INDEX idx_tracks_project_id
+ON tracks(project_id);
