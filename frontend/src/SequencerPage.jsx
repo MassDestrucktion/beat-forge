@@ -1,10 +1,11 @@
 import * as Tone from "tone";
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useAuth } from "./AuthContext/AuthContext.jsx";
 import "./App.css";
 
 const NUM_TRACKS = 4;
-//const NUM_STEPS = 16;
-
+const NUM_STEPS = 16;
 const TRACK_LABELS = ["Track 1", "Track 2", "Track 3", "Track 4"];
 
 const INSTRUMENT_CONFIG = {
@@ -31,19 +32,26 @@ const samples = new Tone.Players({
 const stabSynth = new Tone.MembraneSynth().toDestination();
 const padSynth = new Tone.PolySynth(Tone.Synth).toDestination();
 
-export default function App() {
-  const [beatCount, setBeatCount] = useState(16);
-  
-  const [grid, setGrid] = useState(() =>
-    Array(NUM_TRACKS)
-      .fill(null)
-      .map(() => Array(beatCount).fill(false)),
-  );
+function createEmptyGrid() {
+  return Array(NUM_TRACKS)
+    .fill(null)
+    .map(() => Array(NUM_STEPS).fill(false));
+}
 
+export default function SequencerPage() {
+  const { isAuthenticated, token } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [grid, setGrid] = useState(createEmptyGrid);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(null);
   const [bpm, setBpm] = useState(120);
   const [trackSettings, setTrackSettings] = useState(DEFAULT_TRACK_SETTINGS);
+  const [projectName, setProjectName] = useState("");
+  const [projectId, setProjectId] = useState(null);
+  const [saveStatus, setSaveStatus] = useState("");
+  const [loadId, setLoadId] = useState("");
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const gridRef = useRef(grid);
   const settingsRef = useRef(trackSettings);
@@ -56,6 +64,56 @@ export default function App() {
   useEffect(() => {
     settingsRef.current = trackSettings;
   }, [trackSettings]);
+
+  // Auto-load project from URL query param ?projectId=...
+  useEffect(() => {
+    const projectIdFromUrl = searchParams.get("projectId");
+    if (!projectIdFromUrl || initialLoadDone) return;
+
+    const loadProjectFromUrl = async () => {
+      setSaveStatus("Loading project...");
+      try {
+        const res = await fetch(`/api/projects/${projectIdFromUrl}`, {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || "Failed to load project");
+        }
+
+        const project = await res.json();
+        applyProject(project);
+        setSaveStatus(`Loaded "${project.name}"`);
+      } catch (error) {
+        setSaveStatus(`Load failed: ${error.message}`);
+      } finally {
+        setInitialLoadDone(true);
+      }
+    };
+
+    loadProjectFromUrl();
+  }, [searchParams, token, initialLoadDone]);
+
+  const applyProject = (project) => {
+    setProjectName(project.name);
+    setProjectId(project.id);
+    setBpm(project.tempo || 120);
+    Tone.Transport.bpm.value = project.tempo || 120;
+
+    if (Array.isArray(project.grid) && project.grid.length === NUM_TRACKS) {
+      setGrid(project.grid);
+    }
+
+    if (
+      Array.isArray(project.track_settings) &&
+      project.track_settings.length === NUM_TRACKS
+    ) {
+      setTrackSettings(project.track_settings);
+    }
+  };
 
   const playTrackSound = (trackIndex, time) => {
     const config = settingsRef.current[trackIndex];
@@ -76,12 +134,12 @@ export default function App() {
 
   useEffect(() => {
     const repeat = (time) => {
-      const step = stepCountRef.current % beatCount;
+      const step = stepCountRef.current % NUM_STEPS;
       setCurrentStep(step);
 
       const currentGrid = gridRef.current;
 
-      for (let trackIdx = 0; trackIdx < beatCount; trackIdx++) {
+      for (let trackIdx = 0; trackIdx < NUM_TRACKS; trackIdx++) {
         if (currentGrid[trackIdx][step]) {
           playTrackSound(trackIdx, time);
         }
@@ -136,11 +194,20 @@ export default function App() {
   };
 
   const clearGrid = () => {
-    setGrid(
-      Array(NUM_TRACKS)
-        .fill(null)
-        .map(() => Array(beatCount).fill(false)),
-    );
+    setGrid(createEmptyGrid());
+  };
+
+  const handleNewProject = () => {
+    setProjectName("");
+    setProjectId(null);
+    setGrid(createEmptyGrid());
+    setTrackSettings(DEFAULT_TRACK_SETTINGS);
+    setBpm(120);
+    Tone.Transport.bpm.value = 120;
+    setSaveStatus("");
+    setLoadId("");
+    setInitialLoadDone(false);
+    setSearchParams({});
   };
 
   const updateTrackSetting = (trackIndex, key, value) => {
@@ -149,6 +216,82 @@ export default function App() {
         index === trackIndex ? { ...track, [key]: value } : track,
       ),
     );
+  };
+
+  const saveProject = async () => {
+    if (!projectName.trim()) {
+      setSaveStatus("Please enter a project name.");
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setSaveStatus("Please log in to save your project.");
+      return;
+    }
+
+    const payload = {
+      name: projectName,
+      tempo: bpm,
+      grid,
+      trackSettings,
+    };
+
+    const isUpdate = !!projectId;
+
+    try {
+      const url = isUpdate ? `/api/projects/${projectId}` : "/api/projects";
+      const method = isUpdate ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err || "Failed to save project");
+      }
+
+      const project = await response.json();
+      setProjectId(project.id);
+      setSaveStatus(
+        isUpdate
+          ? `Updated "${project.name}"`
+          : `Saved "${project.name}" (ID: ${project.id})`,
+      );
+    } catch (error) {
+      setSaveStatus(`Save failed: ${error.message}`);
+    }
+  };
+
+  const loadProject = async () => {
+    if (!loadId.trim()) {
+      setSaveStatus("Please enter a project ID to load.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${loadId.trim()}`, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err || "Failed to load project");
+      }
+
+      const project = await response.json();
+      applyProject(project);
+      setSaveStatus(`Loaded "${project.name}"`);
+    } catch (error) {
+      setSaveStatus(`Load failed: ${error.message}`);
+    }
   };
 
   return (
@@ -175,6 +318,7 @@ export default function App() {
             {isPlaying ? "⏹ Stop" : "▶ Play"}
           </button>
           <button onClick={clearGrid}>Clear Pattern</button>
+          <button onClick={handleNewProject}>🆕 New Project</button>
         </div>
 
         <label className="bpm-control">
@@ -188,6 +332,33 @@ export default function App() {
           />
           <strong>{bpm}</strong>
         </label>
+      </section>
+
+      <section className="save-load-card">
+        <div className="save-section">
+          <input
+            type="text"
+            placeholder="Project name"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+          />
+          <button onClick={saveProject}>
+            {projectId ? "💾 Update Project" : "💾 Save Project"}
+          </button>
+          {projectId && <span className="project-id">ID: {projectId}</span>}
+        </div>
+
+        <div className="load-section">
+          <input
+            type="text"
+            placeholder="Project ID to load"
+            value={loadId}
+            onChange={(e) => setLoadId(e.target.value)}
+          />
+          <button onClick={loadProject}>📂 Load Project</button>
+        </div>
+
+        {saveStatus && <p className="save-status">{saveStatus}</p>}
       </section>
 
       <div className="tracks">
