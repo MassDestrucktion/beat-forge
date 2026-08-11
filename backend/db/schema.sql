@@ -49,5 +49,10 @@ CREATE TABLE friendships (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     CONSTRAINT no_self_friendship CHECK (requester_id <> accepter_id),
     CONSTRAINT unique_friendship UNIQUE (requester_id, accepter_id)
-
 )
+
+CREATE INDEX idx_friendships_requester_status 
+ON friendships (requester_id, status);
+
+CREATE INDEX idx_friendships_addressee_status 
+ON friendships (addressee_id, status);
