@@ -154,6 +154,7 @@ export default function userPage() {
             </section>
             <section className="friendsSection">
                 <h2>FriendsSection</h2>
+                
             </section>
             <section className="projectsSection">
                 <div className="projectsHeader">

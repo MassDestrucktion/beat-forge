@@ -42,10 +42,12 @@ ON tracks(project_id);
 
 CREATE TABLE friendships (
     id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    friend_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    status
+    requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    accepter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL 
+    CHECK (status IN ('pending', 'accepted', 'rejected')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    UNIQUE(user_id, friend_id)
+    CONSTRAINT no_self_friendship CHECK (requester_id <> accepter_id),
+    CONSTRAINT unique_friendship UNIQUE (requester_id, accepter_id)
 
 )
