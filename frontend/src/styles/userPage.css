@@ -42,7 +42,7 @@
     margin-bottom: 1.5rem;
 }
 
-
+s
 .projectsHeader h2 {
     margin: 0;
 }
@@ -84,4 +84,45 @@
 
 .newProjectBtn:hover {
     background: #6d28d9;
+}
+
+
+/* Following */
+.followingSection {
+    background: #111;
+    padding: 2rem;
+    border-radius: 16px;
+}
+
+
+.followingHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+
+.followingHeader h2 {
+    margin: 0;
+}
+
+
+
+/* Project cards */
+
+.followingGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+
+
+.emptyfollowing {
+    background: #222;
+    padding: 2rem;
+    border-radius: 12px;
+    text-align: center;
+    color: #aaa;
 }
