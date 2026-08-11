@@ -40,14 +40,13 @@ ON projects(user_id);
 CREATE INDEX idx_tracks_project_id
 ON tracks(project_id);
 
-CREATE TABLE friendships (
-    id UUID PRIMARY KEY,
-    requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    accepter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    status VARCHAR(20) NOT NULL 
-    CHECK (status IN ('pending', 'accepted', 'rejected')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    CONSTRAINT no_self_friendship CHECK (requester_id <> accepter_id),
-    CONSTRAINT unique_friendship UNIQUE (requester_id, accepter_id)
+CREATE TABLE follows (
+  follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  followee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
-)
+  PRIMARY KEY (follower_id, followee_id),
+  CONSTRAINT no_self_follow CHECK (follower_id != followee_id)
+);
+
+CREATE INDEX idx_follows_followee ON follows (followee_id);

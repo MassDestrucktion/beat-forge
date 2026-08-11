@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import ListItem from "./components/projectList";
+import { FollowingItem } from "./components/followingItem";
 import { useAuth } from "./AuthContext/AuthContext";
 import "./styles/userPage.css";
 
@@ -35,6 +36,8 @@ export default function userPage() {
     const [userProjects, setUserProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [following, setFollowing] = useState([]);
+
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -141,6 +144,16 @@ export default function userPage() {
         );
     }
 
+    async function handleFollowing() {
+    const response = await fetch(`/api/users/${user.id}/following`, {
+        headers: {
+            Authorization: token ? `Bearer ${token}` : ""
+        }
+    });
+    const following = await response.json();
+    }
+
+
     return (
         <main className="dashboard">
             <section className="welcomeCard">
@@ -159,6 +172,13 @@ export default function userPage() {
                 <p> List of people you follow as links to their profiles
                     probably move to right column of page
                 </p>
+                <ul>
+                    {following.map((user) => (
+                        <li key={user.id}>
+                            <FollowingItem following={user} />
+                        </li>
+                    ))}
+                </ul>
             </section>
             <section className="projectsSection">
                 <div className="projectsHeader">
