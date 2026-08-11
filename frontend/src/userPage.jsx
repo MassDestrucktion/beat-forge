@@ -152,9 +152,13 @@ export default function userPage() {
                     Manage your music projects below.
                 </p>
             </section>
-            <section className="friendsSection">
-                <h2>FriendsSection</h2>
-                
+            <section className="followingSection">
+                <div className="followingHeader">
+                    <h2>People You Follow</h2>
+                </div>
+                <p> List of people you follow as links to their profiles
+                    probably move to right column of page
+                </p>
             </section>
             <section className="projectsSection">
                 <div className="projectsHeader">
