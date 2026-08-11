@@ -1,13 +1,14 @@
 DROP TABLE IF EXISTS tracks CASCADE;
 DROP TABLE IF EXISTS projects CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
-
+DROP TABLE IF EXISTS friendships CASCADE;
 
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
     bio TEXT
+
 );
 
 
@@ -38,3 +39,15 @@ ON projects(user_id);
 
 CREATE INDEX idx_tracks_project_id
 ON tracks(project_id);
+
+CREATE TABLE friendships (
+    id UUID PRIMARY KEY,
+    requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    accepter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL 
+    CHECK (status IN ('pending', 'accepted', 'rejected')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    CONSTRAINT no_self_friendship CHECK (requester_id <> accepter_id),
+    CONSTRAINT unique_friendship UNIQUE (requester_id, accepter_id)
+
+)
