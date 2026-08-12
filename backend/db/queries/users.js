@@ -107,24 +107,24 @@ ORDER BY f.created_at DESC;
     return followings;
 };
 
-export async function followUser(followerId, followingId) {
+export async function followUser(followerId, followeeId) {
     const SQL = `  
         INSERT INTO follows (follower_id, following_id)
         VALUES ($1, $2)
         ON CONFLICT DO NOTHING
         RETURNING *
     `;
-    const { rows: followings } = await db.query(SQL, [followerId, followingId]);
+    const { rows: followings } = await db.query(SQL, [followerId, followeeId]);
     return followings;
 };
 
-export async function unfollowUser(followerId, followingId) {
+export async function unfollowUser(followerId, followeeId) {
     const SQL = `
         DELETE FROM follows
-        WHERE follower_id = $1 AND following_id = $2
+        WHERE follower_id = $1 AND followee_id = $2
         RETURNING *
     `;
-    const { rows: followings } = await db.query(SQL, [followerId, followingId]);
+    const { rows: followings } = await db.query(SQL, [followerId, followeeId]);
     return followings;
 }
 
@@ -132,10 +132,10 @@ export async function followCounts(followerId, followingId) {
     const SQL = `
     -- Ad hoc (fine at moderate scale)
     SELECT
-    (SELECT COUNT(*) FROM follows WHERE followee_id = 123) AS followers,
-    (SELECT COUNT(*) FROM follows WHERE follower_id = 123) AS following;
+    (SELECT COUNT(*) FROM follows WHERE followee_id = $1) AS followers,
+    (SELECT COUNT(*) FROM follows WHERE follower_id = $1) AS following;
     `;
 
-    const { rows: followings } = await db.query(SQL, [followerId, followingId]);
+    const { rows: followings } = await db.query(SQL, [followerId]);
     return followings;
 };

@@ -146,10 +146,10 @@ export default function userPage() {
                         ? followingUsers
                         : []
                 );
-            } catch (err) {
+            } catch (error) {
                 console.error(
                     "Failed to load following:",
-                    err
+                    error
                 );
 
                 setFollowing([]);

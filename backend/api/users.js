@@ -3,6 +3,8 @@ import requireBody from "../middleware/requireBody.js";
 import { createUser, userLogin, getUser } from "../db/queries/users.js";
 import { createToken } from "../jwt/jwt.js";
 import { get_user_projects } from "../db/queries/projects.js";
+import { getFollowing, followUser, unfollowUser } from "../db/queries/users.js";
+import requireAuth from "../middleware/requireAuth.js";
 
 const usersRouter = Router();
 
@@ -121,48 +123,25 @@ usersRouter.post("/:id/follow", async (req, res, next) => {
         const followerID = req.user.id;
         const followeeID = req.params.id;
 
-        if (followerID === Number(followeeID)) {
-            return res.status(400).json({
-                error: "Cannot follow yourself"
-            });
-        }
-
-        const SQL = `
-            INSERT INTO follows (follower_id, followee_id)
-            VALUES ($1, $2)
-        `;
-
-        await db.query(SQL, [followerID, followeeID]);
-
-        res.status(201).json({
-            message: "Followed successfully"
-        });
-    } catch (error) {
-        console.log(error);
-        next(error);
+    if(followerID ===Number(followeeID)) {
+        return res.status(400).json({"error": "Cannot follow yourself"})
     }
-});
-
-usersRouter.delete("/:id/follow", async (req, res, next) => {
-    try {
+    await db.query(
         const SQL = `
-            DELETE FROM follows
-            WHERE follower_id = $1
-            AND followee_id = $2
-        `;
+            INSERT INTO follows (follower_id, followee-id)
+            VALUES ($1, $2)`;
+            [followerID, followeeID]
+    );
 
-        await db.query(SQL, [
-            req.user.id,
-            req.params.id
-        ]);
+    });
 
-        res.json({
-            message: "Unfollowed successfully"
+    userROuter.delete("/:id/follow", requireAuth, async(req, res, next) => {
+        await db.query(
+            const SQL = `
+                DELETE FROM follows WHERE follower_id = $1 AND followee_id = $2
+                `;
+                [req.user.id, req.params.id]
+            );
         });
-    } catch (error) {
-        console.log(error);
-        next(error);
-    }
-});
 
 export default usersRouter;
