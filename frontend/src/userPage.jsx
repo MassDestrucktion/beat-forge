@@ -38,9 +38,33 @@ export default function userPage() {
     const [error, setError] = useState("");
     const [following, setFollowing] = useState([]);
 
-     useEffect(() => {
-        followingRef.current = handleFollowing();
-      }, [following]);
+    useEffect(() => {
+        if (!user?.id) return;
+
+        async function fetchFollowing() {
+            try{
+                const response = await fetch("/users/${user.id}/following", {
+                headers: {
+                    Authorization: token ? `Bearer ${token}` : ""
+                }
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                }
+                const data = await response.json();
+                setFollowing(data);
+            }
+            catch(error) {
+                console.log(error);
+            }
+        }
+        fetchFollowing();
+    }, [user?id, token]);
+    const toggleFollow = async () => {
+        const method = following ? 'DELETE' : 'POST';
+
+    }
+
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -147,16 +171,6 @@ export default function userPage() {
         );
     }
 
-   
-    async function handleFollowing() {
-    const response = await fetch(`/api/users/${user.id}/following`, {
-        headers: {
-            Authorization: token ? `Bearer ${token}` : ""
-        }
-    });
-    const following = await response.json();
-    setFollowing(following);
-    }
 
 
     return (
@@ -184,6 +198,9 @@ export default function userPage() {
                         </li>
                     ))}
                 </ul>
+                <button onClick={toggleFollow} disabled={loading}>
+                {isFollowing ? 'Unfollow' : 'Follow'}
+                </button>
             </section>
             <section className="projectsSection">
                 <div className="projectsHeader">
