@@ -38,6 +38,9 @@ export default function userPage() {
     const [error, setError] = useState("");
     const [following, setFollowing] = useState([]);
 
+     useEffect(() => {
+        followingRef.current = handleFollowing();
+      }, [following]);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -144,6 +147,7 @@ export default function userPage() {
         );
     }
 
+   
     async function handleFollowing() {
     const response = await fetch(`/api/users/${user.id}/following`, {
         headers: {
@@ -151,6 +155,7 @@ export default function userPage() {
         }
     });
     const following = await response.json();
+    setFollowing(following);
     }
 
 
