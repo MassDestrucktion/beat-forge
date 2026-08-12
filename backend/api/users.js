@@ -121,5 +121,34 @@ usersRouter.post(
     }
 );
 
+usersRouter.get("/:id/following", async(req, res, next) => {
+    const following = await getFollowing();
+    res.send(following);
+});
+
+userRouter.post("/:id/follow", requireAuth, async(req, res, next) => {
+    const followerID = req.user.id;
+    const followeeID = req.params.id;
+
+    if(followerID ===Number(followeeID)) {
+        return res.status(400).json({"error": "Cannot follow yourself"})
+    }
+    await db.query(
+        const SQL = `
+            INSERT INTO follows (follower_id, followee-id)
+            VALUES ($1, $2)`;
+            [followerID, followeeID]
+    );
+
+    });
+
+    userROuter.delete("/:id/follow", requireAuth, async(req, res, next) => {
+        await db.query(
+            const SQL = `
+                DELETE FROM follows WHERE follower_id = $1 AND followee_id = $2
+                `;
+                [req.user.id, req.params.id]
+            );
+        });
 
 export default usersRouter;

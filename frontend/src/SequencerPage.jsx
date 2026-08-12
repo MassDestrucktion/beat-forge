@@ -65,7 +65,7 @@ export default function SequencerPage() {
   const settingsRef = useRef(trackSettings);
   const stepCountRef = useRef(0);
 
-  useEffect(() => {
+  (() => {
     gridRef.current = grid;
   }, [grid]);
 
@@ -79,7 +79,7 @@ export default function SequencerPage() {
 
     if (!projectIdFromUrl || initialLoadDone) {
       return;
-    }
+    }useEffect
 
     const loadProjectFromUrl = async () => {
       setSaveStatus("Loading project...");
