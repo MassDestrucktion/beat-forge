@@ -22,13 +22,11 @@ import {
   createSoundEngine,
 } from "./audio/soundLibrary";
 
-import "./App.css";
+import {
+  toneDurationToSteps,
+} from "./audio/soundLibrary/soundEngine";
 
-/**
- * ---------------------------------------------------------
- * CONSTANTS
- * ---------------------------------------------------------
- */
+import "./App.css";
 
 const NUM_TRACKS = 4;
 const NUM_STEPS = 16;
@@ -41,63 +39,41 @@ const TRACK_LABELS = [
 ];
 
 /**
- * Notes available from the sequencer.
+ * ---------------------------------------------------------
+ * GRID DURATION OPTIONS
+ * ---------------------------------------------------------
  *
- * This gives us a useful range for basses, stabs,
- * melodies, pads, etc.
+ * These are expressed in GRID STEPS rather than raw Tone
+ * duration strings.
+ *
+ * 1 step  = 16n
+ * 2 steps = 8n
+ * 4 steps = 4n
+ * 8 steps = 2n
+ * 16 steps = 1m
  */
-const NOTE_OPTIONS = [
-  "C2",
-  "C#2",
-  "D2",
-  "D#2",
-  "E2",
-  "F2",
-  "F#2",
-  "G2",
-  "G#2",
-  "A2",
-  "A#2",
-  "B2",
 
-  "C3",
-  "C#3",
-  "D3",
-  "D#3",
-  "E3",
-  "F3",
-  "F#3",
-  "G3",
-  "G#3",
-  "A3",
-  "A#3",
-  "B3",
-
-  "C4",
-  "C#4",
-  "D4",
-  "D#4",
-  "E4",
-  "F4",
-  "F#4",
-  "G4",
-  "G#4",
-  "A4",
-  "A#4",
-  "B4",
-
-  "C5",
-  "C#5",
-  "D5",
-  "D#5",
-  "E5",
-  "F5",
-  "F#5",
-  "G5",
-  "G#5",
-  "A5",
-  "A#5",
-  "B5",
+const DURATION_OPTIONS = [
+  {
+    steps: 1,
+    label: "1 step",
+  },
+  {
+    steps: 2,
+    label: "2 steps",
+  },
+  {
+    steps: 4,
+    label: "4 steps",
+  },
+  {
+    steps: 8,
+    label: "8 steps",
+  },
+  {
+    steps: 16,
+    label: "16 steps",
+  },
 ];
 
 /**
@@ -125,7 +101,7 @@ const DEFAULT_TRACK_SETTINGS = [
   {
     sound: "synths.stabs.classic",
     note: "G2",
-    duration: "8n",
+    durationSteps: 2,
     muted: false,
   },
 ];
@@ -154,12 +130,132 @@ function createEmptyGrid() {
 
 /**
  * ---------------------------------------------------------
- * SOUND LIBRARY HELPERS
+ * SOUND LIBRARY
  * ---------------------------------------------------------
  */
 
 function getAvailableSounds() {
   return SOUND_LIBRARY;
+}
+
+/**
+ * ---------------------------------------------------------
+ * NORMALIZE TRACK SETTINGS
+ * ---------------------------------------------------------
+ *
+ * This is important because projects saved before the
+ * durationSteps change may still contain:
+ *
+ * duration: "8n"
+ *
+ * We convert that into:
+ *
+ * durationSteps: 2
+ */
+
+function normalizeTrackSettings(
+  track,
+  index
+) {
+  const defaultTrack =
+    DEFAULT_TRACK_SETTINGS[index] || {};
+
+  const soundId =
+    getSoundById(track?.sound)
+      ? track.sound
+      : defaultTrack.sound;
+
+  const sound =
+    getSoundById(soundId);
+
+  const normalized = {
+    ...defaultTrack,
+    ...track,
+
+    sound: soundId,
+
+    muted:
+      track?.muted ??
+      false,
+  };
+
+  /**
+   * Only synths need duration.
+   */
+
+  if (sound?.type === "synth") {
+    let durationSteps =
+      track?.durationSteps;
+
+    /**
+     * Convert old saved duration
+     * values if necessary.
+     */
+
+    if (
+      durationSteps === undefined &&
+      track?.duration
+    ) {
+      durationSteps =
+        toneDurationToSteps(
+          track.duration
+        );
+    }
+
+    /**
+     * Use sound definition if
+     * available.
+     */
+
+    if (
+      durationSteps === undefined &&
+      sound?.synth?.durationSteps
+    ) {
+      durationSteps =
+        sound.synth.durationSteps;
+    }
+
+    /**
+     * Legacy sound definitions may
+     * still contain duration.
+     */
+
+    if (
+      durationSteps === undefined &&
+      sound?.synth?.duration
+    ) {
+      durationSteps =
+        toneDurationToSteps(
+          sound.synth.duration
+        );
+    }
+
+    normalized.note =
+      track?.note ??
+      sound?.synth?.note ??
+      "C4";
+
+    normalized.durationSteps =
+      Number(durationSteps) || 1;
+
+    /**
+     * Remove the old property from
+     * the active model.
+     */
+
+    delete normalized.duration;
+  } else {
+    /**
+     * Samples/drums don't need
+     * duration.
+     */
+
+    delete normalized.note;
+    delete normalized.duration;
+    delete normalized.durationSteps;
+  }
+
+  return normalized;
 }
 
 /**
@@ -174,15 +270,17 @@ export default function SequencerPage() {
     token,
   } = useAuth();
 
-  const [searchParams, setSearchParams] =
-    useSearchParams();
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
 
   const navigate = useNavigate();
   const location = useLocation();
 
   /**
    * -------------------------------------------------------
-   * REACT STATE
+   * STATE
    * -------------------------------------------------------
    */
 
@@ -196,7 +294,8 @@ export default function SequencerPage() {
   const [currentStep, setCurrentStep] =
     useState(null);
 
-  const [bpm, setBpm] = useState(120);
+  const [bpm, setBpm] =
+    useState(120);
 
   const [
     trackSettings,
@@ -217,8 +316,10 @@ export default function SequencerPage() {
   const [loadId, setLoadId] =
     useState("");
 
-  const [initialLoadDone, setInitialLoadDone] =
-    useState(false);
+  const [
+    initialLoadDone,
+    setInitialLoadDone,
+  ] = useState(false);
 
   /**
    * -------------------------------------------------------
@@ -234,18 +335,6 @@ export default function SequencerPage() {
 
   const stepCountRef =
     useRef(0);
-
-  /**
-   * One audio routing chain per track:
-   *
-   * sound engine
-   *     ↓
-   * gain
-   *     ↓
-   * reverb
-   *     ↓
-   * destination
-   */
 
   const trackGainsRef =
     useRef([]);
@@ -303,7 +392,8 @@ export default function SequencerPage() {
       reverbs.push(reverb);
     }
 
-    trackGainsRef.current = gains;
+    trackGainsRef.current =
+      gains;
 
     trackReverbsRef.current =
       reverbs;
@@ -315,15 +405,20 @@ export default function SequencerPage() {
         }
       );
 
-      soundEnginesRef.current = [];
+      soundEnginesRef.current =
+        [];
 
-      gains.forEach((gain) => {
-        gain.dispose();
-      });
+      gains.forEach(
+        (gain) => {
+          gain.dispose();
+        }
+      );
 
-      reverbs.forEach((reverb) => {
-        reverb.dispose();
-      });
+      reverbs.forEach(
+        (reverb) => {
+          reverb.dispose();
+        }
+      );
     };
   }, []);
 
@@ -335,7 +430,10 @@ export default function SequencerPage() {
 
   useEffect(() => {
     trackSettings.forEach(
-      (settings, trackIndex) => {
+      (
+        settings,
+        trackIndex
+      ) => {
         const gain =
           trackGainsRef.current[
             trackIndex
@@ -350,32 +448,28 @@ export default function SequencerPage() {
           return;
         }
 
-        /**
-         * MUTE
-         */
-
         gain.gain.value =
           settings?.muted
             ? 0
             : 1;
 
-        /**
-         * REVERB
-         */
-
         const reverbEnabled =
           settings?.reverb
-            ?.enabled ?? false;
+            ?.enabled ??
+          false;
 
         const wet =
           settings?.reverb
-            ?.wet ?? 0.35;
+            ?.wet ??
+          0.35;
 
         const decay =
           settings?.reverb
-            ?.decay ?? 1.5;
+            ?.decay ??
+          1.5;
 
-        reverb.decay = decay;
+        reverb.decay =
+          decay;
 
         reverb.wet.value =
           reverbEnabled
@@ -389,81 +483,69 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    * CREATE / RECREATE SOUND ENGINES
    * -------------------------------------------------------
-   *
-   * Whenever a track changes sound, dispose its old
-   * engine and create the new library sound.
    */
 
   useEffect(() => {
-    const rebuildEngines = () => {
-      const gains =
-        trackGainsRef.current;
+    const rebuildEngines =
+      () => {
+        const gains =
+          trackGainsRef.current;
 
-      if (
-        gains.length !== NUM_TRACKS
-      ) {
-        return;
-      }
+        if (
+          gains.length !==
+          NUM_TRACKS
+        ) {
+          return;
+        }
 
-      for (
-        let trackIndex = 0;
-        trackIndex < NUM_TRACKS;
-        trackIndex++
-      ) {
-        const settings =
-          trackSettings[
-            trackIndex
-          ];
+        for (
+          let trackIndex = 0;
+          trackIndex <
+          NUM_TRACKS;
+          trackIndex++
+        ) {
+          const settings =
+            trackSettings[
+              trackIndex
+            ];
 
-        const sound =
-          getSoundById(
-            settings?.sound
-          );
+          const sound =
+            getSoundById(
+              settings?.sound
+            );
 
-        /**
-         * Dispose old engine.
-         */
+          const oldEngine =
+            soundEnginesRef.current[
+              trackIndex
+            ];
 
-        const oldEngine =
+          if (oldEngine) {
+            oldEngine.dispose();
+          }
+
           soundEnginesRef.current[
             trackIndex
-          ];
+          ] = null;
 
-        if (oldEngine) {
-          oldEngine.dispose();
+          if (!sound) {
+            console.warn(
+              `Sound not found: ${settings?.sound}`
+            );
+
+            continue;
+          }
+
+          const engine =
+            createSoundEngine(
+              sound,
+              gains[trackIndex]
+            );
+
+          soundEnginesRef.current[
+            trackIndex
+          ] = engine;
         }
-
-        soundEnginesRef.current[
-          trackIndex
-        ] = null;
-
-        /**
-         * No sound selected.
-         */
-
-        if (!sound) {
-          console.warn(
-            `Sound not found: ${settings?.sound}`
-          );
-
-          continue;
-        }
-
-        /**
-         * Create new engine.
-         */
-
-        const engine =
-          createSoundEngine(
-            sound,
-            gains[trackIndex]
-          );
-
-        soundEnginesRef.current[
-          trackIndex
-        ] = engine;
-      }
-    };
+      };
 
     rebuildEngines();
   }, [trackSettings]);
@@ -541,12 +623,14 @@ export default function SequencerPage() {
     ) {
       setTrackSettings(
         returnedState.trackSettings.map(
-          (track) => ({
-            ...track,
-            muted:
-              track?.muted ??
-              false,
-          })
+          (
+            track,
+            index
+          ) =>
+            normalizeTrackSettings(
+              track,
+              index
+            )
         )
       );
     }
@@ -583,10 +667,13 @@ export default function SequencerPage() {
 
     setInitialLoadDone(true);
 
-    navigate("/sequencer", {
-      replace: true,
-      state: null,
-    });
+    navigate(
+      "/sequencer",
+      {
+        replace: true,
+        state: null,
+      }
+    );
   }, [
     location.state,
     navigate,
@@ -605,7 +692,9 @@ export default function SequencerPage() {
       project.name || ""
     );
 
-    setProjectId(project.id);
+    setProjectId(
+      project.id
+    );
 
     const projectBpm =
       project.tempo || 120;
@@ -620,7 +709,9 @@ export default function SequencerPage() {
       project.grid.length ===
         NUM_TRACKS
     ) {
-      setGrid(project.grid);
+      setGrid(
+        project.grid
+      );
     }
 
     if (
@@ -632,53 +723,14 @@ export default function SequencerPage() {
     ) {
       const normalized =
         project.track_settings.map(
-          (track, index) => ({
-            ...track,
-
-            sound:
-              getSoundById(
-                track?.sound
-              )
-                ? track.sound
-                : DEFAULT_TRACK_SETTINGS[
-                    index
-                  ]?.sound,
-
-            muted:
-              track?.muted ??
-              false,
-
-            /**
-             * Preserve the saved note.
-             *
-             * If no note was saved for a synth,
-             * use its sound-library default.
-             */
-            note:
-              getSoundById(
-                track?.sound
-              )?.type === "synth"
-                ? track?.note ??
-                  getSoundById(
-                    track?.sound
-                  )?.synth?.note ??
-                  "C4"
-                : undefined,
-
-            /**
-             * Preserve the saved duration.
-             */
-            duration:
-              getSoundById(
-                track?.sound
-              )?.type === "synth"
-                ? track?.duration ??
-                  getSoundById(
-                    track?.sound
-                  )?.synth?.duration ??
-                  "8n"
-                : undefined,
-          })
+          (
+            track,
+            index
+          ) =>
+            normalizeTrackSettings(
+              track,
+              index
+            )
         );
 
       setTrackSettings(
@@ -725,9 +777,10 @@ export default function SequencerPage() {
               `/api/projects/${projectIdFromUrl}`,
               {
                 headers: {
-                  Authorization: token
-                    ? `Bearer ${token}`
-                    : "",
+                  Authorization:
+                    token
+                      ? `Bearer ${token}`
+                      : "",
                 },
               }
             );
@@ -773,14 +826,6 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    * PLAY TRACK SOUND
    * -------------------------------------------------------
-   *
-   * IMPORTANT:
-   *
-   * The selected note and duration are explicitly passed
-   * into the sound engine.
-   *
-   * This is what makes the Note dropdown actually affect
-   * the pitch of synth sounds during live playback.
    */
 
   const playTrackSound = (
@@ -808,32 +853,33 @@ export default function SequencerPage() {
 
     if (!engine) {
       console.warn(
-        `No sound engine for track ${trackIndex + 1}`
+        `No sound engine for track ${
+          trackIndex + 1
+        }`
       );
 
       return;
     }
 
-    /**
-     * Pass the current track note and duration
-     * into soundEngine.
-     *
-     * Explicit overrides win over track settings.
-     */
-    const playOverrides = {
-      note:
-        overrides.note ??
-        settings.note,
-
-      duration:
-        overrides.duration ??
-        settings.duration,
-    };
-
     try {
       engine.play(
         time,
-        playOverrides
+        {
+          ...overrides,
+
+          /**
+           * Always provide the
+           * track's grid duration.
+           */
+
+          note:
+            overrides.note ??
+            settings.note,
+
+          durationSteps:
+            overrides.durationSteps ??
+            settings.durationSteps,
+        }
       );
     } catch (error) {
       console.error(
@@ -857,10 +903,6 @@ export default function SequencerPage() {
         stepCountRef.current %
         NUM_STEPS;
 
-      /**
-       * Schedule the React UI update.
-       */
-
       setCurrentStep(step);
 
       const currentGrid =
@@ -868,7 +910,8 @@ export default function SequencerPage() {
 
       for (
         let trackIndex = 0;
-        trackIndex < NUM_TRACKS;
+        trackIndex <
+        NUM_TRACKS;
         trackIndex++
       ) {
         if (
@@ -1006,7 +1049,9 @@ export default function SequencerPage() {
     soundId
   ) => {
     const sound =
-      getSoundById(soundId);
+      getSoundById(
+        soundId
+      );
 
     if (!sound) {
       console.warn(
@@ -1030,38 +1075,59 @@ export default function SequencerPage() {
               return track;
             }
 
+            if (
+              sound.type ===
+              "synth"
+            ) {
+              return {
+                ...track,
+
+                sound:
+                  sound.id,
+
+                note:
+                  track.note ??
+                  sound.synth
+                    ?.note ??
+                  "C4",
+
+                durationSteps:
+                  track.durationSteps ??
+                  (
+                    sound.synth
+                      ?.durationSteps ??
+                    1
+                  ),
+
+                muted:
+                  track.muted ??
+                  false,
+              };
+            }
+
+            /**
+             * Samples/drums don't
+             * need note or duration.
+             */
+
             return {
               ...track,
 
               sound:
                 sound.id,
 
-              /**
-               * Synth sounds get a note.
-               *
-               * Keep the user's current note when
-               * switching between synths.
-               */
               note:
-                sound.type ===
-                "synth"
-                  ? track.note ??
-                    sound.synth
-                      ?.note ??
-                    "C4"
-                  : undefined,
+                undefined,
 
-              /**
-               * Synth duration.
-               */
+              durationSteps:
+                undefined,
+
               duration:
-                sound.type ===
-                "synth"
-                  ? track.duration ??
-                    sound.synth
-                      ?.duration ??
-                    "8n"
-                  : undefined,
+                undefined,
+
+              muted:
+                track.muted ??
+                false,
             };
           }
         )
@@ -1074,44 +1140,47 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    */
 
-  const togglePlay = async () => {
-    await Tone.start();
+  const togglePlay =
+    async () => {
+      await Tone.start();
 
-    if (
-      Tone.getContext().state !==
-      "running"
-    ) {
-      await Tone.getContext().resume();
-    }
+      if (
+        Tone.getContext().state !==
+        "running"
+      ) {
+        await Tone.getContext().resume();
+      }
 
-    if (isPlaying) {
+      if (isPlaying) {
+        Tone.Transport.stop();
+
+        Tone.Transport.position =
+          0;
+
+        stepCountRef.current =
+          0;
+
+        setIsPlaying(false);
+        setCurrentStep(null);
+
+        return;
+      }
+
       Tone.Transport.stop();
 
       Tone.Transport.position =
         0;
 
-      stepCountRef.current = 0;
+      stepCountRef.current =
+        0;
 
-      setIsPlaying(false);
-      setCurrentStep(null);
+      Tone.Transport.bpm.value =
+        bpm;
 
-      return;
-    }
+      Tone.Transport.start();
 
-    Tone.Transport.stop();
-
-    Tone.Transport.position =
-      0;
-
-    stepCountRef.current = 0;
-
-    Tone.Transport.bpm.value =
-      bpm;
-
-    Tone.Transport.start();
-
-    setIsPlaying(true);
-  };
+      setIsPlaying(true);
+    };
 
   /**
    * -------------------------------------------------------
@@ -1137,7 +1206,8 @@ export default function SequencerPage() {
     Tone.Transport.position =
       0;
 
-    stepCountRef.current = 0;
+    stepCountRef.current =
+      0;
 
     setIsPlaying(false);
     setCurrentStep(null);
@@ -1188,6 +1258,7 @@ export default function SequencerPage() {
             trackIndex
               ? {
                   ...track,
+
                   [key]:
                     value,
                 }
@@ -1486,12 +1557,6 @@ export default function SequencerPage() {
                   gain
                 );
 
-                /**
-                 * Build the exact same
-                 * sound engine used by
-                 * live playback.
-                 */
-
                 const sound =
                   getSoundById(
                     settings?.sound
@@ -1516,6 +1581,9 @@ export default function SequencerPage() {
 
               /**
                * Schedule pattern.
+               *
+               * Every step is one 16th
+               * note.
                */
 
               for (
@@ -1567,8 +1635,8 @@ export default function SequencerPage() {
                       note:
                         settings?.note,
 
-                      duration:
-                        settings?.duration,
+                      durationSteps:
+                        settings?.durationSteps,
                     }
                   );
                 }
@@ -1649,8 +1717,23 @@ export default function SequencerPage() {
         name: projectName,
         tempo: bpm,
         grid,
+
+        /**
+         * Save the new grid-based
+         * duration model.
+         */
+
         track_settings:
-          trackSettings,
+          trackSettings.map(
+            (
+              track,
+              index
+            ) =>
+              normalizeTrackSettings(
+                track,
+                index
+              )
+          ),
       };
 
       const isUpdate =
@@ -1668,22 +1751,26 @@ export default function SequencerPage() {
             : "POST";
 
         const response =
-          await fetch(url, {
-            method,
+          await fetch(
+            url,
+            {
+              method,
 
-            headers: {
-              "Content-Type":
-                "application/json",
+              headers: {
+                "Content-Type":
+                  "application/json",
 
-              Authorization: token
-                ? `Bearer ${token}`
-                : "",
-            },
+                Authorization:
+                  token
+                    ? `Bearer ${token}`
+                    : "",
+              },
 
-            body: JSON.stringify(
-              payload
-            ),
-          });
+              body: JSON.stringify(
+                payload
+              ),
+            }
+          );
 
         if (!response.ok) {
           const err =
@@ -1745,9 +1832,10 @@ export default function SequencerPage() {
             `/api/projects/${loadId.trim()}`,
             {
               headers: {
-                Authorization: token
-                  ? `Bearer ${token}`
-                  : "",
+                Authorization:
+                  token
+                    ? `Bearer ${token}`
+                    : "",
               },
             }
           );
@@ -1859,7 +1947,9 @@ export default function SequencerPage() {
           </button>
 
           <label className="bpm-control">
-            <span>BPM</span>
+            <span>
+              BPM
+            </span>
 
             <input
               type="range"
@@ -1975,23 +2065,11 @@ export default function SequencerPage() {
               ]?.muted ||
               false;
 
-            const selectedNote =
+            const durationSteps =
               trackSettings[
                 trackIndex
-              ]?.note ||
-              currentSound
-                ?.synth
-                ?.note ||
-              "C4";
-
-            const selectedDuration =
-              trackSettings[
-                trackIndex
-              ]?.duration ||
-              currentSound
-                ?.synth
-                ?.duration ||
-              "8n";
+              ]?.durationSteps ??
+              1;
 
             return (
               <div
@@ -2106,7 +2184,13 @@ export default function SequencerPage() {
 
                           <select
                             value={
-                              selectedNote
+                              trackSettings[
+                                trackIndex
+                              ]?.note ||
+                              currentSound
+                                ?.synth
+                                ?.note ||
+                              "C4"
                             }
                             onChange={(
                               e
@@ -2119,62 +2203,240 @@ export default function SequencerPage() {
                               )
                             }
                           >
-                            {NOTE_OPTIONS.map(
-                              (
-                                note
-                              ) => (
-                                <option
-                                  key={
-                                    note
-                                  }
-                                  value={
-                                    note
-                                  }
-                                >
-                                  {
-                                    note
-                                  }
-                                </option>
-                              )
-                            )}
+                            <option value="C2">
+                              C2
+                            </option>
+
+                            <option value="C#2">
+                              C#2
+                            </option>
+
+                            <option value="D2">
+                              D2
+                            </option>
+
+                            <option value="D#2">
+                              D#2
+                            </option>
+
+                            <option value="E2">
+                              E2
+                            </option>
+
+                            <option value="F2">
+                              F2
+                            </option>
+
+                            <option value="F#2">
+                              F#2
+                            </option>
+
+                            <option value="G2">
+                              G2
+                            </option>
+
+                            <option value="G#2">
+                              G#2
+                            </option>
+
+                            <option value="A2">
+                              A2
+                            </option>
+
+                            <option value="A#2">
+                              A#2
+                            </option>
+
+                            <option value="B2">
+                              B2
+                            </option>
+
+                            <option value="C3">
+                              C3
+                            </option>
+
+                            <option value="C#3">
+                              C#3
+                            </option>
+
+                            <option value="D3">
+                              D3
+                            </option>
+
+                            <option value="D#3">
+                              D#3
+                            </option>
+
+                            <option value="E3">
+                              E3
+                            </option>
+
+                            <option value="F3">
+                              F3
+                            </option>
+
+                            <option value="F#3">
+                              F#3
+                            </option>
+
+                            <option value="G3">
+                              G3
+                            </option>
+
+                            <option value="G#3">
+                              G#3
+                            </option>
+
+                            <option value="A3">
+                              A3
+                            </option>
+
+                            <option value="A#3">
+                              A#3
+                            </option>
+
+                            <option value="B3">
+                              B3
+                            </option>
+
+                            <option value="C4">
+                              C4
+                            </option>
+
+                            <option value="C#4">
+                              C#4
+                            </option>
+
+                            <option value="D4">
+                              D4
+                            </option>
+
+                            <option value="D#4">
+                              D#4
+                            </option>
+
+                            <option value="E4">
+                              E4
+                            </option>
+
+                            <option value="F4">
+                              F4
+                            </option>
+
+                            <option value="F#4">
+                              F#4
+                            </option>
+
+                            <option value="G4">
+                              G4
+                            </option>
+
+                            <option value="G#4">
+                              G#4
+                            </option>
+
+                            <option value="A4">
+                              A4
+                            </option>
+
+                            <option value="A#4">
+                              A#4
+                            </option>
+
+                            <option value="B4">
+                              B4
+                            </option>
+
+                            <option value="C5">
+                              C5
+                            </option>
+
+                            <option value="C#5">
+                              C#5
+                            </option>
+
+                            <option value="D5">
+                              D5
+                            </option>
+
+                            <option value="D#5">
+                              D#5
+                            </option>
+
+                            <option value="E5">
+                              E5
+                            </option>
+
+                            <option value="F5">
+                              F5
+                            </option>
+
+                            <option value="F#5">
+                              F#5
+                            </option>
+
+                            <option value="G5">
+                              G5
+                            </option>
+
+                            <option value="G#5">
+                              G#5
+                            </option>
+
+                            <option value="A5">
+                              A5
+                            </option>
+
+                            <option value="A#5">
+                              A#5
+                            </option>
+
+                            <option value="B5">
+                              B5
+                            </option>
                           </select>
                         </label>
 
                         <label>
                           <span>
-                            Duration
+                            Length
                           </span>
 
                           <select
                             value={
-                              selectedDuration
+                              durationSteps
                             }
                             onChange={(
                               e
                             ) =>
                               updateTrackSetting(
                                 trackIndex,
-                                "duration",
-                                e.target
-                                  .value
+                                "durationSteps",
+                                Number(
+                                  e.target
+                                    .value
+                                )
                               )
                             }
                           >
-                            <option value="16n">
-                              16n
-                            </option>
-
-                            <option value="8n">
-                              8n
-                            </option>
-
-                            <option value="4n">
-                              4n
-                            </option>
-
-                            <option value="2n">
-                              2n
-                            </option>
+                            {DURATION_OPTIONS.map(
+                              (
+                                option
+                              ) => (
+                                <option
+                                  key={
+                                    option.steps
+                                  }
+                                  value={
+                                    option.steps
+                                  }
+                                >
+                                  {
+                                    option.label
+                                  }
+                                </option>
+                              )
+                            )}
                           </select>
                         </label>
                       </>
