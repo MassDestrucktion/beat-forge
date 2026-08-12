@@ -1,16 +1,25 @@
 import * as Tone from "tone";
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+} from "react";
+
 import {
   useSearchParams,
   useNavigate,
   useLocation,
 } from "react-router";
+
 import { useAuth } from "./AuthContext/AuthContext.jsx";
+
 import {
+  SOUND_LIBRARY,
   getSoundById,
-  getSoundsByType,
+  getSoundLabel,
   createSoundEngine,
 } from "./audio/soundLibrary";
+
 import "./App.css";
 
 const NUM_TRACKS = 4;
@@ -23,15 +32,10 @@ const TRACK_LABELS = [
   "Track 4",
 ];
 
-/*
+/**
  * ---------------------------------------------------------
  * DEFAULT SOUNDS
  * ---------------------------------------------------------
- *
- * These are SOUND_LIBRARY IDs.
- *
- * The sequencer no longer needs to know how a sound is
- * actually implemented. It only stores the sound ID.
  */
 
 const DEFAULT_TRACK_SETTINGS = [
@@ -39,17 +43,14 @@ const DEFAULT_TRACK_SETTINGS = [
     sound: "drums.kicks.cr78",
     muted: false,
   },
-
   {
     sound: "drums.snares.cr78",
     muted: false,
   },
-
   {
     sound: "drums.hihats.cr78",
     muted: false,
   },
-
   {
     sound: "synths.stabs.classic",
     note: "G2",
@@ -58,266 +59,37 @@ const DEFAULT_TRACK_SETTINGS = [
   },
 ];
 
-/*
+/**
  * ---------------------------------------------------------
- * BACKWARD COMPATIBILITY
+ * DEFAULT GRID
  * ---------------------------------------------------------
- *
- * Older saved projects used:
- *
- * kick
- * snare
- * hihat
- * stab
- * pad
- *
- * New projects use SOUND_LIBRARY IDs.
- *
- * This lets old projects continue working.
  */
 
-const LEGACY_SOUND_IDS = {
-  kick: "drums.kicks.cr78",
-  snare: "drums.snares.cr78",
-  hihat: "drums.hihats.cr78",
-  stab: "synths.stabs.classic",
-  pad: "synths.pads.classic",
-};
-
-/*
- * Convert an old sound ID into the new library ID.
- */
-function normalizeSoundId(soundId) {
-  if (!soundId) {
-    return DEFAULT_TRACK_SETTINGS[0].sound;
-  }
-
-  return (
-    LEGACY_SOUND_IDS[soundId] ||
-    soundId
-  );
-}
-
-/*
- * Create a fresh copy of the default track settings.
- */
 function createDefaultTrackSettings() {
-  return DEFAULT_TRACK_SETTINGS.map(
-    (track) => ({
-      ...track,
-    })
-  );
+  return DEFAULT_TRACK_SETTINGS.map((track) => ({
+    ...track,
+  }));
 }
 
-/*
- * Create an empty 4 x 16 sequencer grid.
- */
 function createEmptyGrid() {
   return Array(NUM_TRACKS)
     .fill(null)
-    .map(() =>
-      Array(NUM_STEPS).fill(false)
-    );
+    .map(() => Array(NUM_STEPS).fill(false));
 }
 
-/*
+/**
  * ---------------------------------------------------------
- * HELPERS
+ * SOUND LIBRARY HELPERS
  * ---------------------------------------------------------
  */
 
-/*
- * Determine whether a library sound is a synth.
- */
-function isSynthSound(soundId) {
-  const sound = getSoundById(soundId);
-
-  return sound?.type === "synth";
+function getAvailableSounds() {
+  return SOUND_LIBRARY;
 }
 
-/*
- * Normalize track settings loaded from a project.
- *
- * This is also where we migrate old sound IDs.
- */
-function normalizeTrackSettings(
-  settings
-) {
-  if (!Array.isArray(settings)) {
-    return createDefaultTrackSettings();
-  }
-
-  return Array.from(
-    { length: NUM_TRACKS },
-    (_, index) => {
-      const source =
-        settings[index] ||
-        DEFAULT_TRACK_SETTINGS[index] ||
-        DEFAULT_TRACK_SETTINGS[0];
-
-      const soundId =
-        normalizeSoundId(source.sound);
-
-      const sound =
-        getSoundById(soundId);
-
-      /*
-       * Preserve the project settings while making
-       * sure the sound actually exists.
-       */
-      return {
-        ...source,
-
-        sound: sound
-          ? sound.id
-          : DEFAULT_TRACK_SETTINGS[
-              index
-            ]?.sound ||
-            DEFAULT_TRACK_SETTINGS[0]
-              .sound,
-
-        muted:
-          source.muted ?? false,
-      };
-    }
-  );
-}
-
-/*
+/**
  * ---------------------------------------------------------
- * AUDIO ROUTING
- * ---------------------------------------------------------
- *
- * Each track:
- *
- * Sound Engine
- *      ↓
- * Track Gain
- *      ↓
- * Track Reverb
- *      ↓
- * Destination
- *
- * The sequencer owns routing.
- *
- * The sound library owns sound definitions.
- *
- * The sound engine owns Tone.js instrument creation.
- */
-
-/*
- * Create the per-track reverb effects.
- */
-const trackReverbs = Array.from(
-  { length: NUM_TRACKS },
-  () =>
-    new Tone.Reverb({
-      decay: 1.5,
-      wet: 0,
-    })
-);
-
-/*
- * Send reverb to the master destination.
- */
-trackReverbs.forEach((reverb) => {
-  reverb.toDestination();
-});
-
-/*
- * Create one gain node per track.
- */
-const trackGains = Array.from(
-  { length: NUM_TRACKS },
-  () => new Tone.Gain(1)
-);
-
-/*
- * Connect each track gain into its
- * corresponding reverb.
- */
-trackGains.forEach(
-  (gain, trackIndex) => {
-    gain.connect(
-      trackReverbs[trackIndex]
-    );
-  }
-);
-
-/*
- * Each track owns one sound engine.
- *
- * The engine is replaced whenever the selected
- * library sound changes.
- */
-const trackEngines = Array(
-  NUM_TRACKS
-).fill(null);
-
-/*
- * Dispose an individual track engine.
- */
-function disposeTrackEngine(
-  trackIndex
-) {
-  const engine =
-    trackEngines[trackIndex];
-
-  if (!engine) {
-    return;
-  }
-
-  try {
-    engine.dispose?.();
-  } catch (error) {
-    console.warn(
-      "Failed to dispose track engine:",
-      error
-    );
-  }
-
-  trackEngines[trackIndex] =
-    null;
-}
-
-/*
- * Create the engine for one track.
- */
-function createTrackEngine(
-  trackIndex,
-  soundId
-) {
-  disposeTrackEngine(trackIndex);
-
-  const sound =
-    getSoundById(soundId);
-
-  if (!sound) {
-    console.warn(
-      `Sound not found in library: ${soundId}`
-    );
-
-    return null;
-  }
-
-  const gain =
-    trackGains[trackIndex];
-
-  const engine =
-    createSoundEngine(
-      sound,
-      gain
-    );
-
-  trackEngines[trackIndex] =
-    engine;
-
-  return engine;
-}
-
-/*
- * ---------------------------------------------------------
- * REACT COMPONENT
+ * SEQUENCER
  * ---------------------------------------------------------
  */
 
@@ -327,30 +99,29 @@ export default function SequencerPage() {
     token,
   } = useAuth();
 
-  const [
-    searchParams,
-    setSearchParams,
-  ] = useSearchParams();
+  const [searchParams, setSearchParams] =
+    useSearchParams();
 
   const navigate = useNavigate();
-
   const location = useLocation();
 
-  const [grid, setGrid] =
-    useState(createEmptyGrid);
+  /**
+   * -------------------------------------------------------
+   * REACT STATE
+   * -------------------------------------------------------
+   */
 
-  const [
-    isPlaying,
-    setIsPlaying,
-  ] = useState(false);
+  const [grid, setGrid] = useState(
+    createEmptyGrid
+  );
 
-  const [
-    currentStep,
-    setCurrentStep,
-  ] = useState(null);
+  const [isPlaying, setIsPlaying] =
+    useState(false);
 
-  const [bpm, setBpm] =
-    useState(120);
+  const [currentStep, setCurrentStep] =
+    useState(null);
+
+  const [bpm, setBpm] = useState(120);
 
   const [
     trackSettings,
@@ -359,36 +130,39 @@ export default function SequencerPage() {
     createDefaultTrackSettings
   );
 
-  const [
-    projectName,
-    setProjectName,
-  ] = useState("");
+  const [projectName, setProjectName] =
+    useState("");
 
-  const [
-    projectId,
-    setProjectId,
-  ] = useState(null);
+  const [projectId, setProjectId] =
+    useState(null);
 
-  const [
-    saveStatus,
-    setSaveStatus,
-  ] = useState("");
+  const [saveStatus, setSaveStatus] =
+    useState("");
 
   const [loadId, setLoadId] =
     useState("");
 
-  const [
-    initialLoadDone,
-    setInitialLoadDone,
-  ] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] =
+    useState(false);
 
-  /*
-   * Refs allow the Tone.Transport callback
-   * to always access current React state.
+  /**
+   * Audio state.
+   *
+   * This is intentionally separate from isPlaying.
+   * The browser can have Tone's audio context suspended
+   * even though the React component is mounted.
    */
 
-  const gridRef =
-    useRef(grid);
+  const [audioReady, setAudioReady] =
+    useState(false);
+
+  /**
+   * -------------------------------------------------------
+   * REFS
+   * -------------------------------------------------------
+   */
+
+  const gridRef = useRef(grid);
 
   const settingsRef =
     useRef(trackSettings);
@@ -396,11 +170,44 @@ export default function SequencerPage() {
   const stepCountRef =
     useRef(0);
 
-  /*
-   * Keep refs synchronized.
+  const audioReadyRef =
+    useRef(false);
+
+  /**
+   * One audio routing chain per track:
+   *
+   * sound engine
+   *     ↓
+   * gain
+   *     ↓
+   * reverb
+   *     ↓
+   * destination
    */
 
-  (() => {
+  const trackGainsRef =
+    useRef([]);
+
+  const trackReverbsRef =
+    useRef([]);
+
+  const soundEnginesRef =
+    useRef([]);
+
+  /**
+   * Prevent overlapping audio initialization.
+   */
+
+  const audioInitPromiseRef =
+    useRef(null);
+
+  /**
+   * -------------------------------------------------------
+   * SYNC REFS
+   * -------------------------------------------------------
+   */
+
+  useEffect(() => {
     gridRef.current = grid;
   }, [grid]);
 
@@ -409,124 +216,249 @@ export default function SequencerPage() {
       trackSettings;
   }, [trackSettings]);
 
-  /*
-   * ---------------------------------------------------------
-   * INITIALIZE DEFAULT SOUND ENGINES
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
+   * AUDIO UNLOCK
+   * -------------------------------------------------------
    *
-   * The first render has the default track settings.
+   * Browsers require AudioContext.resume()/Tone.start()
+   * from a user gesture.
    *
-   * Create the corresponding sound engines once.
+   * We explicitly do this before playback or preview.
    */
 
-  useEffect(() => {
-    trackSettings.forEach(
-      (settings, trackIndex) => {
-        if (!settings?.sound) {
-          return;
-        }
+  const ensureAudioReady = async () => {
+    if (
+      audioReadyRef.current &&
+      Tone.getContext().state === "running"
+    ) {
+      return true;
+    }
 
-        if (
-          trackEngines[trackIndex]
-        ) {
-          return;
-        }
+    if (audioInitPromiseRef.current) {
+      return audioInitPromiseRef.current;
+    }
 
-        createTrackEngine(
-          trackIndex,
-          settings.sound
-        );
-      }
-    );
-  }, [trackSettings]);
+    audioInitPromiseRef.current =
+      (async () => {
+        try {
+          /**
+           * Tone.start() must happen from a user gesture.
+           */
 
-  /*
-   * ---------------------------------------------------------
-   * TRACK SOUND CHANGES
-   * ---------------------------------------------------------
-   *
-   * Whenever the selected sound changes,
-   * replace the Tone.js engine.
-   */
+          await Tone.start();
 
-  useEffect(() => {
-    trackSettings.forEach(
-      (settings, trackIndex) => {
-        if (!settings?.sound) {
-          return;
-        }
+          /**
+           * Explicitly resume the underlying context too.
+           */
 
-        const engine =
-          trackEngines[trackIndex];
+          const context =
+            Tone.getContext();
 
-        const currentSoundId =
-          engine?.soundId;
+          if (
+            context.state !== "running"
+          ) {
+            await context.resume();
+          }
 
-        /*
-         * If the engine doesn't expose the ID,
-         * create it only if missing.
-         */
-        if (!engine) {
-          createTrackEngine(
-            trackIndex,
-            settings.sound
+          /**
+           * Wait for Tone's audio assets/buffers.
+           *
+           * This is especially important if the sound
+           * library uses Tone.Player or loaded samples.
+           */
+
+          try {
+            await Tone.loaded();
+          } catch (loadError) {
+            console.warn(
+              "Tone.loaded() warning:",
+              loadError
+            );
+          }
+
+          /**
+           * Make absolutely sure the context is running.
+           */
+
+          if (
+            Tone.getContext().state !==
+            "running"
+          ) {
+            const rawContext =
+              Tone.getContext()
+                .rawContext;
+
+            if (
+              rawContext?.state ===
+              "suspended"
+            ) {
+              await rawContext.resume();
+            }
+          }
+
+          const running =
+            Tone.getContext().state ===
+            "running";
+
+          audioReadyRef.current =
+            running;
+
+          setAudioReady(running);
+
+          if (!running) {
+            console.error(
+              "Tone audio context could not be started."
+            );
+          }
+
+          return running;
+        } catch (error) {
+          console.error(
+            "Failed to initialize audio:",
+            error
           );
 
-          return;
-        }
+          audioReadyRef.current =
+            false;
 
-        if (
-          currentSoundId &&
-          currentSoundId !==
-            settings.sound
-        ) {
-          createTrackEngine(
-            trackIndex,
-            settings.sound
+          setAudioReady(false);
+
+          return false;
+        } finally {
+          audioInitPromiseRef.current =
+            null;
+        }
+      })();
+
+    return audioInitPromiseRef.current;
+  };
+
+  /**
+   * -------------------------------------------------------
+   * CREATE TRACK AUDIO ROUTING
+   * -------------------------------------------------------
+   */
+
+  useEffect(() => {
+    const gains = [];
+    const reverbs = [];
+
+    for (
+      let trackIndex = 0;
+      trackIndex < NUM_TRACKS;
+      trackIndex++
+    ) {
+      const gain =
+        new Tone.Gain(1);
+
+      const reverb =
+        new Tone.Reverb({
+          decay: 1.5,
+          wet: 0,
+        });
+
+      gain.connect(reverb);
+
+      reverb.toDestination();
+
+      gains.push(gain);
+      reverbs.push(reverb);
+    }
+
+    trackGainsRef.current =
+      gains;
+
+    trackReverbsRef.current =
+      reverbs;
+
+    return () => {
+      soundEnginesRef.current.forEach(
+        (engine) => {
+          try {
+            engine?.dispose?.();
+          } catch (error) {
+            console.warn(
+              "Error disposing sound engine:",
+              error
+            );
+          }
+        }
+      );
+
+      soundEnginesRef.current = [];
+
+      gains.forEach((gain) => {
+        try {
+          gain.dispose();
+        } catch (error) {
+          console.warn(
+            "Error disposing gain:",
+            error
           );
         }
-      }
-    );
-  }, [trackSettings]);
+      });
 
-  /*
-   * ---------------------------------------------------------
-   * TRACK EFFECTS / MUTE
-   * ---------------------------------------------------------
+      reverbs.forEach((reverb) => {
+        try {
+          reverb.dispose();
+        } catch (error) {
+          console.warn(
+            "Error disposing reverb:",
+            error
+          );
+        }
+      });
+    };
+  }, []);
+
+  /**
+   * -------------------------------------------------------
+   * UPDATE TRACK EFFECTS
+   * -------------------------------------------------------
    */
 
   useEffect(() => {
     trackSettings.forEach(
       (settings, trackIndex) => {
-        if (!settings) {
-          return;
-        }
+        const gain =
+          trackGainsRef.current[
+            trackIndex
+          ];
 
         const reverb =
-          trackReverbs[trackIndex];
+          trackReverbsRef.current[
+            trackIndex
+          ];
 
-        const gain =
-          trackGains[trackIndex];
-
-        if (!reverb || !gain) {
+        if (!gain || !reverb) {
           return;
         }
 
-        /*
+        /**
+         * MUTE
+         */
+
+        gain.gain.value =
+          settings?.muted
+            ? 0
+            : 1;
+
+        /**
          * REVERB
          */
 
         const reverbEnabled =
-          settings.reverb?.enabled ||
-          false;
+          settings?.reverb
+            ?.enabled ?? false;
 
         const wet =
-          settings.reverb?.wet ??
-          0.35;
+          settings?.reverb
+            ?.wet ?? 0.35;
 
         const decay =
-          settings.reverb?.decay ??
-          1.5;
+          settings?.reverb
+            ?.decay ?? 1.5;
 
         reverb.decay = decay;
 
@@ -534,41 +466,117 @@ export default function SequencerPage() {
           reverbEnabled
             ? wet
             : 0;
-
-        /*
-         * MUTE
-         */
-
-        gain.gain.value =
-          settings.muted
-            ? 0
-            : 1;
       }
     );
   }, [trackSettings]);
 
-  /*
-   * ---------------------------------------------------------
-   * CLEANUP AUDIO
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
+   * CREATE / RECREATE SOUND ENGINES
+   * -------------------------------------------------------
    */
 
   useEffect(() => {
-    return () => {
-      trackEngines.forEach(
-        (_, trackIndex) => {
-          disposeTrackEngine(
+    const rebuildEngines = () => {
+      const gains =
+        trackGainsRef.current;
+
+      if (
+        gains.length !==
+        NUM_TRACKS
+      ) {
+        return;
+      }
+
+      for (
+        let trackIndex = 0;
+        trackIndex < NUM_TRACKS;
+        trackIndex++
+      ) {
+        const settings =
+          trackSettings[
             trackIndex
+          ];
+
+        const sound =
+          getSoundById(
+            settings?.sound
+          );
+
+        /**
+         * Dispose old engine.
+         */
+
+        const oldEngine =
+          soundEnginesRef.current[
+            trackIndex
+          ];
+
+        if (oldEngine) {
+          try {
+            oldEngine.dispose();
+          } catch (error) {
+            console.warn(
+              "Error disposing old sound engine:",
+              error
+            );
+          }
+        }
+
+        soundEnginesRef.current[
+          trackIndex
+        ] = null;
+
+        /**
+         * No sound selected.
+         */
+
+        if (!sound) {
+          console.warn(
+            `Sound not found: ${settings?.sound}`
+          );
+
+          continue;
+        }
+
+        /**
+         * Create new engine.
+         */
+
+        try {
+          const engine =
+            createSoundEngine(
+              sound,
+              gains[trackIndex]
+            );
+
+          soundEnginesRef.current[
+            trackIndex
+          ] = engine;
+
+          console.log(
+            `Created sound engine for track ${
+              trackIndex + 1
+            }: ${sound.id}`
+          );
+        } catch (error) {
+          console.error(
+            `Failed to create sound engine for track ${
+              trackIndex + 1
+            }:`,
+            error
           );
         }
-      );
+      }
     };
-  }, []);
 
-  /*
-   * ---------------------------------------------------------
+    rebuildEngines();
+  }, [trackSettings]);
+
+  /**
+   * -------------------------------------------------------
    * CUSTOMIZE TRACK
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   const customizeTrack = (
@@ -594,27 +602,21 @@ export default function SequencerPage() {
       {
         state: {
           fromSequencer: true,
-
           grid,
-
           trackSettings,
-
           bpm,
-
           projectName,
-
           projectId,
-
           trackIndex,
         },
       }
     );
   };
 
-  /*
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
    * RETURN FROM CUSTOMIZE TRACK
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   useEffect(() => {
@@ -625,11 +627,7 @@ export default function SequencerPage() {
       !returnedState?.fromCustomize
     ) {
       return;
-    }useEffect
-
-    /*
-     * Restore grid.
-     */
+    }
 
     if (
       Array.isArray(
@@ -641,25 +639,22 @@ export default function SequencerPage() {
       );
     }
 
-    /*
-     * Restore track settings.
-     */
-
     if (
       Array.isArray(
         returnedState.trackSettings
       )
     ) {
       setTrackSettings(
-        normalizeTrackSettings(
-          returnedState.trackSettings
+        returnedState.trackSettings.map(
+          (track) => ({
+            ...track,
+            muted:
+              track?.muted ??
+              false,
+          })
         )
       );
     }
-
-    /*
-     * Restore BPM.
-     */
 
     if (
       returnedState.bpm !==
@@ -673,10 +668,6 @@ export default function SequencerPage() {
         returnedState.bpm;
     }
 
-    /*
-     * Restore project name.
-     */
-
     if (
       returnedState.projectName !==
       undefined
@@ -685,10 +676,6 @@ export default function SequencerPage() {
         returnedState.projectName
       );
     }
-
-    /*
-     * Restore project ID.
-     */
 
     if (
       returnedState.projectId !==
@@ -701,10 +688,6 @@ export default function SequencerPage() {
 
     setInitialLoadDone(true);
 
-    /*
-     * Clear router state.
-     */
-
     navigate("/sequencer", {
       replace: true,
       state: null,
@@ -714,10 +697,74 @@ export default function SequencerPage() {
     navigate,
   ]);
 
-  /*
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
+   * APPLY PROJECT
+   * -------------------------------------------------------
+   */
+
+  const applyProject = (
+    project
+  ) => {
+    setProjectName(
+      project.name || ""
+    );
+
+    setProjectId(project.id);
+
+    const projectBpm =
+      project.tempo || 120;
+
+    setBpm(projectBpm);
+
+    Tone.Transport.bpm.value =
+      projectBpm;
+
+    if (
+      Array.isArray(project.grid) &&
+      project.grid.length ===
+        NUM_TRACKS
+    ) {
+      setGrid(project.grid);
+    }
+
+    if (
+      Array.isArray(
+        project.track_settings
+      ) &&
+      project.track_settings.length ===
+        NUM_TRACKS
+    ) {
+      const normalized =
+        project.track_settings.map(
+          (track, index) => ({
+            ...track,
+
+            sound:
+              getSoundById(
+                track?.sound
+              )
+                ? track.sound
+                : DEFAULT_TRACK_SETTINGS[
+                    index
+                  ]?.sound,
+
+            muted:
+              track?.muted ??
+              false,
+          })
+        );
+
+      setTrackSettings(
+        normalized
+      );
+    }
+  };
+
+  /**
+   * -------------------------------------------------------
    * LOAD PROJECT FROM URL
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   useEffect(() => {
@@ -752,10 +799,9 @@ export default function SequencerPage() {
               `/api/projects/${projectIdFromUrl}`,
               {
                 headers: {
-                  Authorization:
-                    token
-                      ? `Bearer ${token}`
-                      : "",
+                  Authorization: token
+                    ? `Bearer ${token}`
+                    : "",
                 },
               }
             );
@@ -797,136 +843,76 @@ export default function SequencerPage() {
     location.state,
   ]);
 
-  /*
-   * ---------------------------------------------------------
-   * APPLY PROJECT
-   * ---------------------------------------------------------
-   */
-
-  const applyProject = (
-    project
-  ) => {
-    setProjectName(
-      project.name || ""
-    );
-
-    setProjectId(project.id);
-
-    const projectBpm =
-      project.tempo || 120;
-
-    setBpm(projectBpm);
-
-    Tone.Transport.bpm.value =
-      projectBpm;
-
-    /*
-     * Restore grid.
-     */
-
-    if (
-      Array.isArray(project.grid) &&
-      project.grid.length ===
-        NUM_TRACKS
-    ) {
-      setGrid(project.grid);
-    }
-
-    /*
-     * Restore track settings.
-     *
-     * normalizeTrackSettings()
-     * also migrates old sound IDs.
-     */
-
-    if (
-      Array.isArray(
-        project.track_settings
-      ) &&
-      project.track_settings
-        .length === NUM_TRACKS
-    ) {
-      setTrackSettings(
-        normalizeTrackSettings(
-          project.track_settings
-        )
-      );
-    }
-  };
-
-  /*
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
    * PLAY TRACK SOUND
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   const playTrackSound = (
     trackIndex,
-    time
+    time,
+    overrides = {}
   ) => {
-    const config =
+    const settings =
       settingsRef.current[
         trackIndex
       ];
 
-    if (!config) {
+    if (!settings) {
       return;
     }
 
-    /*
-     * Muted tracks don't trigger voices.
-     */
-
-    if (config.muted) {
-      return;
-    }
-
-    const sound =
-      getSoundById(
-        normalizeSoundId(
-          config.sound
-        )
-      );
-
-    if (!sound) {
-      console.warn(
-        `Unknown sound: ${config.sound}`
-      );
-
+    if (settings.muted) {
       return;
     }
 
     const engine =
-      trackEngines[trackIndex];
+      soundEnginesRef.current[
+        trackIndex
+      ];
 
     if (!engine) {
+      console.warn(
+        `No sound engine for track ${
+          trackIndex + 1
+        }`
+      );
+
       return;
     }
 
-    /*
-     * Every sound engine now exposes a
-     * common play() interface.
-     */
+    try {
+      /**
+       * Important:
+       *
+       * The engine is responsible for routing
+       * into the track gain. We don't bypass
+       * that routing here.
+       */
 
-    engine.play(time, {
-      note:
-        config.note ??
-        sound.synth?.note,
-
-      duration:
-        config.duration ??
-        sound.synth?.duration,
-    });
+      engine.play(
+        time,
+        overrides
+      );
+    } catch (error) {
+      console.error(
+        "Failed to play track sound:",
+        error
+      );
+    }
   };
 
-  /*
-   * ---------------------------------------------------------
-   * 16-STEP SEQUENCER LOOP
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
+   * 16-STEP TRANSPORT LOOP
+   * -------------------------------------------------------
    */
 
   useEffect(() => {
-    const repeat = (time) => {
+    const repeat = (
+      time
+    ) => {
       const step =
         stepCountRef.current %
         NUM_STEPS;
@@ -969,10 +955,10 @@ export default function SequencerPage() {
     };
   }, []);
 
-  /*
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
    * BPM
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   const handleBpmChange = (
@@ -984,134 +970,255 @@ export default function SequencerPage() {
       newBpm;
   };
 
-  /*
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
    * TOGGLE STEP
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   const toggleStep = async (
     trackIndex,
     stepIndex
   ) => {
-    await Tone.start();
+    /**
+     * Unlock audio BEFORE trying to preview.
+     */
 
-    if (
-      Tone.getContext().state !==
-      "running"
-    ) {
-      await Tone.getContext().resume();
+    const ready =
+      await ensureAudioReady();
+
+    if (!ready) {
+      setSaveStatus(
+        "Audio could not start. Check your browser audio permissions."
+      );
     }
 
     const updatedGrid =
-      grid.map((track) => [
-        ...track,
-      ]);
+      gridRef.current.map(
+        (track) => [
+          ...track,
+        ]
+      );
 
     const isTurningOn =
-      !updatedGrid[trackIndex][
-        stepIndex
-      ];
+      !updatedGrid[
+        trackIndex
+      ][stepIndex];
 
-    updatedGrid[trackIndex][
-      stepIndex
-    ] = isTurningOn;
+    updatedGrid[
+      trackIndex
+    ][stepIndex] =
+      isTurningOn;
 
     setGrid(updatedGrid);
 
-    if (isTurningOn) {
+    /**
+     * Preview immediately.
+     */
+
+    if (
+      isTurningOn &&
+      ready
+    ) {
       playTrackSound(
         trackIndex
       );
     }
   };
 
-  /*
-   * ---------------------------------------------------------
-   * MUTE / UNMUTE TRACK
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
+   * MUTE
+   * -------------------------------------------------------
    */
 
   const toggleTrackMute = (
     trackIndex
   ) => {
-    setTrackSettings((prev) =>
-      prev.map(
-        (track, index) => {
-          if (
-            index !== trackIndex
-          ) {
-            return track;
-          }
+    setTrackSettings(
+      (previous) =>
+        previous.map(
+          (
+            track,
+            index
+          ) => {
+            if (
+              index !==
+              trackIndex
+            ) {
+              return track;
+            }
 
-          return {
-            ...track,
-            muted: !track?.muted,
-          };
-        }
-      )
+            return {
+              ...track,
+              muted:
+                !track?.muted,
+            };
+          }
+        )
     );
   };
 
-  /*
-   * ---------------------------------------------------------
-   * PLAY / STOP
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
+   * CHANGE SOUND
+   * -------------------------------------------------------
    */
 
-  const togglePlay =
-    async () => {
-      await Tone.start();
+  const updateTrackSound = (
+    trackIndex,
+    soundId
+  ) => {
+    const sound =
+      getSoundById(soundId);
 
-      if (
-        Tone.getContext().state !==
-        "running"
-      ) {
-        await Tone.getContext().resume();
-      }
+    if (!sound) {
+      console.warn(
+        `Sound not found: ${soundId}`
+      );
 
-      if (isPlaying) {
-        Tone.Transport.stop();
+      return;
+    }
 
-        Tone.Transport.position = 0;
+    setTrackSettings(
+      (previous) =>
+        previous.map(
+          (
+            track,
+            index
+          ) => {
+            if (
+              index !==
+              trackIndex
+            ) {
+              return track;
+            }
 
-        stepCountRef.current = 0;
+            return {
+              ...track,
 
-        setIsPlaying(false);
-        setCurrentStep(null);
-      } else {
-        Tone.Transport.position = 0;
+              sound:
+                sound.id,
 
-        stepCountRef.current = 0;
+              note:
+                sound.type ===
+                "synth"
+                  ? track.note ??
+                    sound.synth
+                      ?.note ??
+                    "C4"
+                  : undefined,
 
-        Tone.Transport.start();
+              duration:
+                sound.type ===
+                "synth"
+                  ? track.duration ??
+                    sound.synth
+                      ?.duration ??
+                    "8n"
+                  : undefined,
+            };
+          }
+        )
+    );
+  };
 
-        setIsPlaying(true);
-      }
-    };
+  /**
+   * -------------------------------------------------------
+   * PLAY / STOP
+   * -------------------------------------------------------
+   */
 
-  /*
-   * ---------------------------------------------------------
+  const togglePlay = async () => {
+    /**
+     * This MUST happen from the button click.
+     */
+
+    const ready =
+      await ensureAudioReady();
+
+    if (!ready) {
+      setSaveStatus(
+        "Audio could not start. Check your browser audio permissions."
+      );
+
+      return;
+    }
+
+    if (isPlaying) {
+      Tone.Transport.stop();
+
+      Tone.Transport.position =
+        0;
+
+      stepCountRef.current = 0;
+
+      setIsPlaying(false);
+      setCurrentStep(null);
+
+      return;
+    }
+
+    /**
+     * Stop/reset before starting.
+     */
+
+    Tone.Transport.stop();
+
+    Tone.Transport.position =
+      0;
+
+    stepCountRef.current = 0;
+
+    Tone.Transport.bpm.value =
+      bpm;
+
+    /**
+     * Start the Tone transport.
+     */
+
+    Tone.Transport.start();
+
+    setIsPlaying(true);
+
+    setSaveStatus("");
+  };
+
+  /**
+   * -------------------------------------------------------
    * CLEAR GRID
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   const clearGrid = () => {
-    setGrid(createEmptyGrid());
+    setGrid(
+      createEmptyGrid()
+    );
   };
 
-  /*
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
    * NEW PROJECT
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   const handleNewProject = () => {
-    setProjectName("");
+    Tone.Transport.stop();
 
+    Tone.Transport.position =
+      0;
+
+    stepCountRef.current = 0;
+
+    setIsPlaying(false);
+    setCurrentStep(null);
+
+    setProjectName("");
     setProjectId(null);
 
-    setGrid(createEmptyGrid());
+    setGrid(
+      createEmptyGrid()
+    );
 
     setTrackSettings(
       createDefaultTrackSettings()
@@ -1123,7 +1230,6 @@ export default function SequencerPage() {
       120;
 
     setSaveStatus("");
-
     setLoadId("");
 
     setInitialLoadDone(false);
@@ -1131,10 +1237,40 @@ export default function SequencerPage() {
     setSearchParams({});
   };
 
-  /*
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
+   * UPDATE TRACK SETTING
+   * -------------------------------------------------------
+   */
+
+  const updateTrackSetting = (
+    trackIndex,
+    key,
+    value
+  ) => {
+    setTrackSettings(
+      (previous) =>
+        previous.map(
+          (
+            track,
+            index
+          ) =>
+            index ===
+            trackIndex
+              ? {
+                  ...track,
+                  [key]:
+                    value,
+                }
+              : track
+        )
+    );
+  };
+
+  /**
+   * -------------------------------------------------------
    * AUDIO BUFFER → WAV
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   const audioBufferToWav = (
@@ -1147,7 +1283,6 @@ export default function SequencerPage() {
       buffer.sampleRate;
 
     const format = 1;
-
     const bitDepth = 16;
 
     const channelData = [];
@@ -1183,7 +1318,9 @@ export default function SequencerPage() {
         channel++
       ) {
         interleaved[offset++] =
-          channelData[channel][i];
+          channelData[
+            channel
+          ][i];
       }
     }
 
@@ -1196,7 +1333,9 @@ export default function SequencerPage() {
       );
 
     const view =
-      new DataView(arrayBuffer);
+      new DataView(
+        arrayBuffer
+      );
 
     const writeString = (
       offset,
@@ -1214,7 +1353,10 @@ export default function SequencerPage() {
       }
     };
 
-    writeString(0, "RIFF");
+    writeString(
+      0,
+      "RIFF"
+    );
 
     view.setUint32(
       4,
@@ -1222,7 +1364,10 @@ export default function SequencerPage() {
       true
     );
 
-    writeString(8, "WAVE");
+    writeString(
+      8,
+      "WAVE"
+    );
 
     writeString(
       12,
@@ -1320,15 +1465,10 @@ export default function SequencerPage() {
     );
   };
 
-  /*
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
    * DOWNLOAD WAV
-   * ---------------------------------------------------------
-   *
-   * Uses SOUND_LIBRARY definitions.
-   *
-   * No hardcoded sample URLs.
-   * No hardcoded synth engines.
+   * -------------------------------------------------------
    */
 
   const downloadTrackAsWav =
@@ -1341,91 +1481,26 @@ export default function SequencerPage() {
           "Rendering track..."
         );
 
+        const renderGrid =
+          gridRef.current;
+
+        const renderSettings =
+          settingsRef.current;
+
         const buffer =
           await Tone.Offline(
-            ({ transport }) => {
-              transport.bpm.value =
+            (context) => {
+              context.transport.bpm.value =
                 bpm;
 
-              /*
-               * Offline track routing.
-               */
-
               const offlineReverbs =
-                Array.from(
-                  {
-                    length:
-                      NUM_TRACKS,
-                  },
-                  (_, trackIndex) => {
-                    const settings =
-                      trackSettings[
-                        trackIndex
-                      ];
-
-                    const reverb =
-                      new Tone.Reverb({
-                        decay:
-                          settings
-                            ?.reverb
-                            ?.decay ??
-                          1.5,
-
-                        wet:
-                          settings
-                            ?.reverb
-                            ?.enabled
-                            ? settings
-                                ?.reverb
-                                ?.wet ??
-                              0.35
-                            : 0,
-                      });
-
-                    reverb.toDestination();
-
-                    return reverb;
-                  }
-                );
+                [];
 
               const offlineGains =
-                Array.from(
-                  {
-                    length:
-                      NUM_TRACKS,
-                  },
-                  (_, trackIndex) => {
-                    const settings =
-                      trackSettings[
-                        trackIndex
-                      ];
-
-                    const gain =
-                      new Tone.Gain(
-                        settings?.muted
-                          ? 0
-                          : 1
-                      );
-
-                    gain.connect(
-                      offlineReverbs[
-                        trackIndex
-                      ]
-                    );
-
-                    return gain;
-                  }
-                );
-
-              /*
-               * Create engines from the
-               * sound library.
-               */
+                [];
 
               const offlineEngines =
-                Array(
-                  NUM_TRACKS
-                ).fill(null);
+                [];
 
               for (
                 let trackIndex = 0;
@@ -1434,52 +1509,77 @@ export default function SequencerPage() {
                 trackIndex++
               ) {
                 const settings =
-                  trackSettings[
+                  renderSettings[
                     trackIndex
                   ];
 
-                if (!settings) {
-                  continue;
-                }
+                const reverb =
+                  new Tone.Reverb({
+                    decay:
+                      settings
+                        ?.reverb
+                        ?.decay ??
+                      1.5,
 
-                const soundId =
-                  normalizeSoundId(
-                    settings.sound
+                    wet:
+                      settings
+                        ?.reverb
+                        ?.enabled
+                        ? settings
+                            ?.reverb
+                            ?.wet ??
+                          0.35
+                        : 0,
+                  });
+
+                reverb.toDestination();
+
+                const gain =
+                  new Tone.Gain(
+                    settings?.muted
+                      ? 0
+                      : 1
                   );
+
+                gain.connect(
+                  reverb
+                );
+
+                offlineReverbs.push(
+                  reverb
+                );
+
+                offlineGains.push(
+                  gain
+                );
 
                 const sound =
                   getSoundById(
-                    soundId
+                    settings?.sound
                   );
 
-                if (!sound) {
-                  continue;
+                if (sound) {
+                  const engine =
+                    createSoundEngine(
+                      sound,
+                      gain
+                    );
+
+                  offlineEngines.push(
+                    engine
+                  );
+                } else {
+                  offlineEngines.push(
+                    null
+                  );
                 }
-
-                offlineEngines[
-                  trackIndex
-                ] =
-                  createSoundEngine(
-                    sound,
-                    offlineGains[
-                      trackIndex
-                    ]
-                  );
               }
-
-              /*
-               * Schedule every active step.
-               */
 
               for (
                 let step = 0;
                 step < NUM_STEPS;
                 step++
               ) {
-                /*
-                 * One 16th note.
-                 */
-
                 const stepTime =
                   step *
                   (60 / bpm / 4);
@@ -1491,27 +1591,18 @@ export default function SequencerPage() {
                   trackIndex++
                 ) {
                   const settings =
-                    trackSettings[
+                    renderSettings[
                       trackIndex
                     ];
 
-                  if (!settings) {
-                    continue;
-                  }
-
-                  /*
-                   * Don't render muted
-                   * tracks.
-                   */
-
                   if (
-                    settings.muted
+                    settings?.muted
                   ) {
                     continue;
                   }
 
                   if (
-                    !grid?.[
+                    !renderGrid?.[
                       trackIndex
                     ]?.[step]
                   ) {
@@ -1527,35 +1618,20 @@ export default function SequencerPage() {
                     continue;
                   }
 
-                  const sound =
-                    getSoundById(
-                      normalizeSoundId(
-                        settings.sound
-                      )
-                    );
-
-                  if (!sound) {
-                    continue;
-                  }
-
                   engine.play(
                     stepTime,
                     {
                       note:
-                        settings.note ??
-                        sound.synth
-                          ?.note,
+                        settings?.note,
 
                       duration:
-                        settings.duration ??
-                        sound.synth
-                          ?.duration,
+                        settings?.duration,
                     }
                   );
                 }
               }
 
-              transport.start();
+              context.transport.start();
             },
             durationInSeconds
           );
@@ -1576,16 +1652,19 @@ export default function SequencerPage() {
           );
 
         a.href = url;
-
         a.download = filename;
 
         document.body.appendChild(a);
 
         a.click();
 
-        document.body.removeChild(a);
+        document.body.removeChild(
+          a
+        );
 
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(
+          url
+        );
 
         setSaveStatus(
           "Track downloaded successfully."
@@ -1599,51 +1678,10 @@ export default function SequencerPage() {
       }
     };
 
-  /*
-   * ---------------------------------------------------------
-   * UPDATE TRACK SETTING
-   * ---------------------------------------------------------
-   */
-
-  const updateTrackSetting = (
-    trackIndex,
-    key,
-    value
-  ) => {
-    setTrackSettings((prev) =>
-      prev.map(
-        (track, index) =>
-          index === trackIndex
-            ? {
-                ...track,
-                [key]:
-                  key === "sound"
-                    ? normalizeSoundId(
-                        value
-                      )
-                    : value,
-              }
-            : track
-      )
-    );
-
-    /*
-     * Sound changes need an immediate
-     * engine replacement.
-     */
-
-    if (key === "sound") {
-      createTrackEngine(
-        trackIndex,
-        normalizeSoundId(value)
-      );
-    }
-  };
-
-  /*
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
    * SAVE PROJECT
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   const saveProject =
@@ -1676,13 +1714,15 @@ export default function SequencerPage() {
         Boolean(projectId);
 
       try {
-        const url = isUpdate
-          ? `/api/projects/${projectId}`
-          : "/api/projects";
+        const url =
+          isUpdate
+            ? `/api/projects/${projectId}`
+            : "/api/projects";
 
-        const method = isUpdate
-          ? "PUT"
-          : "POST";
+        const method =
+          isUpdate
+            ? "PUT"
+            : "POST";
 
         const response =
           await fetch(url, {
@@ -1692,10 +1732,9 @@ export default function SequencerPage() {
               "Content-Type":
                 "application/json",
 
-              Authorization:
-                token
-                  ? `Bearer ${token}`
-                  : "",
+              Authorization: token
+                ? `Bearer ${token}`
+                : "",
             },
 
             body: JSON.stringify(
@@ -1716,15 +1755,18 @@ export default function SequencerPage() {
         const project =
           await response.json();
 
-        setProjectId(project.id);
+        setProjectId(
+          project.id
+        );
 
         setSearchParams({
-          projectId: String(
-            project.id
-          ),
+          projectId:
+            String(project.id),
         });
 
-        setInitialLoadDone(true);
+        setInitialLoadDone(
+          true
+        );
 
         setSaveStatus(
           isUpdate
@@ -1738,10 +1780,10 @@ export default function SequencerPage() {
       }
     };
 
-  /*
-   * ---------------------------------------------------------
-   * LOAD PROJECT MANUALLY
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
+   * MANUAL LOAD
+   * -------------------------------------------------------
    */
 
   const loadProject =
@@ -1760,10 +1802,9 @@ export default function SequencerPage() {
             `/api/projects/${loadId.trim()}`,
             {
               headers: {
-                Authorization:
-                  token
-                    ? `Bearer ${token}`
-                    : "",
+                Authorization: token
+                  ? `Bearer ${token}`
+                  : "",
               },
             }
           );
@@ -1783,12 +1824,13 @@ export default function SequencerPage() {
 
         applyProject(project);
 
-        setInitialLoadDone(true);
+        setInitialLoadDone(
+          true
+        );
 
         setSearchParams({
-          projectId: String(
-            project.id
-          ),
+          projectId:
+            String(project.id),
         });
 
         setSaveStatus(
@@ -1801,10 +1843,10 @@ export default function SequencerPage() {
       }
     };
 
-  /*
-   * ---------------------------------------------------------
+  /**
+   * -------------------------------------------------------
    * RENDER
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   return (
@@ -1866,8 +1908,9 @@ export default function SequencerPage() {
           </button>
 
           <button
-            type="button"
-            onClick={handleNewProject}
+            onClick={
+              handleNewProject
+            }
           >
             New Project
           </button>
@@ -1893,6 +1936,18 @@ export default function SequencerPage() {
               {bpm}
             </strong>
           </label>
+
+          <span
+            style={{
+              marginLeft: "auto",
+              fontSize: "0.8rem",
+              opacity: 0.7,
+            }}
+          >
+            {audioReady
+              ? "🔊 Audio Ready"
+              : "🔇 Audio Not Started"}
+          </span>
         </div>
       </section>
 
@@ -1910,7 +1965,9 @@ export default function SequencerPage() {
           />
 
           <button
-            onClick={saveProject}
+            onClick={
+              saveProject
+            }
           >
             {projectId
               ? "💾 Update Project"
@@ -1937,7 +1994,9 @@ export default function SequencerPage() {
           />
 
           <button
-            onClick={loadProject}
+            onClick={
+              loadProject
+            }
           >
             📂 Load Project
           </button>
@@ -1966,9 +2025,7 @@ export default function SequencerPage() {
 
             const currentSound =
               getSoundById(
-                normalizeSoundId(
-                  currentSoundId
-                )
+                currentSoundId
               );
 
             const isSynth =
@@ -1984,25 +2041,8 @@ export default function SequencerPage() {
             const isMuted =
               trackSettings[
                 trackIndex
-              ]?.muted || false;
-
-            /*
-             * Get all sounds for the dropdown.
-             *
-             * This is temporary UI behavior.
-             *
-             * Later this dropdown can become the
-             * full Sound Browser using categories.
-             */
-
-            const librarySounds = [
-              ...getSoundsByType(
-                "sample"
-              ),
-              ...getSoundsByType(
-                "synth"
-              ),
-            ];
+              ]?.muted ||
+              false;
 
             return (
               <div
@@ -2035,15 +2075,14 @@ export default function SequencerPage() {
                         onChange={(
                           e
                         ) =>
-                          updateTrackSetting(
+                          updateTrackSound(
                             trackIndex,
-                            "sound",
                             e.target
                               .value
                           )
                         }
                       >
-                        {librarySounds.map(
+                        {getAvailableSounds().map(
                           (
                             sound
                           ) => (
@@ -2125,7 +2164,7 @@ export default function SequencerPage() {
                               currentSound
                                 ?.synth
                                 ?.note ||
-                              ""
+                              "C4"
                             }
                             onChange={(
                               e

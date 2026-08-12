@@ -4,73 +4,128 @@ import * as Tone from "tone";
 import { createSynthForSound } from "./createSynth";
 
 /**
- * Create an audio engine for a sound-library entry.
+ * Resolve the destination.
  *
- * Sound-library entries are either:
+ * If the sequencer gives us a track gain/effect chain,
+ * use it.
  *
- *   type: "sample"
+ * Otherwise, safely send audio directly to Tone's
+ * master destination.
+ */
+function resolveDestination(destination) {
+  return destination || Tone.getDestination();
+}
+
+/**
+ * ---------------------------------------------------------
+ * CREATE SOUND ENGINE
+ * ---------------------------------------------------------
  *
- * or:
+ * This is the single factory used by the sequencer.
  *
- *   type: "synth"
+ * Sample:
  *
- * The returned engine gives the sequencer
- * a consistent interface regardless of sound type.
+ *   sound
+ *      ↓
+ *   Tone.Player
+ *      ↓
+ *   destination
+ *
+ * Synth:
+ *
+ *   sound
+ *      ↓
+ *   Tone synth
+ *      ↓
+ *   destination
+ *
+ * Every returned engine exposes:
+ *
+ *   engine.type
+ *   engine.node
+ *   engine.play()
+ *   engine.dispose()
  */
 export function createSoundEngine(
   sound,
   destination
 ) {
   if (!sound) {
+    console.warn(
+      "createSoundEngine: no sound supplied"
+    );
+
     return null;
   }
 
-  /**
-   * ---------------------------------------------------------
-   * SAMPLE
-   * ---------------------------------------------------------
-   */
+  const output =
+    resolveDestination(destination);
 
+  /**
+   * -------------------------------------------------------
+   * SAMPLE
+   * -------------------------------------------------------
+   */
   if (sound.type === "sample") {
     if (!sound.url) {
       console.warn(
-        `Sample sound "${sound.id}" has no URL.`
+        `Sample "${sound.id}" has no URL.`
       );
 
       return null;
     }
 
-    const player = new Tone.Player({
-      url: sound.url,
-    });
+    const player =
+      new Tone.Player({
+        url: sound.url,
+        autostart: false,
+      });
 
-    if (destination) {
-      player.connect(destination);
-    }
+    player.connect(output);
 
     return {
       type: "sample",
 
       node: player,
 
-      play(time) {
+      /**
+       * Whether the sample is ready.
+       */
+      get loaded() {
+        return player.loaded;
+      },
+
+      /**
+       * Wait for the sample to finish loading.
+       */
+      async load() {
+        if (player.loaded) {
+          return player;
+        }
+
+        await Tone.loaded();
+
+        return player;
+      },
+
+      /**
+       * Play the sample.
+       *
+       * If a scheduled Tone time is supplied,
+       * Tone handles the scheduling.
+       */
+      async play(time) {
+        await this.load();
+
         if (!player.loaded) {
+          console.warn(
+            `Sample "${sound.id}" is still not loaded.`
+          );
+
           return;
         }
 
         player.start(time);
-      },
-
-      stop(time) {
-        try {
-          player.stop(time);
-        } catch {
-          // Player may already be stopped.
-        }
-      },
-
-      get loaded() {
-        return player.loaded;
       },
 
       dispose() {
@@ -80,43 +135,61 @@ export function createSoundEngine(
   }
 
   /**
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    * SYNTH
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
-
   if (sound.type === "synth") {
-    const synth = createSynthForSound(
-      sound,
-      destination
-    );
+    const synth =
+      createSynthForSound(
+        sound,
+        output
+      );
 
     if (!synth) {
+      console.warn(
+        `Unable to create synth for "${sound.id}".`
+      );
+
       return null;
     }
 
+    /**
+     * createSynthForSound returns the
+     * actual Tone synth node.
+     */
     return {
       type: "synth",
 
       node: synth,
 
+      loaded: true,
+
+      async load() {
+        return synth;
+      },
+
       play(
         time,
         overrides = {}
       ) {
-        const synthConfig =
+        const config =
           sound.synth || {};
 
         const note =
           overrides.note ??
-          synthConfig.note ??
+          config.note ??
           "C4";
 
         const duration =
           overrides.duration ??
-          synthConfig.duration ??
+          config.duration ??
           "8n";
 
+        /**
+         * Most Tone synths expose
+         * triggerAttackRelease.
+         */
         if (
           typeof synth.triggerAttackRelease !==
           "function"
@@ -141,14 +214,8 @@ export function createSoundEngine(
     };
   }
 
-  /**
-   * ---------------------------------------------------------
-   * UNKNOWN SOUND TYPE
-   * ---------------------------------------------------------
-   */
-
   console.warn(
-    `Unknown sound type "${sound.type}" for sound "${sound.id}".`
+    `Unknown sound type: ${sound.type}`
   );
 
   return null;

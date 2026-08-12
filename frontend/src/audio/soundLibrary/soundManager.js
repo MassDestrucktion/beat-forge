@@ -12,6 +12,11 @@ class SoundManager {
     this.loadingPromise = null;
   }
 
+  /**
+   * -------------------------------------------------------
+   * REGISTER SAMPLES
+   * -------------------------------------------------------
+   */
   registerSamples() {
     SOUND_LIBRARY
       .filter(
@@ -27,7 +32,20 @@ class SoundManager {
         const player =
           new Tone.Player({
             url: sound.url,
+            autostart: false,
           });
+
+        /**
+         * IMPORTANT:
+         *
+         * The manager's players go directly to
+         * the Tone destination.
+         *
+         * The sequencer can instead create
+         * track-specific engines when it needs
+         * per-track routing.
+         */
+        player.toDestination();
 
         this.players.set(
           sound.id,
@@ -36,6 +54,11 @@ class SoundManager {
       });
   }
 
+  /**
+   * -------------------------------------------------------
+   * LOAD
+   * -------------------------------------------------------
+   */
   async load() {
     this.registerSamples();
 
@@ -45,24 +68,15 @@ class SoundManager {
     }
 
     await this.loadingPromise;
+
+    return this;
   }
 
-  getPlayer(soundId) {
-    return (
-      this.players.get(soundId) ||
-      null
-    );
-  }
-
-  isLoaded(soundId) {
-    const player =
-      this.players.get(soundId);
-
-    return Boolean(
-      player?.loaded
-    );
-  }
-
+  /**
+   * -------------------------------------------------------
+   * CONNECT SAMPLE
+   * -------------------------------------------------------
+   */
   connectSample(
     soundId,
     destination
@@ -79,12 +93,51 @@ class SoundManager {
     }
 
     player.disconnect();
-    player.connect(destination);
+
+    if (destination) {
+      player.connect(destination);
+    } else {
+      player.toDestination();
+    }
 
     return player;
   }
 
-  play(soundId, time) {
+  /**
+   * -------------------------------------------------------
+   * GET PLAYER
+   * -------------------------------------------------------
+   */
+  getPlayer(soundId) {
+    return (
+      this.players.get(soundId) ||
+      null
+    );
+  }
+
+  /**
+   * -------------------------------------------------------
+   * IS LOADED
+   * -------------------------------------------------------
+   */
+  isLoaded(soundId) {
+    const player =
+      this.players.get(soundId);
+
+    return Boolean(
+      player?.loaded
+    );
+  }
+
+  /**
+   * -------------------------------------------------------
+   * PLAY
+   * -------------------------------------------------------
+   */
+  async play(
+    soundId,
+    time
+  ) {
     const player =
       this.players.get(soundId);
 
@@ -96,13 +149,35 @@ class SoundManager {
       return;
     }
 
+    /**
+     * Make sure the browser audio context
+     * is running.
+     */
+    await Tone.start();
+
+    /**
+     * Wait for the sample buffers.
+     */
     if (!player.loaded) {
+      await Tone.loaded();
+    }
+
+    if (!player.loaded) {
+      console.warn(
+        `Sample failed to load: ${soundId}`
+      );
+
       return;
     }
 
     player.start(time);
   }
 
+  /**
+   * -------------------------------------------------------
+   * DISPOSE
+   * -------------------------------------------------------
+   */
   dispose() {
     this.players.forEach(
       (player) => {
