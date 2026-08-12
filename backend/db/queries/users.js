@@ -97,45 +97,44 @@ export async function getUser(id) {
 export async function getFollowing(id) {
     const SQL =`
         SELECT u.id, u.username, u.display_name, u.avatar_url
-FROM follows f
-JOIN users u ON u.id = f.followee_id
-WHERE f.follower_id = 123
-ORDER BY f.created_at DESC;  
+        FROM follows f
+        JOIN users u ON u.id = f.followee_id
+        WHERE f.follower_id = $1
+        ORDER BY f.created_at DESC;  
     `;
 
     const { rows: followings } = await db.query(SQL, [id]);
     return followings;
 };
 
-export async function followUser(followerId, followingId) {
+export async function followUser(followerId, followeeId) {
     const SQL = `  
-        INSERT INTO follows (follower_id, following_id)
+        INSERT INTO follows (follower_id, followee_id)
         VALUES ($1, $2)
         ON CONFLICT DO NOTHING
         RETURNING *
     `;
-    const { rows: followings } = await db.query(SQL, [followerId, followingId]);
+    const { rows: followings } = await db.query(SQL, [followerId, followeeId]);
     return followings;
 };
 
-export async function unfollowUser(followerId, followingId) {
+export async function unfollowUser(followerId, followeeId) {
     const SQL = `
         DELETE FROM follows
-        WHERE follower_id = $1 AND following_id = $2
+        WHERE follower_id = $1 AND followee_id = $2
         RETURNING *
     `;
-    const { rows: followings } = await db.query(SQL, [followerId, followingId]);
+    const { rows: followings } = await db.query(SQL, [followerId, followeeId]);
     return followings;
 }
 
-export async function followCounts(followerId, followingId) {
+export async function followCounts(followerId, followeeId) {
     const SQL = `
-    -- Ad hoc (fine at moderate scale)
     SELECT
-    (SELECT COUNT(*) FROM follows WHERE followee_id = 123) AS followers,
-    (SELECT COUNT(*) FROM follows WHERE follower_id = 123) AS following;
+    (SELECT COUNT(*) FROM follows WHERE followee_id = $1) AS followers,
+    (SELECT COUNT(*) FROM follows WHERE follower_id = $1) AS following;
     `;
 
-    const { rows: followings } = await db.query(SQL, [followerId, followingId]);
-    return followings;
+    const { rows: [counts] } = await db.query(SQL, [userID]);
+    return counts;
 };

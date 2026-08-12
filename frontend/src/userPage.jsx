@@ -59,7 +59,7 @@ export default function userPage() {
             }
         }
         fetchFollowing();
-    }, [user?id, token]);
+    }, [user?.id, token]);
     const toggleFollow = async () => {
         const method = following ? 'DELETE' : 'POST';
 
@@ -199,7 +199,7 @@ export default function userPage() {
                     ))}
                 </ul>
                 <button onClick={toggleFollow} disabled={loading}>
-                {isFollowing ? 'Unfollow' : 'Follow'}
+                {/*isFollowing ? 'Unfollow' : 'Follow'*/} Follow!
                 </button>
             </section>
             <section className="projectsSection">
