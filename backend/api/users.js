@@ -3,6 +3,8 @@ import requireBody from "../middleware/requireBody.js";
 import { createUser, userLogin, getUser } from "../db/queries/users.js";
 import { createToken } from "../jwt/jwt.js";
 import { get_user_projects } from "../db/queries/projects.js";
+import { getFollowing, followUser, unfollowUser } from "../db/queries/users.js";
+import requireAuth from "../middleware/requireAuth.js";
 
 const usersRouter = Router();
 
@@ -134,21 +136,19 @@ userRouter.post("/:id/follow", requireAuth, async(req, res, next) => {
         return res.status(400).json({"error": "Cannot follow yourself"})
     }
     await db.query(
-        const SQL = `
-            INSERT INTO follows (follower_id, followee-id)
-            VALUES ($1, $2)`;
-            [followerID, followeeID]
+        const follow = await followUser(userID, followeeID);
     );
 
     });
 
-    userROuter.delete("/:id/follow", requireAuth, async(req, res, next) => {
-        await db.query(
-            const SQL = `
-                DELETE FROM follows WHERE follower_id = $1 AND followee_id = $2
-                `;
-                [req.user.id, req.params.id]
-            );
+    userRouter.delete("/:id/follow", requireAuth, async(req, res, next) => {
+        const deletefollow = await unfollowUser(req.user.id, req.params.id);
+            
         });
+
+    usersRouter.get("/:id/followCounts", async(req, res, next) => {
+    const count = await followCounts(req.params.id);
+    res.json(count);
+});
 
 export default usersRouter;
