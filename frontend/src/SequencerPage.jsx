@@ -400,7 +400,7 @@ export default function SequencerPage() {
    * Keep refs synchronized.
    */
 
-  useEffect(() => {
+  (() => {
     gridRef.current = grid;
   }, [grid]);
 
@@ -625,7 +625,7 @@ export default function SequencerPage() {
       !returnedState?.fromCustomize
     ) {
       return;
-    }
+    }useEffect
 
     /*
      * Restore grid.

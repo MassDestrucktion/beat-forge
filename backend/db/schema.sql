@@ -1,13 +1,14 @@
 DROP TABLE IF EXISTS tracks CASCADE;
 DROP TABLE IF EXISTS projects CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
-
+DROP TABLE IF EXISTS friendships CASCADE;
 
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
     bio TEXT
+
 );
 
 
@@ -38,3 +39,14 @@ ON projects(user_id);
 
 CREATE INDEX idx_tracks_project_id
 ON tracks(project_id);
+
+CREATE TABLE follows (
+  follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  followee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+  PRIMARY KEY (follower_id, followee_id),
+  CONSTRAINT no_self_follow CHECK (follower_id != followee_id)
+);
+
+CREATE INDEX idx_follows_followee ON follows (followee_id);
