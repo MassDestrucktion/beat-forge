@@ -1,4 +1,7 @@
+// src/SequencerPage.jsx
+
 import * as Tone from "tone";
+
 import {
   useState,
   useEffect,
@@ -16,11 +19,16 @@ import { useAuth } from "./AuthContext/AuthContext.jsx";
 import {
   SOUND_LIBRARY,
   getSoundById,
-  getSoundLabel,
   createSoundEngine,
 } from "./audio/soundLibrary";
 
 import "./App.css";
+
+/**
+ * ---------------------------------------------------------
+ * CONSTANTS
+ * ---------------------------------------------------------
+ */
 
 const NUM_TRACKS = 4;
 const NUM_STEPS = 16;
@@ -30,6 +38,66 @@ const TRACK_LABELS = [
   "Track 2",
   "Track 3",
   "Track 4",
+];
+
+/**
+ * Notes available from the sequencer.
+ *
+ * This gives us a useful range for basses, stabs,
+ * melodies, pads, etc.
+ */
+const NOTE_OPTIONS = [
+  "C2",
+  "C#2",
+  "D2",
+  "D#2",
+  "E2",
+  "F2",
+  "F#2",
+  "G2",
+  "G#2",
+  "A2",
+  "A#2",
+  "B2",
+
+  "C3",
+  "C#3",
+  "D3",
+  "D#3",
+  "E3",
+  "F3",
+  "F#3",
+  "G3",
+  "G#3",
+  "A3",
+  "A#3",
+  "B3",
+
+  "C4",
+  "C#4",
+  "D4",
+  "D#4",
+  "E4",
+  "F4",
+  "F#4",
+  "G4",
+  "G#4",
+  "A4",
+  "A#4",
+  "B4",
+
+  "C5",
+  "C#5",
+  "D5",
+  "D#5",
+  "E5",
+  "F5",
+  "F#5",
+  "G5",
+  "G#5",
+  "A5",
+  "A#5",
+  "B5",
 ];
 
 /**
@@ -43,14 +111,17 @@ const DEFAULT_TRACK_SETTINGS = [
     sound: "drums.kicks.cr78",
     muted: false,
   },
+
   {
     sound: "drums.snares.cr78",
     muted: false,
   },
+
   {
     sound: "drums.hihats.cr78",
     muted: false,
   },
+
   {
     sound: "synths.stabs.classic",
     note: "G2",
@@ -66,15 +137,19 @@ const DEFAULT_TRACK_SETTINGS = [
  */
 
 function createDefaultTrackSettings() {
-  return DEFAULT_TRACK_SETTINGS.map((track) => ({
-    ...track,
-  }));
+  return DEFAULT_TRACK_SETTINGS.map(
+    (track) => ({
+      ...track,
+    })
+  );
 }
 
 function createEmptyGrid() {
   return Array(NUM_TRACKS)
     .fill(null)
-    .map(() => Array(NUM_STEPS).fill(false));
+    .map(() =>
+      Array(NUM_STEPS).fill(false)
+    );
 }
 
 /**
@@ -146,32 +221,19 @@ export default function SequencerPage() {
     useState(false);
 
   /**
-   * Audio state.
-   *
-   * This is intentionally separate from isPlaying.
-   * The browser can have Tone's audio context suspended
-   * even though the React component is mounted.
-   */
-
-  const [audioReady, setAudioReady] =
-    useState(false);
-
-  /**
    * -------------------------------------------------------
    * REFS
    * -------------------------------------------------------
    */
 
-  const gridRef = useRef(grid);
+  const gridRef =
+    useRef(grid);
 
   const settingsRef =
     useRef(trackSettings);
 
   const stepCountRef =
     useRef(0);
-
-  const audioReadyRef =
-    useRef(false);
 
   /**
    * One audio routing chain per track:
@@ -195,13 +257,6 @@ export default function SequencerPage() {
     useRef([]);
 
   /**
-   * Prevent overlapping audio initialization.
-   */
-
-  const audioInitPromiseRef =
-    useRef(null);
-
-  /**
    * -------------------------------------------------------
    * SYNC REFS
    * -------------------------------------------------------
@@ -215,124 +270,6 @@ export default function SequencerPage() {
     settingsRef.current =
       trackSettings;
   }, [trackSettings]);
-
-  /**
-   * -------------------------------------------------------
-   * AUDIO UNLOCK
-   * -------------------------------------------------------
-   *
-   * Browsers require AudioContext.resume()/Tone.start()
-   * from a user gesture.
-   *
-   * We explicitly do this before playback or preview.
-   */
-
-  const ensureAudioReady = async () => {
-    if (
-      audioReadyRef.current &&
-      Tone.getContext().state === "running"
-    ) {
-      return true;
-    }
-
-    if (audioInitPromiseRef.current) {
-      return audioInitPromiseRef.current;
-    }
-
-    audioInitPromiseRef.current =
-      (async () => {
-        try {
-          /**
-           * Tone.start() must happen from a user gesture.
-           */
-
-          await Tone.start();
-
-          /**
-           * Explicitly resume the underlying context too.
-           */
-
-          const context =
-            Tone.getContext();
-
-          if (
-            context.state !== "running"
-          ) {
-            await context.resume();
-          }
-
-          /**
-           * Wait for Tone's audio assets/buffers.
-           *
-           * This is especially important if the sound
-           * library uses Tone.Player or loaded samples.
-           */
-
-          try {
-            await Tone.loaded();
-          } catch (loadError) {
-            console.warn(
-              "Tone.loaded() warning:",
-              loadError
-            );
-          }
-
-          /**
-           * Make absolutely sure the context is running.
-           */
-
-          if (
-            Tone.getContext().state !==
-            "running"
-          ) {
-            const rawContext =
-              Tone.getContext()
-                .rawContext;
-
-            if (
-              rawContext?.state ===
-              "suspended"
-            ) {
-              await rawContext.resume();
-            }
-          }
-
-          const running =
-            Tone.getContext().state ===
-            "running";
-
-          audioReadyRef.current =
-            running;
-
-          setAudioReady(running);
-
-          if (!running) {
-            console.error(
-              "Tone audio context could not be started."
-            );
-          }
-
-          return running;
-        } catch (error) {
-          console.error(
-            "Failed to initialize audio:",
-            error
-          );
-
-          audioReadyRef.current =
-            false;
-
-          setAudioReady(false);
-
-          return false;
-        } finally {
-          audioInitPromiseRef.current =
-            null;
-        }
-      })();
-
-    return audioInitPromiseRef.current;
-  };
 
   /**
    * -------------------------------------------------------
@@ -366,8 +303,7 @@ export default function SequencerPage() {
       reverbs.push(reverb);
     }
 
-    trackGainsRef.current =
-      gains;
+    trackGainsRef.current = gains;
 
     trackReverbsRef.current =
       reverbs;
@@ -375,39 +311,18 @@ export default function SequencerPage() {
     return () => {
       soundEnginesRef.current.forEach(
         (engine) => {
-          try {
-            engine?.dispose?.();
-          } catch (error) {
-            console.warn(
-              "Error disposing sound engine:",
-              error
-            );
-          }
+          engine?.dispose?.();
         }
       );
 
       soundEnginesRef.current = [];
 
       gains.forEach((gain) => {
-        try {
-          gain.dispose();
-        } catch (error) {
-          console.warn(
-            "Error disposing gain:",
-            error
-          );
-        }
+        gain.dispose();
       });
 
       reverbs.forEach((reverb) => {
-        try {
-          reverb.dispose();
-        } catch (error) {
-          console.warn(
-            "Error disposing reverb:",
-            error
-          );
-        }
+        reverb.dispose();
       });
     };
   }, []);
@@ -474,6 +389,9 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    * CREATE / RECREATE SOUND ENGINES
    * -------------------------------------------------------
+   *
+   * Whenever a track changes sound, dispose its old
+   * engine and create the new library sound.
    */
 
   useEffect(() => {
@@ -482,8 +400,7 @@ export default function SequencerPage() {
         trackGainsRef.current;
 
       if (
-        gains.length !==
-        NUM_TRACKS
+        gains.length !== NUM_TRACKS
       ) {
         return;
       }
@@ -513,14 +430,7 @@ export default function SequencerPage() {
           ];
 
         if (oldEngine) {
-          try {
-            oldEngine.dispose();
-          } catch (error) {
-            console.warn(
-              "Error disposing old sound engine:",
-              error
-            );
-          }
+          oldEngine.dispose();
         }
 
         soundEnginesRef.current[
@@ -543,30 +453,15 @@ export default function SequencerPage() {
          * Create new engine.
          */
 
-        try {
-          const engine =
-            createSoundEngine(
-              sound,
-              gains[trackIndex]
-            );
-
-          soundEnginesRef.current[
-            trackIndex
-          ] = engine;
-
-          console.log(
-            `Created sound engine for track ${
-              trackIndex + 1
-            }: ${sound.id}`
+        const engine =
+          createSoundEngine(
+            sound,
+            gains[trackIndex]
           );
-        } catch (error) {
-          console.error(
-            `Failed to create sound engine for track ${
-              trackIndex + 1
-            }:`,
-            error
-          );
-        }
+
+        soundEnginesRef.current[
+          trackIndex
+        ] = engine;
       }
     };
 
@@ -752,6 +647,37 @@ export default function SequencerPage() {
             muted:
               track?.muted ??
               false,
+
+            /**
+             * Preserve the saved note.
+             *
+             * If no note was saved for a synth,
+             * use its sound-library default.
+             */
+            note:
+              getSoundById(
+                track?.sound
+              )?.type === "synth"
+                ? track?.note ??
+                  getSoundById(
+                    track?.sound
+                  )?.synth?.note ??
+                  "C4"
+                : undefined,
+
+            /**
+             * Preserve the saved duration.
+             */
+            duration:
+              getSoundById(
+                track?.sound
+              )?.type === "synth"
+                ? track?.duration ??
+                  getSoundById(
+                    track?.sound
+                  )?.synth?.duration ??
+                  "8n"
+                : undefined,
           })
         );
 
@@ -847,6 +773,14 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    * PLAY TRACK SOUND
    * -------------------------------------------------------
+   *
+   * IMPORTANT:
+   *
+   * The selected note and duration are explicitly passed
+   * into the sound engine.
+   *
+   * This is what makes the Note dropdown actually affect
+   * the pitch of synth sounds during live playback.
    */
 
   const playTrackSound = (
@@ -874,26 +808,32 @@ export default function SequencerPage() {
 
     if (!engine) {
       console.warn(
-        `No sound engine for track ${
-          trackIndex + 1
-        }`
+        `No sound engine for track ${trackIndex + 1}`
       );
 
       return;
     }
 
-    try {
-      /**
-       * Important:
-       *
-       * The engine is responsible for routing
-       * into the track gain. We don't bypass
-       * that routing here.
-       */
+    /**
+     * Pass the current track note and duration
+     * into soundEngine.
+     *
+     * Explicit overrides win over track settings.
+     */
+    const playOverrides = {
+      note:
+        overrides.note ??
+        settings.note,
 
+      duration:
+        overrides.duration ??
+        settings.duration,
+    };
+
+    try {
       engine.play(
         time,
-        overrides
+        playOverrides
       );
     } catch (error) {
       console.error(
@@ -916,6 +856,10 @@ export default function SequencerPage() {
       const step =
         stepCountRef.current %
         NUM_STEPS;
+
+      /**
+       * Schedule the React UI update.
+       */
 
       setCurrentStep(step);
 
@@ -980,25 +924,19 @@ export default function SequencerPage() {
     trackIndex,
     stepIndex
   ) => {
-    /**
-     * Unlock audio BEFORE trying to preview.
-     */
+    await Tone.start();
 
-    const ready =
-      await ensureAudioReady();
-
-    if (!ready) {
-      setSaveStatus(
-        "Audio could not start. Check your browser audio permissions."
-      );
+    if (
+      Tone.getContext().state !==
+      "running"
+    ) {
+      await Tone.getContext().resume();
     }
 
     const updatedGrid =
-      gridRef.current.map(
-        (track) => [
-          ...track,
-        ]
-      );
+      grid.map((track) => [
+        ...track,
+      ]);
 
     const isTurningOn =
       !updatedGrid[
@@ -1016,10 +954,7 @@ export default function SequencerPage() {
      * Preview immediately.
      */
 
-    if (
-      isTurningOn &&
-      ready
-    ) {
+    if (isTurningOn) {
       playTrackSound(
         trackIndex
       );
@@ -1051,6 +986,7 @@ export default function SequencerPage() {
 
             return {
               ...track,
+
               muted:
                 !track?.muted,
             };
@@ -1100,6 +1036,12 @@ export default function SequencerPage() {
               sound:
                 sound.id,
 
+              /**
+               * Synth sounds get a note.
+               *
+               * Keep the user's current note when
+               * switching between synths.
+               */
               note:
                 sound.type ===
                 "synth"
@@ -1109,6 +1051,9 @@ export default function SequencerPage() {
                     "C4"
                   : undefined,
 
+              /**
+               * Synth duration.
+               */
               duration:
                 sound.type ===
                 "synth"
@@ -1130,19 +1075,13 @@ export default function SequencerPage() {
    */
 
   const togglePlay = async () => {
-    /**
-     * This MUST happen from the button click.
-     */
+    await Tone.start();
 
-    const ready =
-      await ensureAudioReady();
-
-    if (!ready) {
-      setSaveStatus(
-        "Audio could not start. Check your browser audio permissions."
-      );
-
-      return;
+    if (
+      Tone.getContext().state !==
+      "running"
+    ) {
+      await Tone.getContext().resume();
     }
 
     if (isPlaying) {
@@ -1159,10 +1098,6 @@ export default function SequencerPage() {
       return;
     }
 
-    /**
-     * Stop/reset before starting.
-     */
-
     Tone.Transport.stop();
 
     Tone.Transport.position =
@@ -1173,15 +1108,9 @@ export default function SequencerPage() {
     Tone.Transport.bpm.value =
       bpm;
 
-    /**
-     * Start the Tone transport.
-     */
-
     Tone.Transport.start();
 
     setIsPlaying(true);
-
-    setSaveStatus("");
   };
 
   /**
@@ -1502,6 +1431,10 @@ export default function SequencerPage() {
               const offlineEngines =
                 [];
 
+              /**
+               * Create routing.
+               */
+
               for (
                 let trackIndex = 0;
                 trackIndex <
@@ -1553,6 +1486,12 @@ export default function SequencerPage() {
                   gain
                 );
 
+                /**
+                 * Build the exact same
+                 * sound engine used by
+                 * live playback.
+                 */
+
                 const sound =
                   getSoundById(
                     settings?.sound
@@ -1574,6 +1513,10 @@ export default function SequencerPage() {
                   );
                 }
               }
+
+              /**
+               * Schedule pattern.
+               */
 
               for (
                 let step = 0;
@@ -1936,18 +1879,6 @@ export default function SequencerPage() {
               {bpm}
             </strong>
           </label>
-
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: "0.8rem",
-              opacity: 0.7,
-            }}
-          >
-            {audioReady
-              ? "🔊 Audio Ready"
-              : "🔇 Audio Not Started"}
-          </span>
         </div>
       </section>
 
@@ -2043,6 +1974,24 @@ export default function SequencerPage() {
                 trackIndex
               ]?.muted ||
               false;
+
+            const selectedNote =
+              trackSettings[
+                trackIndex
+              ]?.note ||
+              currentSound
+                ?.synth
+                ?.note ||
+              "C4";
+
+            const selectedDuration =
+              trackSettings[
+                trackIndex
+              ]?.duration ||
+              currentSound
+                ?.synth
+                ?.duration ||
+              "8n";
 
             return (
               <div
@@ -2155,16 +2104,9 @@ export default function SequencerPage() {
                             Note
                           </span>
 
-                          <input
-                            type="text"
+                          <select
                             value={
-                              trackSettings[
-                                trackIndex
-                              ]?.note ||
-                              currentSound
-                                ?.synth
-                                ?.note ||
-                              "C4"
+                              selectedNote
                             }
                             onChange={(
                               e
@@ -2176,7 +2118,26 @@ export default function SequencerPage() {
                                   .value
                               )
                             }
-                          />
+                          >
+                            {NOTE_OPTIONS.map(
+                              (
+                                note
+                              ) => (
+                                <option
+                                  key={
+                                    note
+                                  }
+                                  value={
+                                    note
+                                  }
+                                >
+                                  {
+                                    note
+                                  }
+                                </option>
+                              )
+                            )}
+                          </select>
                         </label>
 
                         <label>
@@ -2186,13 +2147,7 @@ export default function SequencerPage() {
 
                           <select
                             value={
-                              trackSettings[
-                                trackIndex
-                              ]?.duration ||
-                              currentSound
-                                ?.synth
-                                ?.duration ||
-                              "8n"
+                              selectedDuration
                             }
                             onChange={(
                               e

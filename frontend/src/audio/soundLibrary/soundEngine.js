@@ -4,16 +4,21 @@ import * as Tone from "tone";
 import { createSynthForSound } from "./createSynth";
 
 /**
- * Resolve the destination.
+ * ---------------------------------------------------------
+ * RESOLVE DESTINATION
+ * ---------------------------------------------------------
  *
- * If the sequencer gives us a track gain/effect chain,
- * use it.
+ * If the sequencer provides a track gain/effect chain,
+ * use that.
  *
  * Otherwise, safely send audio directly to Tone's
- * master destination.
+ * destination.
  */
 function resolveDestination(destination) {
-  return destination || Tone.getDestination();
+  return (
+    destination ||
+    Tone.getDestination()
+  );
 }
 
 /**
@@ -43,6 +48,8 @@ function resolveDestination(destination) {
  *
  *   engine.type
  *   engine.node
+ *   engine.loaded
+ *   engine.load()
  *   engine.play()
  *   engine.dispose()
  */
@@ -66,6 +73,7 @@ export function createSoundEngine(
    * SAMPLE
    * -------------------------------------------------------
    */
+
   if (sound.type === "sample") {
     if (!sound.url) {
       console.warn(
@@ -81,6 +89,10 @@ export function createSoundEngine(
         autostart: false,
       });
 
+    /**
+     * Connect the player to the track's
+     * gain/effect chain.
+     */
     player.connect(output);
 
     return {
@@ -89,14 +101,14 @@ export function createSoundEngine(
       node: player,
 
       /**
-       * Whether the sample is ready.
+       * Whether the sample has finished loading.
        */
       get loaded() {
         return player.loaded;
       },
 
       /**
-       * Wait for the sample to finish loading.
+       * Wait for the sample to load.
        */
       async load() {
         if (player.loaded) {
@@ -109,10 +121,13 @@ export function createSoundEngine(
       },
 
       /**
-       * Play the sample.
+       * ---------------------------------------------------
+       * PLAY SAMPLE
+       * ---------------------------------------------------
        *
-       * If a scheduled Tone time is supplied,
-       * Tone handles the scheduling.
+       * Tone.Player does not use note/duration.
+       *
+       * It simply starts the audio sample.
        */
       async play(time) {
         await this.load();
@@ -125,9 +140,19 @@ export function createSoundEngine(
           return;
         }
 
-        player.start(time);
+        try {
+          player.start(time);
+        } catch (error) {
+          console.error(
+            `Failed to play sample "${sound.id}":`,
+            error
+          );
+        }
       },
 
+      /**
+       * Dispose the Tone.Player.
+       */
       dispose() {
         player.dispose();
       },
@@ -139,6 +164,7 @@ export function createSoundEngine(
    * SYNTH
    * -------------------------------------------------------
    */
+
   if (sound.type === "synth") {
     const synth =
       createSynthForSound(
@@ -154,10 +180,6 @@ export function createSoundEngine(
       return null;
     }
 
-    /**
-     * createSynthForSound returns the
-     * actual Tone synth node.
-     */
     return {
       type: "synth",
 
@@ -165,10 +187,32 @@ export function createSoundEngine(
 
       loaded: true,
 
+      /**
+       * Synths don't need sample loading,
+       * so this resolves immediately.
+       */
       async load() {
         return synth;
       },
 
+      /**
+       * ---------------------------------------------------
+       * PLAY SYNTH
+       * ---------------------------------------------------
+       *
+       * The important part here is that overrides
+       * take priority over the sound-library defaults.
+       *
+       * Example:
+       *
+       * engine.play(time, {
+       *   note: "G3",
+       *   duration: "8n",
+       * });
+       *
+       * The selected sequencer note therefore
+       * actually controls the pitch.
+       */
       play(
         time,
         overrides = {}
@@ -176,19 +220,27 @@ export function createSoundEngine(
         const config =
           sound.synth || {};
 
+        /**
+         * Sequencer override first.
+         *
+         * Fall back to the sound-library default
+         * if the sequencer hasn't specified one.
+         */
         const note =
           overrides.note ??
           config.note ??
           "C4";
 
+        /**
+         * Sequencer duration first.
+         */
         const duration =
           overrides.duration ??
           config.duration ??
           "8n";
 
         /**
-         * Most Tone synths expose
-         * triggerAttackRelease.
+         * Safety check.
          */
         if (
           typeof synth.triggerAttackRelease !==
@@ -201,18 +253,34 @@ export function createSoundEngine(
           return;
         }
 
-        synth.triggerAttackRelease(
-          note,
-          duration,
-          time
-        );
+        try {
+          synth.triggerAttackRelease(
+            note,
+            duration,
+            time
+          );
+        } catch (error) {
+          console.error(
+            `Failed to play synth "${sound.id}" with note "${note}":`,
+            error
+          );
+        }
       },
 
+      /**
+       * Dispose the synth.
+       */
       dispose() {
         synth.dispose();
       },
     };
   }
+
+  /**
+   * -------------------------------------------------------
+   * UNKNOWN SOUND TYPE
+   * -------------------------------------------------------
+   */
 
   console.warn(
     `Unknown sound type: ${sound.type}`
