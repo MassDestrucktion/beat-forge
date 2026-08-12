@@ -1,34 +1,42 @@
+// src/audio/soundLibrary/soundEngine.js
+
 import * as Tone from "tone";
-import { createSynthForSound } from "./createSynth";
+
+import {
+  createSynthForSound,
+} from "./createSynth";
+
+import {
+  createPiano,
+} from "./createPiano.js";
+
+import {
+  createAudioEffectChain,
+} from "./audioEffects";
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * TONE DURATION -> GRID STEPS
- * ---------------------------------------------------------
- *
- * The sequencer is based on a 16-step grid.
- *
- * 1 step  = 16n
- * 2 steps = 8n
- * 4 steps = 4n
- * 8 steps = 2n
- * 16 steps = 1m
- *
- * This helper exists primarily for backwards compatibility
- * with projects that were saved using the old `duration`
- * property.
+ * =========================================================
  */
 
-export function toneDurationToSteps(duration) {
+export function toneDurationToSteps(
+  duration
+) {
   if (!duration) {
     return 1;
   }
 
   if (typeof duration === "number") {
-    return Math.max(1, Math.round(duration));
+    return Math.max(
+      1,
+      Math.round(duration)
+    );
   }
 
-  const value = String(duration).trim().toLowerCase();
+  const value = String(duration)
+    .trim()
+    .toLowerCase();
 
   const durationMap = {
     "16n": 1,
@@ -36,44 +44,41 @@ export function toneDurationToSteps(duration) {
     "4n": 4,
     "2n": 8,
     "1n": 16,
-
-    // Tone.js measure notation.
     "1m": 16,
 
-    // Useful dotted values. We clamp them to the
-    // available 16-step grid.
     "16n.": 1,
     "8n.": 3,
     "4n.": 6,
     "2n.": 12,
   };
 
-  if (durationMap[value] !== undefined) {
+  if (
+    durationMap[value] !== undefined
+  ) {
     return durationMap[value];
   }
 
-  /**
-   * Try Tone.js as a fallback.
-   *
-   * This allows older/less common duration strings
-   * to still be converted when possible.
-   */
   try {
     const seconds =
       Tone.Time(value).toSeconds();
 
     const sixteenthSeconds =
-      Tone.Time("16n").toSeconds();
+      Tone.Time(
+        "16n"
+      ).toSeconds();
 
     if (
       Number.isFinite(seconds) &&
-      Number.isFinite(sixteenthSeconds) &&
+      Number.isFinite(
+        sixteenthSeconds
+      ) &&
       sixteenthSeconds > 0
     ) {
       return Math.max(
         1,
         Math.round(
-          seconds / sixteenthSeconds
+          seconds /
+            sixteenthSeconds
         )
       );
     }
@@ -88,21 +93,19 @@ export function toneDurationToSteps(duration) {
 }
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * GRID STEPS -> TONE DURATION
- * ---------------------------------------------------------
- *
- * This is useful when a sound engine needs an actual
- * Tone.js duration.
+ * =========================================================
  */
 
 export function stepsToToneDuration(
   steps
 ) {
-  const normalizedSteps = Math.max(
-    1,
-    Number(steps) || 1
-  );
+  const normalizedSteps =
+    Math.max(
+      1,
+      Number(steps) || 1
+    );
 
   const durationMap = {
     1: "16n",
@@ -115,31 +118,93 @@ export function stepsToToneDuration(
   if (
     durationMap[normalizedSteps]
   ) {
-    return durationMap[normalizedSteps];
+    return durationMap[
+      normalizedSteps
+    ];
   }
 
-  /**
-   * For arbitrary step lengths, Tone.js
-   * can express the duration as seconds.
-   *
-   * We return a musical-time expression
-   * based on 16th notes.
-   */
   return `${normalizedSteps}*16n`;
 }
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
+ * NORMALIZE NOTES
+ * =========================================================
+ */
+
+export function normalizeNotes(
+  notes,
+  fallbackNote = "C4"
+) {
+  if (Array.isArray(notes)) {
+    const cleaned = notes
+      .map((note) =>
+        String(note).trim()
+      )
+      .filter(Boolean);
+
+    if (cleaned.length > 0) {
+      return cleaned;
+    }
+  }
+
+  if (typeof notes === "string") {
+    const cleaned = notes
+      .split(/[\s,]+/)
+      .map((note) =>
+        note.trim()
+      )
+      .filter(Boolean);
+
+    if (cleaned.length > 0) {
+      return cleaned;
+    }
+  }
+
+  if (fallbackNote) {
+    return [fallbackNote];
+  }
+
+  return ["C4"];
+}
+
+/**
+ * =========================================================
+ * CREATE EFFECT ROUTING
+ * =========================================================
+ */
+
+function createDestination(
+  destination,
+  effects
+) {
+  if (!effects) {
+    return {
+      input:
+        destination ||
+        Tone.getDestination(),
+
+      dispose() {},
+    };
+  }
+
+  return createAudioEffectChain(
+    destination ||
+      Tone.getDestination(),
+    effects
+  );
+}
+
+/**
+ * =========================================================
  * CREATE SOUND ENGINE
- * ---------------------------------------------------------
- *
- * Creates the appropriate instrument for a sound-library
- * definition and connects it to the supplied destination.
+ * =========================================================
  */
 
 export function createSoundEngine(
   sound,
-  destination
+  destination,
+  effects
 ) {
   if (!sound) {
     return null;
@@ -147,23 +212,241 @@ export function createSoundEngine(
 
   /**
    * -------------------------------------------------------
-   * SYNTH
+   * AUDIO ROUTING
    * -------------------------------------------------------
+   *
+   * Instrument/player
+   *      ↓
+   * effect chain
+   *      ↓
+   * destination
+   */
+
+  const routing =
+    createDestination(
+      destination,
+      effects
+    );
+
+  const output =
+    routing.input;
+
+  /**
+   * =======================================================
+   * SYNTH
+   * =======================================================
    */
 
   if (sound.type === "synth") {
-    return createSynthForSound(
-      sound,
-      destination
-    );
+    const instrument =
+      createSynthForSound(
+        sound,
+        output
+      );
+
+    if (!instrument) {
+      routing.dispose?.();
+      return null;
+    }
+
+    return {
+      instrument,
+
+      play(time, options = {}) {
+        const notes =
+          normalizeNotes(
+            options.notes,
+            options.note ||
+              sound?.synth?.note ||
+              "C4"
+          );
+
+        const durationSteps =
+          Number(
+            options.durationSteps
+          ) || 1;
+
+        const duration =
+          options.duration ||
+          stepsToToneDuration(
+            durationSteps
+          );
+
+        try {
+          /**
+           * PolySynth can accept an array of notes.
+           */
+          if (
+            Array.isArray(notes) &&
+            notes.length > 1 &&
+            typeof instrument
+              .triggerAttackRelease ===
+              "function"
+          ) {
+            try {
+              instrument.triggerAttackRelease(
+                notes,
+                duration,
+                time
+              );
+
+              return;
+            } catch (
+              polyError
+            ) {
+              console.warn(
+                "Instrument could not play chord; falling back to first note.",
+                polyError
+              );
+            }
+          }
+
+          const note =
+            notes[0] ||
+            options.note ||
+            sound?.synth?.note ||
+            "C4";
+
+          if (
+            typeof instrument
+              .triggerAttackRelease ===
+            "function"
+          ) {
+            instrument.triggerAttackRelease(
+              note,
+              duration,
+              time
+            );
+          }
+        } catch (error) {
+          console.error(
+            `Failed to play synth "${sound.id}":`,
+            error
+          );
+        }
+      },
+
+      dispose() {
+        instrument.dispose?.();
+        routing.dispose?.();
+      },
+    };
   }
 
   /**
-   * -------------------------------------------------------
+   * =======================================================
+   * PIANO
+   * =======================================================
+   */
+
+  if (sound.type === "piano") {
+    const piano =
+      createPiano(output);
+
+    return {
+      instrument: piano,
+
+      /**
+       * Play piano note/chord.
+       *
+       * options:
+       *
+       * notes
+       * note
+       * velocity
+       * durationSteps
+       * duration
+       */
+
+      play(time, options = {}) {
+        const notes =
+          normalizeNotes(
+            options.notes,
+            options.note ||
+              "C4"
+          );
+
+        const velocity =
+          Number(
+            options.velocity
+          ) || 100;
+
+        const durationSteps =
+          Number(
+            options.durationSteps
+          ) || 1;
+
+        const duration =
+          options.duration ||
+          stepsToToneDuration(
+            durationSteps
+          );
+
+        try {
+          /**
+           * Piano chords.
+           */
+          notes.forEach(
+            (note) => {
+              piano.triggerAttackRelease(
+                note,
+                duration,
+                velocity,
+                time
+              );
+            }
+          );
+        } catch (error) {
+          console.error(
+            `Failed to play piano "${sound.id}":`,
+            error
+          );
+        }
+      },
+
+      /**
+       * Manual piano key down.
+       */
+      triggerAttack(
+        note,
+        velocity = 100,
+        time
+      ) {
+        piano.triggerAttack(
+          note,
+          velocity,
+          time
+        );
+      },
+
+      /**
+       * Manual piano key up.
+       */
+      triggerRelease(
+        note,
+        time
+      ) {
+        piano.triggerRelease(
+          note,
+          time
+        );
+      },
+
+      releaseAll() {
+        piano.releaseAll();
+      },
+
+      dispose() {
+        piano.dispose();
+        routing.dispose?.();
+      },
+    };
+  }
+
+  /**
+   * =======================================================
    * SAMPLE
-   * -------------------------------------------------------
-   *
-   * Sample-based sounds are handled by Tone.Player.
+   * =======================================================
    */
 
   if (sound.type === "sample") {
@@ -176,6 +459,8 @@ export function createSoundEngine(
         `Sample sound "${sound.id}" has no URL.`
       );
 
+      routing.dispose?.();
+
       return null;
     }
 
@@ -185,11 +470,7 @@ export function createSoundEngine(
         autostart: false,
       });
 
-    if (destination) {
-      player.connect(destination);
-    } else {
-      player.toDestination();
-    }
+    player.connect(output);
 
     return {
       instrument: player,
@@ -207,9 +488,18 @@ export function createSoundEngine(
 
       dispose() {
         player.dispose();
+        routing.dispose?.();
       },
     };
   }
+
+  /**
+   * =======================================================
+   * UNKNOWN
+   * =======================================================
+   */
+
+  routing.dispose?.();
 
   console.warn(
     `Unknown sound type: ${sound.type}`
@@ -219,12 +509,9 @@ export function createSoundEngine(
 }
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * PLAY SOUND
- * ---------------------------------------------------------
- *
- * Generic helper if other parts of the app need to play
- * a sound definition directly.
+ * =========================================================
  */
 
 export function playSound(
