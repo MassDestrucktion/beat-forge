@@ -1,24 +1,12 @@
-// src/audio/soundLibrary/soundEngine.js
-
 import * as Tone from "tone";
 import { createSynthForSound } from "./createSynth";
 
 /**
  * ---------------------------------------------------------
- * RESOLVE DESTINATION
- * ---------------------------------------------------------
- */
-
-function resolveDestination(destination) {
-  return destination || Tone.getDestination();
-}
-
-/**
- * ---------------------------------------------------------
- * GRID DURATION HELPERS
+ * TONE DURATION -> GRID STEPS
  * ---------------------------------------------------------
  *
- * The sequencer is based on a 16th-note grid.
+ * The sequencer is based on a 16-step grid.
  *
  * 1 step  = 16n
  * 2 steps = 8n
@@ -26,70 +14,118 @@ function resolveDestination(destination) {
  * 8 steps = 2n
  * 16 steps = 1m
  *
- * Keeping this conversion here means the rest of the
- * application can work with the much simpler concept of
- * "number of grid steps".
+ * This helper exists primarily for backwards compatibility
+ * with projects that were saved using the old `duration`
+ * property.
  */
 
-export function durationStepsToTone(durationSteps) {
-  const steps = Number(durationSteps);
-
-  switch (steps) {
-    case 1:
-      return "16n";
-
-    case 2:
-      return "8n";
-
-    case 4:
-      return "4n";
-
-    case 8:
-      return "2n";
-
-    case 16:
-      return "1m";
-
-    default:
-      return "16n";
+export function toneDurationToSteps(duration) {
+  if (!duration) {
+    return 1;
   }
+
+  if (typeof duration === "number") {
+    return Math.max(1, Math.round(duration));
+  }
+
+  const value = String(duration).trim().toLowerCase();
+
+  const durationMap = {
+    "16n": 1,
+    "8n": 2,
+    "4n": 4,
+    "2n": 8,
+    "1n": 16,
+
+    // Tone.js measure notation.
+    "1m": 16,
+
+    // Useful dotted values. We clamp them to the
+    // available 16-step grid.
+    "16n.": 1,
+    "8n.": 3,
+    "4n.": 6,
+    "2n.": 12,
+  };
+
+  if (durationMap[value] !== undefined) {
+    return durationMap[value];
+  }
+
+  /**
+   * Try Tone.js as a fallback.
+   *
+   * This allows older/less common duration strings
+   * to still be converted when possible.
+   */
+  try {
+    const seconds =
+      Tone.Time(value).toSeconds();
+
+    const sixteenthSeconds =
+      Tone.Time("16n").toSeconds();
+
+    if (
+      Number.isFinite(seconds) &&
+      Number.isFinite(sixteenthSeconds) &&
+      sixteenthSeconds > 0
+    ) {
+      return Math.max(
+        1,
+        Math.round(
+          seconds / sixteenthSeconds
+        )
+      );
+    }
+  } catch (error) {
+    console.warn(
+      `Could not convert Tone duration "${duration}" to grid steps.`,
+      error
+    );
+  }
+
+  return 1;
 }
 
 /**
  * ---------------------------------------------------------
- * LEGACY DURATION SUPPORT
+ * GRID STEPS -> TONE DURATION
  * ---------------------------------------------------------
  *
- * Older saved projects may still contain:
- *
- * duration: "16n"
- * duration: "8n"
- * duration: "4n"
- * etc.
- *
- * Convert those into the new grid-based representation.
+ * This is useful when a sound engine needs an actual
+ * Tone.js duration.
  */
 
-export function toneDurationToSteps(duration) {
-  switch (duration) {
-    case "16n":
-      return 1;
+export function stepsToToneDuration(
+  steps
+) {
+  const normalizedSteps = Math.max(
+    1,
+    Number(steps) || 1
+  );
 
-    case "8n":
-      return 2;
+  const durationMap = {
+    1: "16n",
+    2: "8n",
+    4: "4n",
+    8: "2n",
+    16: "1m",
+  };
 
-    case "4n":
-      return 4;
-
-    case "2n":
-      return 8;
-
-    case "1m":
-      return 16;
-
-    default:
-      return 1;
+  if (
+    durationMap[normalizedSteps]
+  ) {
+    return durationMap[normalizedSteps];
   }
+
+  /**
+   * For arbitrary step lengths, Tone.js
+   * can express the duration as seconds.
+   *
+   * We return a musical-time expression
+   * based on 16th notes.
+   */
+  return `${normalizedSteps}*16n`;
 }
 
 /**
@@ -97,30 +133,8 @@ export function toneDurationToSteps(duration) {
  * CREATE SOUND ENGINE
  * ---------------------------------------------------------
  *
- * This is the single factory used by the sequencer.
- *
- * Sample:
- *
- * sound
- *   ↓
- * Tone.Player
- *   ↓
- * destination
- *
- * Synth:
- *
- * sound
- *   ↓
- * Tone synth
- *   ↓
- * destination
- *
- * Every returned engine exposes:
- *
- * engine.type
- * engine.node
- * engine.play()
- * engine.dispose()
+ * Creates the appropriate instrument for a sound-library
+ * definition and connects it to the supplied destination.
  */
 
 export function createSoundEngine(
@@ -128,76 +142,7 @@ export function createSoundEngine(
   destination
 ) {
   if (!sound) {
-    console.warn(
-      "createSoundEngine: no sound supplied"
-    );
-
     return null;
-  }
-
-  const output =
-    resolveDestination(destination);
-
-  /**
-   * -------------------------------------------------------
-   * SAMPLE
-   * -------------------------------------------------------
-   */
-
-  if (sound.type === "sample") {
-    if (!sound.url) {
-      console.warn(
-        `Sample "${sound.id}" has no URL.`
-      );
-
-      return null;
-    }
-
-    const player =
-      new Tone.Player({
-        url: sound.url,
-        autostart: false,
-      });
-
-    player.connect(output);
-
-    return {
-      type: "sample",
-
-      node: player,
-
-      get loaded() {
-        return player.loaded;
-      },
-
-      async load() {
-        if (player.loaded) {
-          return player;
-        }
-
-        await Tone.loaded();
-
-        return player;
-      },
-
-      async play(time) {
-        await this.load();
-
-        if (!player.loaded) {
-          console.warn(
-            `Sample "${sound.id}" is still not loaded.`
-          );
-
-          return;
-        }
-
-        player.start(time);
-      },
-
-      dispose() {
-        player.dispose();
-      },
-    };
   }
 
   /**
@@ -207,151 +152,61 @@ export function createSoundEngine(
    */
 
   if (sound.type === "synth") {
-    const synth =
-      createSynthForSound(
-        sound,
-        output
-      );
+    return createSynthForSound(
+      sound,
+      destination
+    );
+  }
 
-    if (!synth) {
+  /**
+   * -------------------------------------------------------
+   * SAMPLE
+   * -------------------------------------------------------
+   *
+   * Sample-based sounds are handled by Tone.Player.
+   */
+
+  if (sound.type === "sample") {
+    const url =
+      sound.sample?.url ||
+      sound.url;
+
+    if (!url) {
       console.warn(
-        `Unable to create synth for "${sound.id}".`
+        `Sample sound "${sound.id}" has no URL.`
       );
 
       return null;
     }
 
+    const player =
+      new Tone.Player({
+        url,
+        autostart: false,
+      });
+
+    if (destination) {
+      player.connect(destination);
+    } else {
+      player.toDestination();
+    }
+
     return {
-      type: "synth",
+      instrument: player,
 
-      node: synth,
-
-      loaded: true,
-
-      async load() {
-        return synth;
-      },
-
-      /**
-       * ---------------------------------------------------
-       * PLAY SYNTH
-       * ---------------------------------------------------
-       *
-       * The sequencer supplies durationSteps.
-       *
-       * Example:
-       *
-       * durationSteps: 1
-       * -> 16n
-       *
-       * durationSteps: 2
-       * -> 8n
-       *
-       * durationSteps: 4
-       * -> 4n
-       *
-       * durationSteps: 8
-       * -> 2n
-       *
-       * durationSteps: 16
-       * -> 1m
-       */
-
-      play(
-        time,
-        overrides = {}
-      ) {
-        const config =
-          sound.synth || {};
-
-        const note =
-          overrides.note ??
-          config.note ??
-          "C4";
-
-        /**
-         * Prefer the new grid-based
-         * duration system.
-         */
-
-        let duration;
-
-        if (
-          overrides.durationSteps !==
-          undefined
-        ) {
-          duration =
-            durationStepsToTone(
-              overrides.durationSteps
-            );
-        }
-
-        /**
-         * Backwards compatibility for
-         * any existing code still sending
-         * a Tone duration string.
-         */
-
-        else if (
-          overrides.duration !==
-          undefined
-        ) {
-          duration =
-            overrides.duration;
-        }
-
-        /**
-         * Finally use the sound
-         * definition's duration.
-         */
-
-        else if (
-          config.durationSteps !==
-          undefined
-        ) {
-          duration =
-            durationStepsToTone(
-              config.durationSteps
-            );
-        }
-
-        else if (
-          config.duration !==
-          undefined
-        ) {
-          duration =
-            config.duration;
-        }
-
-        else {
-          duration = "16n";
-        }
-
-        /**
-         * Most Tone synths expose
-         * triggerAttackRelease.
-         */
-
-        if (
-          typeof synth.triggerAttackRelease !==
-          "function"
-        ) {
-          console.warn(
-            `Synth "${sound.id}" does not support triggerAttackRelease.`
+      play(time) {
+        try {
+          player.start(time);
+        } catch (error) {
+          console.error(
+            `Failed to play sample "${sound.id}":`,
+            error
           );
-
-          return;
         }
-
-        synth.triggerAttackRelease(
-          note,
-          duration,
-          time
-        );
       },
 
       dispose() {
-        synth.dispose();
+        player.dispose();
       },
     };
   }
@@ -361,4 +216,35 @@ export function createSoundEngine(
   );
 
   return null;
+}
+
+/**
+ * ---------------------------------------------------------
+ * PLAY SOUND
+ * ---------------------------------------------------------
+ *
+ * Generic helper if other parts of the app need to play
+ * a sound definition directly.
+ */
+
+export function playSound(
+  engine,
+  time,
+  options = {}
+) {
+  if (!engine?.play) {
+    return;
+  }
+
+  try {
+    engine.play(
+      time,
+      options
+    );
+  } catch (error) {
+    console.error(
+      "Failed to play sound:",
+      error
+    );
+  }
 }

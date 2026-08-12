@@ -43,9 +43,6 @@ const TRACK_LABELS = [
  * GRID DURATION OPTIONS
  * ---------------------------------------------------------
  *
- * These are expressed in GRID STEPS rather than raw Tone
- * duration strings.
- *
  * 1 step  = 16n
  * 2 steps = 8n
  * 4 steps = 4n
@@ -78,7 +75,7 @@ const DURATION_OPTIONS = [
 
 /**
  * ---------------------------------------------------------
- * DEFAULT SOUNDS
+ * DEFAULT TRACK SETTINGS
  * ---------------------------------------------------------
  */
 
@@ -108,7 +105,40 @@ const DEFAULT_TRACK_SETTINGS = [
 
 /**
  * ---------------------------------------------------------
- * DEFAULT GRID
+ * EFFECT DEFAULTS
+ * ---------------------------------------------------------
+ */
+
+const DEFAULT_EFFECTS = {
+  reverb: {
+    enabled: false,
+    wet: 0.35,
+    decay: 1.5,
+  },
+
+  delay: {
+    enabled: false,
+    wet: 0.25,
+    delayTime: "8n",
+    feedback: 0.25,
+  },
+
+  distortion: {
+    enabled: false,
+    amount: 0.25,
+  },
+
+  filter: {
+    enabled: false,
+    frequency: 2000,
+    type: "lowpass",
+    rolloff: -12,
+  },
+};
+
+/**
+ * ---------------------------------------------------------
+ * HELPERS
  * ---------------------------------------------------------
  */
 
@@ -128,29 +158,47 @@ function createEmptyGrid() {
     );
 }
 
-/**
- * ---------------------------------------------------------
- * SOUND LIBRARY
- * ---------------------------------------------------------
- */
-
 function getAvailableSounds() {
   return SOUND_LIBRARY;
 }
 
 /**
  * ---------------------------------------------------------
+ * NORMALIZE EFFECT SETTINGS
+ * ---------------------------------------------------------
+ */
+
+function normalizeEffects(track) {
+  const effects =
+    track?.effects || {};
+
+  return {
+    reverb: {
+      ...DEFAULT_EFFECTS.reverb,
+      ...(effects.reverb || {}),
+    },
+
+    delay: {
+      ...DEFAULT_EFFECTS.delay,
+      ...(effects.delay || {}),
+    },
+
+    distortion: {
+      ...DEFAULT_EFFECTS.distortion,
+      ...(effects.distortion || {}),
+    },
+
+    filter: {
+      ...DEFAULT_EFFECTS.filter,
+      ...(effects.filter || {}),
+    },
+  };
+}
+
+/**
+ * ---------------------------------------------------------
  * NORMALIZE TRACK SETTINGS
  * ---------------------------------------------------------
- *
- * This is important because projects saved before the
- * durationSteps change may still contain:
- *
- * duration: "8n"
- *
- * We convert that into:
- *
- * durationSteps: 2
  */
 
 function normalizeTrackSettings(
@@ -177,6 +225,9 @@ function normalizeTrackSettings(
     muted:
       track?.muted ??
       false,
+
+    effects:
+      normalizeEffects(track),
   };
 
   /**
@@ -188,8 +239,7 @@ function normalizeTrackSettings(
       track?.durationSteps;
 
     /**
-     * Convert old saved duration
-     * values if necessary.
+     * Convert old Tone duration.
      */
 
     if (
@@ -203,8 +253,7 @@ function normalizeTrackSettings(
     }
 
     /**
-     * Use sound definition if
-     * available.
+     * Sound definition duration.
      */
 
     if (
@@ -216,8 +265,7 @@ function normalizeTrackSettings(
     }
 
     /**
-     * Legacy sound definitions may
-     * still contain duration.
+     * Legacy sound definition.
      */
 
     if (
@@ -238,24 +286,110 @@ function normalizeTrackSettings(
     normalized.durationSteps =
       Number(durationSteps) || 1;
 
-    /**
-     * Remove the old property from
-     * the active model.
-     */
-
     delete normalized.duration;
   } else {
-    /**
-     * Samples/drums don't need
-     * duration.
-     */
-
     delete normalized.note;
     delete normalized.duration;
     delete normalized.durationSteps;
   }
 
   return normalized;
+}
+
+/**
+ * ---------------------------------------------------------
+ * CREATE EFFECT CHAIN
+ * ---------------------------------------------------------
+ *
+ * Sound engine
+ *      ↓
+ * Gain
+ *      ↓
+ * Filter
+ *      ↓
+ * Distortion
+ *      ↓
+ * Delay
+ *      ↓
+ * Reverb
+ *      ↓
+ * Speakers
+ */
+
+function createTrackEffectChain(
+  settings
+) {
+  const effects =
+    normalizeEffects(settings);
+
+  const gain =
+    new Tone.Gain(
+      settings?.muted ? 0 : 1
+    );
+
+  const filter =
+    new Tone.Filter({
+      type:
+        effects.filter.type,
+      frequency:
+        effects.filter.frequency,
+      rolloff:
+        effects.filter.rolloff,
+    });
+
+  const distortion =
+    new Tone.Distortion(
+      effects.distortion.amount
+    );
+
+  const delay =
+    new Tone.FeedbackDelay({
+      delayTime:
+        effects.delay.delayTime,
+      feedback:
+        effects.delay.feedback,
+      wet:
+        effects.delay.enabled
+          ? effects.delay.wet
+          : 0,
+    });
+
+  const reverb =
+    new Tone.Reverb({
+      decay:
+        effects.reverb.decay,
+      wet:
+        effects.reverb.enabled
+          ? effects.reverb.wet
+          : 0,
+    });
+
+  gain.connect(filter);
+  filter.connect(distortion);
+  distortion.connect(delay);
+  delay.connect(reverb);
+  reverb.toDestination();
+
+  if (
+    !effects.filter.enabled
+  ) {
+    filter.frequency.value = 20000;
+  }
+
+  if (
+    !effects.distortion.enabled
+  ) {
+    distortion.distortion = 0;
+  }
+
+  return {
+    input: gain,
+    gain,
+    filter,
+    distortion,
+    delay,
+    reverb,
+  };
 }
 
 /**
@@ -336,13 +470,10 @@ export default function SequencerPage() {
   const stepCountRef =
     useRef(0);
 
-  const trackGainsRef =
-    useRef([]);
-
-  const trackReverbsRef =
-    useRef([]);
-
   const soundEnginesRef =
+    useRef([]);
+
+  const effectChainsRef =
     useRef([]);
 
   /**
@@ -362,146 +493,48 @@ export default function SequencerPage() {
 
   /**
    * -------------------------------------------------------
-   * CREATE TRACK AUDIO ROUTING
-   * -------------------------------------------------------
-   */
-
-  useEffect(() => {
-    const gains = [];
-    const reverbs = [];
-
-    for (
-      let trackIndex = 0;
-      trackIndex < NUM_TRACKS;
-      trackIndex++
-    ) {
-      const gain =
-        new Tone.Gain(1);
-
-      const reverb =
-        new Tone.Reverb({
-          decay: 1.5,
-          wet: 0,
-        });
-
-      gain.connect(reverb);
-
-      reverb.toDestination();
-
-      gains.push(gain);
-      reverbs.push(reverb);
-    }
-
-    trackGainsRef.current =
-      gains;
-
-    trackReverbsRef.current =
-      reverbs;
-
-    return () => {
-      soundEnginesRef.current.forEach(
-        (engine) => {
-          engine?.dispose?.();
-        }
-      );
-
-      soundEnginesRef.current =
-        [];
-
-      gains.forEach(
-        (gain) => {
-          gain.dispose();
-        }
-      );
-
-      reverbs.forEach(
-        (reverb) => {
-          reverb.dispose();
-        }
-      );
-    };
-  }, []);
-
-  /**
-   * -------------------------------------------------------
-   * UPDATE TRACK EFFECTS
-   * -------------------------------------------------------
-   */
-
-  useEffect(() => {
-    trackSettings.forEach(
-      (
-        settings,
-        trackIndex
-      ) => {
-        const gain =
-          trackGainsRef.current[
-            trackIndex
-          ];
-
-        const reverb =
-          trackReverbsRef.current[
-            trackIndex
-          ];
-
-        if (!gain || !reverb) {
-          return;
-        }
-
-        gain.gain.value =
-          settings?.muted
-            ? 0
-            : 1;
-
-        const reverbEnabled =
-          settings?.reverb
-            ?.enabled ??
-          false;
-
-        const wet =
-          settings?.reverb
-            ?.wet ??
-          0.35;
-
-        const decay =
-          settings?.reverb
-            ?.decay ??
-          1.5;
-
-        reverb.decay =
-          decay;
-
-        reverb.wet.value =
-          reverbEnabled
-            ? wet
-            : 0;
-      }
-    );
-  }, [trackSettings]);
-
-  /**
-   * -------------------------------------------------------
-   * CREATE / RECREATE SOUND ENGINES
+   * CREATE / RECREATE AUDIO
    * -------------------------------------------------------
    */
 
   useEffect(() => {
     const rebuildEngines =
       () => {
-        const gains =
-          trackGainsRef.current;
+        /**
+         * Dispose old sound engines.
+         */
 
-        if (
-          gains.length !==
-          NUM_TRACKS
-        ) {
-          return;
-        }
+        soundEnginesRef.current.forEach(
+          (engine) => {
+            engine?.dispose?.();
+          }
+        );
+
+        soundEnginesRef.current = [];
+
+        /**
+         * Dispose old effect chains.
+         */
+
+        effectChainsRef.current.forEach(
+          (chain) => {
+            chain?.gain?.dispose?.();
+            chain?.filter?.dispose?.();
+            chain?.distortion?.dispose?.();
+            chain?.delay?.dispose?.();
+            chain?.reverb?.dispose?.();
+          }
+        );
+
+        effectChainsRef.current = [];
+
+        /**
+         * Build each track.
+         */
 
         for (
           let trackIndex = 0;
-          trackIndex <
-          NUM_TRACKS;
+          trackIndex < NUM_TRACKS;
           trackIndex++
         ) {
           const settings =
@@ -514,31 +547,31 @@ export default function SequencerPage() {
               settings?.sound
             );
 
-          const oldEngine =
-            soundEnginesRef.current[
-              trackIndex
-            ];
-
-          if (oldEngine) {
-            oldEngine.dispose();
-          }
-
-          soundEnginesRef.current[
-            trackIndex
-          ] = null;
-
           if (!sound) {
             console.warn(
               `Sound not found: ${settings?.sound}`
             );
 
+            soundEnginesRef.current[
+              trackIndex
+            ] = null;
+
             continue;
           }
+
+          const chain =
+            createTrackEffectChain(
+              settings
+            );
+
+          effectChainsRef.current[
+            trackIndex
+          ] = chain;
 
           const engine =
             createSoundEngine(
               sound,
-              gains[trackIndex]
+              chain.input
             );
 
           soundEnginesRef.current[
@@ -548,6 +581,28 @@ export default function SequencerPage() {
       };
 
     rebuildEngines();
+
+    return () => {
+      soundEnginesRef.current.forEach(
+        (engine) => {
+          engine?.dispose?.();
+        }
+      );
+
+      soundEnginesRef.current = [];
+
+      effectChainsRef.current.forEach(
+        (chain) => {
+          chain?.gain?.dispose?.();
+          chain?.filter?.dispose?.();
+          chain?.distortion?.dispose?.();
+          chain?.delay?.dispose?.();
+          chain?.reverb?.dispose?.();
+        }
+      );
+
+      effectChainsRef.current = [];
+    };
   }, [trackSettings]);
 
   /**
@@ -592,7 +647,7 @@ export default function SequencerPage() {
 
   /**
    * -------------------------------------------------------
-   * RETURN FROM CUSTOMIZE TRACK
+   * RETURN FROM CUSTOMIZE
    * -------------------------------------------------------
    */
 
@@ -867,11 +922,6 @@ export default function SequencerPage() {
         {
           ...overrides,
 
-          /**
-           * Always provide the
-           * track's grid duration.
-           */
-
           note:
             overrides.note ??
             settings.note,
@@ -993,10 +1043,6 @@ export default function SequencerPage() {
 
     setGrid(updatedGrid);
 
-    /**
-     * Preview immediately.
-     */
-
     if (isTurningOn) {
       playTrackSound(
         trackIndex
@@ -1029,7 +1075,6 @@ export default function SequencerPage() {
 
             return {
               ...track,
-
               muted:
                 !track?.muted,
             };
@@ -1102,13 +1147,13 @@ export default function SequencerPage() {
                 muted:
                   track.muted ??
                   false,
+
+                effects:
+                  normalizeEffects(
+                    track
+                  ),
               };
             }
-
-            /**
-             * Samples/drums don't
-             * need note or duration.
-             */
 
             return {
               ...track,
@@ -1128,6 +1173,11 @@ export default function SequencerPage() {
               muted:
                 track.muted ??
                 false,
+
+              effects:
+                normalizeEffects(
+                  track
+                ),
             };
           }
         )
@@ -1258,7 +1308,6 @@ export default function SequencerPage() {
             trackIndex
               ? {
                   ...track,
-
                   [key]:
                     value,
                 }
@@ -1269,7 +1318,7 @@ export default function SequencerPage() {
 
   /**
    * -------------------------------------------------------
-   * AUDIO BUFFER → WAV
+   * WAV HELPERS
    * -------------------------------------------------------
    */
 
@@ -1353,10 +1402,7 @@ export default function SequencerPage() {
       }
     };
 
-    writeString(
-      0,
-      "RIFF"
-    );
+    writeString(0, "RIFF");
 
     view.setUint32(
       4,
@@ -1493,18 +1539,11 @@ export default function SequencerPage() {
               context.transport.bpm.value =
                 bpm;
 
-              const offlineReverbs =
-                [];
-
-              const offlineGains =
-                [];
-
               const offlineEngines =
                 [];
 
-              /**
-               * Create routing.
-               */
+              const offlineChains =
+                [];
 
               for (
                 let trackIndex = 0;
@@ -1517,44 +1556,13 @@ export default function SequencerPage() {
                     trackIndex
                   ];
 
-                const reverb =
-                  new Tone.Reverb({
-                    decay:
-                      settings
-                        ?.reverb
-                        ?.decay ??
-                      1.5,
-
-                    wet:
-                      settings
-                        ?.reverb
-                        ?.enabled
-                        ? settings
-                            ?.reverb
-                            ?.wet ??
-                          0.35
-                        : 0,
-                  });
-
-                reverb.toDestination();
-
-                const gain =
-                  new Tone.Gain(
-                    settings?.muted
-                      ? 0
-                      : 1
+                const chain =
+                  createTrackEffectChain(
+                    settings
                   );
 
-                gain.connect(
-                  reverb
-                );
-
-                offlineReverbs.push(
-                  reverb
-                );
-
-                offlineGains.push(
-                  gain
+                offlineChains.push(
+                  chain
                 );
 
                 const sound =
@@ -1566,7 +1574,7 @@ export default function SequencerPage() {
                   const engine =
                     createSoundEngine(
                       sound,
-                      gain
+                      chain.input
                     );
 
                   offlineEngines.push(
@@ -1578,13 +1586,6 @@ export default function SequencerPage() {
                   );
                 }
               }
-
-              /**
-               * Schedule pattern.
-               *
-               * Every step is one 16th
-               * note.
-               */
 
               for (
                 let step = 0;
@@ -1717,11 +1718,6 @@ export default function SequencerPage() {
         name: projectName,
         tempo: bpm,
         grid,
-
-        /**
-         * Save the new grid-based
-         * duration model.
-         */
 
         track_settings:
           trackSettings.map(
@@ -2053,11 +2049,24 @@ export default function SequencerPage() {
               currentSound?.type ===
               "synth";
 
+            const effects =
+              normalizeEffects(
+                trackSettings[
+                  trackIndex
+                ]
+              );
+
             const reverbEnabled =
-              trackSettings[
-                trackIndex
-              ]?.reverb?.enabled ||
-              false;
+              effects.reverb.enabled;
+
+            const delayEnabled =
+              effects.delay.enabled;
+
+            const distortionEnabled =
+              effects.distortion.enabled;
+
+            const filterEnabled =
+              effects.filter.enabled;
 
             const isMuted =
               trackSettings[
@@ -2169,6 +2178,24 @@ export default function SequencerPage() {
                       </span>
                     )}
 
+                    {delayEnabled && (
+                      <span className="effect-badge">
+                        Delay
+                      </span>
+                    )}
+
+                    {distortionEnabled && (
+                      <span className="effect-badge">
+                        Distortion
+                      </span>
+                    )}
+
+                    {filterEnabled && (
+                      <span className="effect-badge">
+                        Filter
+                      </span>
+                    )}
+
                     {isMuted && (
                       <span className="effect-badge muted-badge">
                         Muted
@@ -2203,197 +2230,73 @@ export default function SequencerPage() {
                               )
                             }
                           >
-                            <option value="C2">
-                              C2
-                            </option>
-
-                            <option value="C#2">
-                              C#2
-                            </option>
-
-                            <option value="D2">
-                              D2
-                            </option>
-
-                            <option value="D#2">
-                              D#2
-                            </option>
-
-                            <option value="E2">
-                              E2
-                            </option>
-
-                            <option value="F2">
-                              F2
-                            </option>
-
-                            <option value="F#2">
-                              F#2
-                            </option>
-
-                            <option value="G2">
-                              G2
-                            </option>
-
-                            <option value="G#2">
-                              G#2
-                            </option>
-
-                            <option value="A2">
-                              A2
-                            </option>
-
-                            <option value="A#2">
-                              A#2
-                            </option>
-
-                            <option value="B2">
-                              B2
-                            </option>
-
-                            <option value="C3">
-                              C3
-                            </option>
-
-                            <option value="C#3">
-                              C#3
-                            </option>
-
-                            <option value="D3">
-                              D3
-                            </option>
-
-                            <option value="D#3">
-                              D#3
-                            </option>
-
-                            <option value="E3">
-                              E3
-                            </option>
-
-                            <option value="F3">
-                              F3
-                            </option>
-
-                            <option value="F#3">
-                              F#3
-                            </option>
-
-                            <option value="G3">
-                              G3
-                            </option>
-
-                            <option value="G#3">
-                              G#3
-                            </option>
-
-                            <option value="A3">
-                              A3
-                            </option>
-
-                            <option value="A#3">
-                              A#3
-                            </option>
-
-                            <option value="B3">
-                              B3
-                            </option>
-
-                            <option value="C4">
-                              C4
-                            </option>
-
-                            <option value="C#4">
-                              C#4
-                            </option>
-
-                            <option value="D4">
-                              D4
-                            </option>
-
-                            <option value="D#4">
-                              D#4
-                            </option>
-
-                            <option value="E4">
-                              E4
-                            </option>
-
-                            <option value="F4">
-                              F4
-                            </option>
-
-                            <option value="F#4">
-                              F#4
-                            </option>
-
-                            <option value="G4">
-                              G4
-                            </option>
-
-                            <option value="G#4">
-                              G#4
-                            </option>
-
-                            <option value="A4">
-                              A4
-                            </option>
-
-                            <option value="A#4">
-                              A#4
-                            </option>
-
-                            <option value="B4">
-                              B4
-                            </option>
-
-                            <option value="C5">
-                              C5
-                            </option>
-
-                            <option value="C#5">
-                              C#5
-                            </option>
-
-                            <option value="D5">
-                              D5
-                            </option>
-
-                            <option value="D#5">
-                              D#5
-                            </option>
-
-                            <option value="E5">
-                              E5
-                            </option>
-
-                            <option value="F5">
-                              F5
-                            </option>
-
-                            <option value="F#5">
-                              F#5
-                            </option>
-
-                            <option value="G5">
-                              G5
-                            </option>
-
-                            <option value="G#5">
-                              G#5
-                            </option>
-
-                            <option value="A5">
-                              A5
-                            </option>
-
-                            <option value="A#5">
-                              A#5
-                            </option>
-
-                            <option value="B5">
-                              B5
-                            </option>
+                            {[
+                              "C2",
+                              "C#2",
+                              "D2",
+                              "D#2",
+                              "E2",
+                              "F2",
+                              "F#2",
+                              "G2",
+                              "G#2",
+                              "A2",
+                              "A#2",
+                              "B2",
+                              "C3",
+                              "C#3",
+                              "D3",
+                              "D#3",
+                              "E3",
+                              "F3",
+                              "F#3",
+                              "G3",
+                              "G#3",
+                              "A3",
+                              "A#3",
+                              "B3",
+                              "C4",
+                              "C#4",
+                              "D4",
+                              "D#4",
+                              "E4",
+                              "F4",
+                              "F#4",
+                              "G4",
+                              "G#4",
+                              "A4",
+                              "A#4",
+                              "B4",
+                              "C5",
+                              "C#5",
+                              "D5",
+                              "D#5",
+                              "E5",
+                              "F5",
+                              "F#5",
+                              "G5",
+                              "G#5",
+                              "A5",
+                              "A#5",
+                              "B5",
+                            ].map(
+                              (
+                                note
+                              ) => (
+                                <option
+                                  key={
+                                    note
+                                  }
+                                  value={
+                                    note
+                                  }
+                                >
+                                  {
+                                    note
+                                  }
+                                </option>
+                              )
+                            )}
                           </select>
                         </label>
 

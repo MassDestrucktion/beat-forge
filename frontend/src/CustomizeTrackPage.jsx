@@ -1,9 +1,13 @@
+// src/CustomizeTrack.jsx
+
 import * as Tone from "tone";
+
 import {
   useState,
   useEffect,
   useRef,
 } from "react";
+
 import {
   useLocation,
   useNavigate,
@@ -12,8 +16,6 @@ import {
 
 import {
   getSoundById,
-  createSoundEngine,
-  getSoundLabel,
 } from "./audio/soundLibrary";
 
 import "./CustomizeTrack.css";
@@ -28,40 +30,316 @@ const TRACK_LABELS = [
 const DEFAULT_TRACK_SETTINGS = [
   {
     sound: "drums.kicks.cr78",
-    muted: false,
   },
   {
     sound: "drums.snares.cr78",
-    muted: false,
   },
   {
     sound: "drums.hihats.cr78",
-    muted: false,
   },
   {
     sound: "synths.stabs.classic",
     note: "G2",
-    duration: "8n",
-    muted: false,
+    durationSteps: 2,
   },
 ];
 
-export default function CustomizeTrackPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
+/**
+ * -------------------------------------------------------
+ * PREVIEW AUDIO
+ * -------------------------------------------------------
+ */
+
+const PREVIEW_SAMPLES =
+  new Tone.Players({
+    kick:
+      "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
+
+    snare:
+      "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
+
+    hihat:
+      "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
+  });
+
+const previewStabSynth =
+  new Tone.MembraneSynth();
+
+const previewPadSynth =
+  new Tone.PolySynth(
+    Tone.Synth
+  );
+
+const previewGain =
+  new Tone.Gain(1);
+
+const previewFilter =
+  new Tone.Filter({
+    type: "lowpass",
+    frequency: 20000,
+    rolloff: -12,
+  });
+
+const previewDistortion =
+  new Tone.Distortion(0);
+
+const previewDelay =
+  new Tone.FeedbackDelay({
+    delayTime: "8n",
+    feedback: 0.25,
+    wet: 0,
+  });
+
+const previewReverb =
+  new Tone.Reverb({
+    decay: 1.5,
+    wet: 0,
+  });
+
+/**
+ * -------------------------------------------------------
+ * EFFECT CHAIN
+ *
+ * Sound
+ *   ↓
+ * Gain
+ *   ↓
+ * Filter
+ *   ↓
+ * Distortion
+ *   ↓
+ * Delay
+ *   ↓
+ * Reverb
+ *   ↓
+ * Destination
+ * -------------------------------------------------------
+ */
+
+previewGain.connect(
+  previewFilter
+);
+
+previewFilter.connect(
+  previewDistortion
+);
+
+previewDistortion.connect(
+  previewDelay
+);
+
+previewDelay.connect(
+  previewReverb
+);
+
+previewReverb.toDestination();
+
+/**
+ * -------------------------------------------------------
+ * NORMALIZE EFFECT SETTINGS
+ * -------------------------------------------------------
+ */
+
+function normalizeEffects(track) {
+  const effects =
+    track?.effects || {};
+
+  return {
+    reverb: {
+      enabled:
+        effects.reverb?.enabled ??
+        false,
+
+      wet:
+        effects.reverb?.wet ??
+        0.35,
+
+      decay:
+        effects.reverb?.decay ??
+        1.5,
+    },
+
+    delay: {
+      enabled:
+        effects.delay?.enabled ??
+        false,
+
+      wet:
+        effects.delay?.wet ??
+        0.25,
+
+      delayTime:
+        effects.delay?.delayTime ??
+        "8n",
+
+      feedback:
+        effects.delay?.feedback ??
+        0.25,
+    },
+
+    distortion: {
+      enabled:
+        effects.distortion?.enabled ??
+        false,
+
+      amount:
+        effects.distortion?.amount ??
+        0.25,
+    },
+
+    filter: {
+      enabled:
+        effects.filter?.enabled ??
+        false,
+
+      frequency:
+        effects.filter?.frequency ??
+        2000,
+
+      type:
+        effects.filter?.type ??
+        "lowpass",
+
+      rolloff:
+        effects.filter?.rolloff ??
+        -12,
+    },
+  };
+}
+
+/**
+ * -------------------------------------------------------
+ * APPLY EFFECT SETTINGS
+ *
+ * This is the single source of truth for the preview
+ * effect chain.
+ * -------------------------------------------------------
+ */
+
+function applyPreviewEffects(effects) {
+  const {
+    reverb,
+    delay,
+    distortion,
+    filter,
+  } = effects;
 
   /**
-   * ---------------------------------------------------------
-   * INCOMING SEQUENCER STATE
-   * ---------------------------------------------------------
+   * -----------------------------------------------------
+   * REVERB
+   * -----------------------------------------------------
    */
 
-  const incomingState = location.state;
+  previewReverb.wet.value =
+    reverb.enabled
+      ? reverb.wet
+      : 0;
+
+  try {
+    previewReverb.decay =
+      reverb.decay;
+  } catch (error) {
+    console.warn(
+      "Could not update reverb decay:",
+      error
+    );
+  }
+
+  /**
+   * -----------------------------------------------------
+   * DELAY
+   * -----------------------------------------------------
+   *
+   * IMPORTANT:
+   *
+   * delayTime is a Tone signal/param.
+   * We must update .value instead of replacing
+   * the read-only object.
+   */
+
+  previewDelay.wet.value =
+    delay.enabled
+      ? delay.wet
+      : 0;
+
+  previewDelay.feedback.value =
+    delay.enabled
+      ? delay.feedback
+      : 0;
+
+  previewDelay.delayTime.value =
+    delay.delayTime;
+
+  /**
+   * -----------------------------------------------------
+   * DISTORTION
+   * -----------------------------------------------------
+   */
+
+  previewDistortion.distortion =
+    distortion.enabled
+      ? distortion.amount
+      : 0;
+
+  /**
+   * -----------------------------------------------------
+   * FILTER
+   * -----------------------------------------------------
+   *
+   * A disabled high-pass or band-pass filter cannot simply
+   * have its frequency moved to 20kHz.
+   *
+   * For example:
+   *
+   * highpass @ 20kHz
+   *
+   * can effectively remove the entire sound.
+   *
+   * Instead, when disabled, force the filter into a neutral
+   * low-pass configuration at the top of the audible range.
+   */
+
+  if (filter.enabled) {
+    previewFilter.type =
+      filter.type;
+
+    previewFilter.frequency.value =
+      filter.frequency;
+  } else {
+    previewFilter.type =
+      "lowpass";
+
+    previewFilter.frequency.value =
+      20000;
+  }
+}
+
+/**
+ * -------------------------------------------------------
+ * COMPONENT
+ * -------------------------------------------------------
+ */
+
+export default function CustomizeTrack() {
+  const navigate =
+    useNavigate();
+
+  const location =
+    useLocation();
+
+  const [searchParams] =
+    useSearchParams();
+
+  const incomingState =
+    location.state;
 
   const trackIndex =
     incomingState?.trackIndex ??
-    Number(searchParams.get("track") || 0);
+    Number(
+      searchParams.get(
+        "track"
+      ) || 0
+    );
 
   const originalTrackSettings =
     Array.isArray(
@@ -71,399 +349,137 @@ export default function CustomizeTrackPage() {
       : DEFAULT_TRACK_SETTINGS;
 
   const originalGrid =
-    Array.isArray(incomingState?.grid)
+    Array.isArray(
+      incomingState?.grid
+    )
       ? incomingState.grid
       : null;
 
   const currentTrack =
-    originalTrackSettings[trackIndex] ||
-    DEFAULT_TRACK_SETTINGS[trackIndex] ||
-    DEFAULT_TRACK_SETTINGS[0];
+    originalTrackSettings[
+      trackIndex
+    ] || {
+      sound: "drums.kicks.cr78",
+    };
 
-  /**
-   * ---------------------------------------------------------
-   * REVERB STATE
-   * ---------------------------------------------------------
-   */
-
-  const [reverbEnabled, setReverbEnabled] =
-    useState(
-      currentTrack?.reverb?.enabled ??
-        false
+  const sound =
+    getSoundById(
+      currentTrack.sound
     );
 
-  const [reverbWet, setReverbWet] =
+  const [effects, setEffects] =
     useState(
-      currentTrack?.reverb?.wet ??
-        0.35
+      () =>
+        normalizeEffects(
+          currentTrack
+        )
     );
 
-  const [reverbDecay, setReverbDecay] =
-    useState(
-      currentTrack?.reverb?.decay ??
-        1.5
-    );
+  const [
+    isPreviewing,
+    setIsPreviewing,
+  ] = useState(false);
 
-  /**
-   * ---------------------------------------------------------
-   * PREVIEW STATE
-   * ---------------------------------------------------------
-   */
+  const [
+    saveStatus,
+    setSaveStatus,
+  ] = useState("");
 
-  const [isPreviewing, setIsPreviewing] =
-    useState(false);
-
-  const [saveStatus, setSaveStatus] =
-    useState("");
-
-  /**
-   * ---------------------------------------------------------
-   * PREVIEW AUDIO REFS
-   * ---------------------------------------------------------
-   *
-   * We use the exact same sound engine
-   * as the sequencer.
-   */
-
-  const previewGainRef =
-    useRef(null);
-
-  const previewReverbRef =
-    useRef(null);
-
-  const previewEngineRef =
+  const previewTimeoutRef =
     useRef(null);
 
   /**
-   * ---------------------------------------------------------
-   * CREATE PREVIEW AUDIO CHAIN
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
+   * UPDATE PREVIEW EFFECTS
+   * -------------------------------------------------------
    */
 
   useEffect(() => {
-    const gain =
-      new Tone.Gain(1);
+    try {
+      applyPreviewEffects(
+        effects
+      );
+    } catch (error) {
+      console.error(
+        "Could not update preview effects:",
+        error
+      );
+    }
+  }, [effects]);
 
-    const reverb =
-      new Tone.Reverb({
-        decay: reverbDecay,
-        wet: reverbEnabled
-          ? reverbWet
-          : 0,
-      });
+  /**
+   * -------------------------------------------------------
+   * CLEANUP
+   * -------------------------------------------------------
+   */
 
-    gain.connect(reverb);
-    reverb.toDestination();
-
-    previewGainRef.current = gain;
-    previewReverbRef.current = reverb;
-
+  useEffect(() => {
     return () => {
       try {
-        previewEngineRef.current?.dispose?.();
-        previewEngineRef.current = null;
+        PREVIEW_SAMPLES.stopAll();
 
-        gain.dispose();
-        reverb.dispose();
+        previewStabSynth.triggerRelease();
+
+        previewPadSynth.releaseAll();
       } catch (error) {
         console.error(
-          "Preview cleanup failed:",
+          "Could not stop preview during cleanup:",
           error
         );
+      }
+
+      if (
+        previewTimeoutRef.current
+      ) {
+        clearTimeout(
+          previewTimeoutRef.current
+        );
+
+        previewTimeoutRef.current =
+          null;
       }
     };
   }, []);
 
   /**
-   * ---------------------------------------------------------
-   * UPDATE PREVIEW EFFECTS
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
+   * EFFECT UPDATE
+   * -------------------------------------------------------
    */
 
-  useEffect(() => {
-    const reverb =
-      previewReverbRef.current;
+  const updateEffect = (
+    effectName,
+    key,
+    value
+  ) => {
+    setEffects(
+      (previous) => ({
+        ...previous,
 
-    if (!reverb) {
-      return;
-    }
+        [effectName]: {
+          ...previous[
+            effectName
+          ],
 
-    reverb.decay =
-      reverbDecay;
-
-    reverb.wet.value =
-      reverbEnabled
-        ? reverbWet
-        : 0;
-  }, [
-    reverbEnabled,
-    reverbWet,
-    reverbDecay,
-  ]);
-
-  /**
-   * ---------------------------------------------------------
-   * REBUILD PREVIEW ENGINE
-   * ---------------------------------------------------------
-   *
-   * Whenever the selected sound changes,
-   * create the exact same engine the
-   * sequencer uses.
-   */
-
-  useEffect(() => {
-    const gain =
-      previewGainRef.current;
-
-    if (!gain) {
-      return;
-    }
-
-    try {
-      previewEngineRef.current?.dispose?.();
-      previewEngineRef.current = null;
-
-      const sound =
-        getSoundById(
-          currentTrack?.sound
-        );
-
-      if (!sound) {
-        console.warn(
-          "Preview sound not found:",
-          currentTrack?.sound
-        );
-
-        return;
-      }
-
-      const engine =
-        createSoundEngine(
-          sound,
-          gain
-        );
-
-      previewEngineRef.current =
-        engine;
-    } catch (error) {
-      console.error(
-        "Could not create preview engine:",
-        error
-      );
-    }
-
-    return () => {
-      previewEngineRef.current?.dispose?.();
-      previewEngineRef.current = null;
-    };
-  }, [currentTrack?.sound]);
+          [key]: value,
+        },
+      })
+    );
+  };
 
   /**
-   * ---------------------------------------------------------
-   * PREVIEW
-   * ---------------------------------------------------------
-   */
-
-  const previewTrack =
-    async () => {
-      try {
-        /**
-         * Start browser audio.
-         */
-        await Tone.start();
-
-        if (
-          Tone.getContext().state !==
-          "running"
-        ) {
-          await Tone.getContext().resume();
-        }
-
-        const engine =
-          previewEngineRef.current;
-
-        if (!engine) {
-          setSaveStatus(
-            "No preview sound is available."
-          );
-
-          return;
-        }
-
-        /**
-         * Stop previous preview.
-         */
-        stopPreview();
-
-        /**
-         * Rebuild because stopPreview
-         * may have disposed the engine.
-         */
-        const gain =
-          previewGainRef.current;
-
-        if (!gain) {
-          throw new Error(
-            "Preview audio chain is unavailable."
-          );
-        }
-
-        const sound =
-          getSoundById(
-            currentTrack?.sound
-          );
-
-        if (!sound) {
-          throw new Error(
-            `Sound not found: ${currentTrack?.sound}`
-          );
-        }
-
-        const newEngine =
-          createSoundEngine(
-            sound,
-            gain
-          );
-
-        previewEngineRef.current =
-          newEngine;
-
-        if (!newEngine) {
-          throw new Error(
-            "Unable to create preview sound."
-          );
-        }
-
-        /**
-         * Wait for samples when necessary.
-         */
-        if (
-          typeof newEngine.load ===
-          "function"
-        ) {
-          await newEngine.load();
-        }
-
-        /**
-         * Re-apply current reverb values.
-         */
-        const reverb =
-          previewReverbRef.current;
-
-        if (reverb) {
-          reverb.decay =
-            reverbDecay;
-
-          reverb.wet.value =
-            reverbEnabled
-              ? reverbWet
-              : 0;
-        }
-
-        /**
-         * Build synth/sample overrides.
-         *
-         * Samples simply ignore these.
-         * Synth engines use them.
-         */
-        const overrides = {};
-
-        if (
-          currentTrack?.note
-        ) {
-          overrides.note =
-            currentTrack.note;
-        }
-
-        if (
-          currentTrack?.duration
-        ) {
-          overrides.duration =
-            currentTrack.duration;
-        }
-
-        /**
-         * Play immediately.
-         */
-        newEngine.play(
-          undefined,
-          overrides
-        );
-
-        setIsPreviewing(true);
-        setSaveStatus("");
-
-        /**
-         * Reset preview button.
-         */
-        let timeoutMs = 1200;
-
-        if (
-          sound.type === "synth" &&
-          currentTrack?.duration
-        ) {
-          try {
-            timeoutMs =
-              Tone.Time(
-                currentTrack.duration
-              ).toMilliseconds() +
-              500;
-          } catch {
-            timeoutMs = 1200;
-          }
-        }
-
-        window.setTimeout(() => {
-          setIsPreviewing(false);
-        }, timeoutMs);
-      } catch (error) {
-        console.error(
-          "Preview failed:",
-          error
-        );
-
-        setIsPreviewing(false);
-
-        setSaveStatus(
-          `Preview failed: ${error.message}`
-        );
-      }
-    };
-
-  /**
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    * STOP PREVIEW
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   const stopPreview = () => {
     try {
-      const engine =
-        previewEngineRef.current;
+      PREVIEW_SAMPLES.stopAll();
 
-      if (
-        engine?.node &&
-        typeof engine.node.stop ===
-          "function"
-      ) {
-        try {
-          engine.node.stop();
-        } catch {
-          // Some Tone nodes may already be stopped.
-        }
-      }
+      previewStabSynth.triggerRelease();
 
-      if (
-        engine?.node &&
-        typeof engine.node.releaseAll ===
-          "function"
-      ) {
-        try {
-          engine.node.releaseAll();
-        } catch {
-          // Ignore release errors.
-        }
-      }
+      previewPadSynth.releaseAll();
     } catch (error) {
       console.error(
         "Could not stop preview:",
@@ -471,14 +487,242 @@ export default function CustomizeTrackPage() {
       );
     }
 
+    if (
+      previewTimeoutRef.current
+    ) {
+      clearTimeout(
+        previewTimeoutRef.current
+      );
+
+      previewTimeoutRef.current =
+        null;
+    }
+
     setIsPreviewing(false);
   };
 
   /**
-   * ---------------------------------------------------------
-   * PREVIEW BUTTON
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
+   * PREVIEW
+   * -------------------------------------------------------
    */
+
+  const previewTrack =
+    async () => {
+      try {
+        await Tone.start();
+
+        if (
+          Tone.getContext()
+            .state !==
+          "running"
+        ) {
+          await Tone.getContext().resume();
+        }
+
+        stopPreview();
+
+        /**
+         * Re-apply the latest settings immediately
+         * before playback.
+         */
+        applyPreviewEffects(
+          effects
+        );
+
+        const soundId =
+          currentTrack.sound;
+
+        /**
+         * ---------------------------------------------------
+         * SAMPLE
+         * ---------------------------------------------------
+         */
+
+        if (
+          soundId ===
+            "drums.kicks.cr78" ||
+          soundId ===
+            "drums.snares.cr78" ||
+          soundId ===
+            "drums.hihats.cr78"
+        ) {
+          let playerName =
+            "kick";
+
+          if (
+            soundId ===
+            "drums.snares.cr78"
+          ) {
+            playerName =
+              "snare";
+          }
+
+          if (
+            soundId ===
+            "drums.hihats.cr78"
+          ) {
+            playerName =
+              "hihat";
+          }
+
+          const player =
+            PREVIEW_SAMPLES.player(
+              playerName
+            );
+
+          if (!player.loaded) {
+            await PREVIEW_SAMPLES.load();
+          }
+
+          /**
+           * Route the Players node through
+           * the preview effect chain.
+           */
+
+          PREVIEW_SAMPLES.disconnect();
+
+          PREVIEW_SAMPLES.connect(
+            previewGain
+          );
+
+          player.start();
+
+          setIsPreviewing(
+            true
+          );
+
+          previewTimeoutRef.current =
+            setTimeout(() => {
+              setIsPreviewing(
+                false
+              );
+
+              previewTimeoutRef.current =
+                null;
+            }, 1500);
+
+          return;
+        }
+
+        /**
+         * ---------------------------------------------------
+         * STAB
+         * ---------------------------------------------------
+         */
+
+        if (
+          soundId ===
+          "synths.stabs.classic"
+        ) {
+          previewStabSynth.disconnect();
+
+          previewStabSynth.connect(
+            previewGain
+          );
+
+          const note =
+            currentTrack.note ||
+            "G2";
+
+          const durationSteps =
+            Number(
+              currentTrack.durationSteps
+            ) || 2;
+
+          const duration =
+            `${
+              Math.max(
+                1,
+                durationSteps
+              ) * 4
+            }n`;
+
+          previewStabSynth.triggerAttackRelease(
+            note,
+            duration
+          );
+
+          setIsPreviewing(
+            true
+          );
+
+          previewTimeoutRef.current =
+            setTimeout(() => {
+              setIsPreviewing(
+                false
+              );
+
+              previewTimeoutRef.current =
+                null;
+            }, 1500);
+
+          return;
+        }
+
+        /**
+         * ---------------------------------------------------
+         * PAD / GENERIC SYNTH
+         * ---------------------------------------------------
+         */
+
+        previewPadSynth.disconnect();
+
+        previewPadSynth.connect(
+          previewGain
+        );
+
+        const note =
+          currentTrack.note ||
+          sound?.synth?.note ||
+          "C4";
+
+        const durationSteps =
+          Number(
+            currentTrack.durationSteps
+          ) || 4;
+
+        const duration =
+          `${
+            Math.max(
+              1,
+              durationSteps
+            ) * 4
+          }n`;
+
+        previewPadSynth.triggerAttackRelease(
+          note,
+          duration
+        );
+
+        setIsPreviewing(
+          true
+        );
+
+        previewTimeoutRef.current =
+          setTimeout(() => {
+            setIsPreviewing(
+              false
+            );
+
+            previewTimeoutRef.current =
+              null;
+          }, 1500);
+      } catch (error) {
+        console.error(
+          "Preview failed:",
+          error
+        );
+
+        setIsPreviewing(
+          false
+        );
+
+        setSaveStatus(
+          `Preview failed: ${error.message}`
+        );
+      }
+    };
 
   const handlePreview =
     async () => {
@@ -491,35 +735,9 @@ export default function CustomizeTrackPage() {
     };
 
   /**
-   * ---------------------------------------------------------
-   * CLEANUP
-   * ---------------------------------------------------------
-   */
-
-  useEffect(() => {
-    return () => {
-      try {
-        previewEngineRef.current?.dispose?.();
-        previewEngineRef.current = null;
-
-        previewGainRef.current?.dispose?.();
-        previewGainRef.current = null;
-
-        previewReverbRef.current?.dispose?.();
-        previewReverbRef.current = null;
-      } catch (error) {
-        console.error(
-          "Preview cleanup failed:",
-          error
-        );
-      }
-    };
-  }, []);
-
-  /**
-   * ---------------------------------------------------------
-   * SAVE CUSTOMIZATION
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
+   * SAVE
+   * -------------------------------------------------------
    */
 
   const handleDone = () => {
@@ -527,9 +745,13 @@ export default function CustomizeTrackPage() {
 
     const updatedTrackSettings =
       originalTrackSettings.map(
-        (track, index) => {
+        (
+          track,
+          index
+        ) => {
           if (
-            index !== trackIndex
+            index !==
+            trackIndex
           ) {
             return {
               ...track,
@@ -539,11 +761,8 @@ export default function CustomizeTrackPage() {
           return {
             ...track,
 
-            reverb: {
-              enabled:
-                reverbEnabled,
-              wet: reverbWet,
-              decay: reverbDecay,
+            effects: {
+              ...effects,
             },
           };
         }
@@ -553,9 +772,11 @@ export default function CustomizeTrackPage() {
       "/sequencer",
       {
         state: {
-          fromCustomize: true,
+          fromCustomize:
+            true,
 
-          grid: originalGrid,
+          grid:
+            originalGrid,
 
           trackSettings:
             updatedTrackSettings,
@@ -579,9 +800,9 @@ export default function CustomizeTrackPage() {
   };
 
   /**
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    * CANCEL
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   const handleCancel = () => {
@@ -591,9 +812,11 @@ export default function CustomizeTrackPage() {
       "/sequencer",
       {
         state: {
-          fromCustomize: true,
+          fromCustomize:
+            true,
 
-          grid: originalGrid,
+          grid:
+            originalGrid,
 
           trackSettings:
             originalTrackSettings,
@@ -615,9 +838,9 @@ export default function CustomizeTrackPage() {
   };
 
   /**
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    * DIRECT VISIT
-   * ---------------------------------------------------------
+   * -------------------------------------------------------
    */
 
   if (!incomingState) {
@@ -629,14 +852,17 @@ export default function CustomizeTrackPage() {
           </h1>
 
           <p>
-            Open Customize from a track
-            on the sequencer first.
+            Open Customize from a
+            track on the sequencer
+            first.
           </p>
 
           <button
             type="button"
             onClick={() =>
-              navigate("/sequencer")
+              navigate(
+                "/sequencer"
+              )
             }
           >
             Back to Sequencer
@@ -646,40 +872,9 @@ export default function CustomizeTrackPage() {
     );
   }
 
-  /**
-   * ---------------------------------------------------------
-   * CURRENT SOUND
-   * ---------------------------------------------------------
-   */
-
-  const currentSound =
-    getSoundById(
-      currentTrack?.sound
-    );
-
-  const soundLabel =
-    currentSound
-      ? getSoundLabel(
-          currentSound.id
-        )
-      : currentTrack?.sound ||
-        "Unknown sound";
-
-  const isSynth =
-    currentSound?.type ===
-    "synth";
-
-  /**
-   * ---------------------------------------------------------
-   * RENDER
-   * ---------------------------------------------------------
-   */
-
   return (
     <main className="customize-track-page">
       <section className="customize-card">
-
-        {/* HEADER */}
 
         <div className="customize-header">
           <div>
@@ -697,18 +892,23 @@ export default function CustomizeTrackPage() {
             </h1>
 
             <p>
-              Customize the effects and
-              preview the sound used by
-              this track.
+              Shape the sound with
+              effects and preview
+              everything before
+              saving.
             </p>
           </div>
 
           <div className="track-sound-badge">
-            {soundLabel}
+            {sound?.name ||
+              currentTrack.sound ||
+              "Sound"}
           </div>
         </div>
 
-        {/* PREVIEW */}
+        {/* -------------------------------------------------
+            SOUND PREVIEW
+        -------------------------------------------------- */}
 
         <section className="effect-section preview-section">
           <div className="effect-header">
@@ -718,9 +918,9 @@ export default function CustomizeTrackPage() {
               </h2>
 
               <p>
-                Hear the actual sound
-                currently assigned to
-                this track.
+                Hear the current
+                sound with your
+                effects applied.
               </p>
             </div>
 
@@ -742,63 +942,9 @@ export default function CustomizeTrackPage() {
           </div>
         </section>
 
-        {/* NOTE / DURATION */}
-
-        {isSynth && (
-          <section className="effect-section">
-            <div className="effect-header">
-              <div>
-                <h2>
-                  Synth Settings
-                </h2>
-
-                <p>
-                  These settings are
-                  used by the sequencer
-                  and preview.
-                </p>
-              </div>
-            </div>
-
-            <div className="effect-controls">
-              <label>
-                <span>
-                  Note
-                </span>
-
-                <input
-                  type="text"
-                  value={
-                    currentTrack.note ||
-                    currentSound?.synth
-                      ?.note ||
-                    "C4"
-                  }
-                  readOnly
-                />
-              </label>
-
-              <label>
-                <span>
-                  Duration
-                </span>
-
-                <input
-                  type="text"
-                  value={
-                    currentTrack.duration ||
-                    currentSound?.synth
-                      ?.duration ||
-                    "8n"
-                  }
-                  readOnly
-                />
-              </label>
-            </div>
-          </section>
-        )}
-
-        {/* REVERB */}
+        {/* -------------------------------------------------
+            REVERB
+        -------------------------------------------------- */}
 
         <section className="effect-section">
           <div className="effect-header">
@@ -808,8 +954,8 @@ export default function CustomizeTrackPage() {
               </h2>
 
               <p>
-                Add space and ambience
-                to this track.
+                Add space and
+                ambience.
               </p>
             </div>
 
@@ -817,17 +963,21 @@ export default function CustomizeTrackPage() {
               <input
                 type="checkbox"
                 checked={
-                  reverbEnabled
+                  effects.reverb
+                    .enabled
                 }
                 onChange={(e) =>
-                  setReverbEnabled(
+                  updateEffect(
+                    "reverb",
+                    "enabled",
                     e.target.checked
                   )
                 }
               />
 
               <span>
-                {reverbEnabled
+                {effects.reverb
+                  .enabled
                   ? "Enabled"
                   : "Disabled"}
               </span>
@@ -841,7 +991,9 @@ export default function CustomizeTrackPage() {
 
                 <strong>
                   {Math.round(
-                    reverbWet * 100
+                    effects
+                      .reverb
+                      .wet * 100
                   )}
                   %
                 </strong>
@@ -853,13 +1005,17 @@ export default function CustomizeTrackPage() {
                 max="1"
                 step="0.01"
                 value={
-                  reverbWet
+                  effects.reverb
+                    .wet
                 }
                 disabled={
-                  !reverbEnabled
+                  !effects.reverb
+                    .enabled
                 }
                 onChange={(e) =>
-                  setReverbWet(
+                  updateEffect(
+                    "reverb",
+                    "wet",
                     Number(
                       e.target.value
                     )
@@ -873,9 +1029,10 @@ export default function CustomizeTrackPage() {
                 Decay
 
                 <strong>
-                  {reverbDecay.toFixed(
-                    1
-                  )}
+                  {effects.reverb
+                    .decay.toFixed(
+                      1
+                    )}
                   s
                 </strong>
               </span>
@@ -886,13 +1043,17 @@ export default function CustomizeTrackPage() {
                 max="10"
                 step="0.1"
                 value={
-                  reverbDecay
+                  effects.reverb
+                    .decay
                 }
                 disabled={
-                  !reverbEnabled
+                  !effects.reverb
+                    .enabled
                 }
                 onChange={(e) =>
-                  setReverbDecay(
+                  updateEffect(
+                    "reverb",
+                    "decay",
                     Number(
                       e.target.value
                     )
@@ -903,13 +1064,390 @@ export default function CustomizeTrackPage() {
           </div>
         </section>
 
+        {/* -------------------------------------------------
+            DELAY
+        -------------------------------------------------- */}
+
+        <section className="effect-section">
+          <div className="effect-header">
+            <div>
+              <h2>
+                Delay
+              </h2>
+
+              <p>
+                Create echoes and
+                rhythmic repeats.
+              </p>
+            </div>
+
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={
+                  effects.delay
+                    .enabled
+                }
+                onChange={(e) =>
+                  updateEffect(
+                    "delay",
+                    "enabled",
+                    e.target.checked
+                  )
+                }
+              />
+
+              <span>
+                {effects.delay
+                  .enabled
+                  ? "Enabled"
+                  : "Disabled"}
+              </span>
+            </label>
+          </div>
+
+          <div className="effect-controls">
+            <label>
+              <span>
+                Wet
+
+                <strong>
+                  {Math.round(
+                    effects
+                      .delay
+                      .wet * 100
+                  )}
+                  %
+                </strong>
+              </span>
+
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={
+                  effects.delay
+                    .wet
+                }
+                disabled={
+                  !effects.delay
+                    .enabled
+                }
+                onChange={(e) =>
+                  updateEffect(
+                    "delay",
+                    "wet",
+                    Number(
+                      e.target.value
+                    )
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>
+                Feedback
+
+                <strong>
+                  {Math.round(
+                    effects
+                      .delay
+                      .feedback * 100
+                  )}
+                  %
+                </strong>
+              </span>
+
+              <input
+                type="range"
+                min="0"
+                max="0.9"
+                step="0.01"
+                value={
+                  effects.delay
+                    .feedback
+                }
+                disabled={
+                  !effects.delay
+                    .enabled
+                }
+                onChange={(e) =>
+                  updateEffect(
+                    "delay",
+                    "feedback",
+                    Number(
+                      e.target.value
+                    )
+                  )
+                }
+              />
+            </label>
+
+            <label>
+              <span>
+                Time
+              </span>
+
+              <select
+                value={
+                  effects.delay
+                    .delayTime
+                }
+                disabled={
+                  !effects.delay
+                    .enabled
+                }
+                onChange={(e) =>
+                  updateEffect(
+                    "delay",
+                    "delayTime",
+                    e.target.value
+                  )
+                }
+              >
+                <option value="16n">
+                  1/16
+                </option>
+
+                <option value="8n">
+                  1/8
+                </option>
+
+                <option value="4n">
+                  1/4
+                </option>
+
+                <option value="2n">
+                  1/2
+                </option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        {/* -------------------------------------------------
+            DISTORTION
+        -------------------------------------------------- */}
+
+        <section className="effect-section">
+          <div className="effect-header">
+            <div>
+              <h2>
+                Distortion
+              </h2>
+
+              <p>
+                Add grit, drive,
+                and character.
+              </p>
+            </div>
+
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={
+                  effects
+                    .distortion
+                    .enabled
+                }
+                onChange={(e) =>
+                  updateEffect(
+                    "distortion",
+                    "enabled",
+                    e.target.checked
+                  )
+                }
+              />
+
+              <span>
+                {effects
+                  .distortion
+                  .enabled
+                  ? "Enabled"
+                  : "Disabled"}
+              </span>
+            </label>
+          </div>
+
+          <div className="effect-controls">
+            <label>
+              <span>
+                Amount
+
+                <strong>
+                  {Math.round(
+                    effects
+                      .distortion
+                      .amount * 100
+                  )}
+                  %
+                </strong>
+              </span>
+
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={
+                  effects
+                    .distortion
+                    .amount
+                }
+                disabled={
+                  !effects
+                    .distortion
+                    .enabled
+                }
+                onChange={(e) =>
+                  updateEffect(
+                    "distortion",
+                    "amount",
+                    Number(
+                      e.target.value
+                    )
+                  )
+                }
+              />
+            </label>
+          </div>
+        </section>
+
+        {/* -------------------------------------------------
+            FILTER
+        -------------------------------------------------- */}
+
+        <section className="effect-section">
+          <div className="effect-header">
+            <div>
+              <h2>
+                Filter
+              </h2>
+
+              <p>
+                Shape the tone by
+                cutting high or low
+                frequencies.
+              </p>
+            </div>
+
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={
+                  effects.filter
+                    .enabled
+                }
+                onChange={(e) =>
+                  updateEffect(
+                    "filter",
+                    "enabled",
+                    e.target.checked
+                  )
+                }
+              />
+
+              <span>
+                {effects.filter
+                  .enabled
+                  ? "Enabled"
+                  : "Disabled"}
+              </span>
+            </label>
+          </div>
+
+          <div className="effect-controls">
+            <label>
+              <span>
+                Type
+              </span>
+
+              <select
+                value={
+                  effects.filter
+                    .type
+                }
+                disabled={
+                  !effects.filter
+                    .enabled
+                }
+                onChange={(e) =>
+                  updateEffect(
+                    "filter",
+                    "type",
+                    e.target.value
+                  )
+                }
+              >
+                <option value="lowpass">
+                  Low Pass
+                </option>
+
+                <option value="highpass">
+                  High Pass
+                </option>
+
+                <option value="bandpass">
+                  Band Pass
+                </option>
+              </select>
+            </label>
+
+            <label>
+              <span>
+                Frequency
+
+                <strong>
+                  {Math.round(
+                    effects.filter
+                      .frequency
+                  )}{" "}
+                  Hz
+                </strong>
+              </span>
+
+              <input
+                type="range"
+                min="100"
+                max="10000"
+                step="50"
+                value={
+                  effects.filter
+                    .frequency
+                }
+                disabled={
+                  !effects.filter
+                    .enabled
+                }
+                onChange={(e) =>
+                  updateEffect(
+                    "filter",
+                    "frequency",
+                    Number(
+                      e.target.value
+                    )
+                  )
+                }
+              />
+            </label>
+          </div>
+        </section>
+
+        {/* -------------------------------------------------
+            STATUS
+        -------------------------------------------------- */}
+
         {saveStatus && (
           <p className="save-status">
             {saveStatus}
           </p>
         )}
 
-        {/* ACTIONS */}
+        {/* -------------------------------------------------
+            ACTIONS
+        -------------------------------------------------- */}
 
         <div className="customize-actions">
           <button
@@ -932,6 +1470,7 @@ export default function CustomizeTrackPage() {
             Done
           </button>
         </div>
+
       </section>
     </main>
   );
