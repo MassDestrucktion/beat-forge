@@ -1,5 +1,6 @@
 import { Router } from "express";
 import requireBody from "../middleware/requireBody.js";
+import requireAuth from "../middleware/requireAuth.js";
 import { createUser, userLogin, getUser } from "../db/queries/users.js";
 import { createToken } from "../jwt/jwt.js";
 import { get_user_projects } from "../db/queries/projects.js";
@@ -108,7 +109,7 @@ usersRouter.post(
     }
 );
 
-usersRouter.get("/:id/following", async (req, res, next) => {
+usersRouter.get("/:id/following", requireAuth,async (req, res, next) => {
     try {
         const following = await getFollowing();
         res.send(following);
@@ -118,7 +119,7 @@ usersRouter.get("/:id/following", async (req, res, next) => {
     }
 });
 
-usersRouter.post("/:id/follow", async (req, res, next) => {
+usersRouter.post("/:id/follow", requireAuth, async (req, res, next) => {
     try {
         const followerID = req.user.id;
         const followeeID = req.params.id;
