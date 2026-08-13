@@ -1,10 +1,13 @@
 // src/audio/soundLibrary/soundLibrary.js
 
-const TONE_AUDIO = "https://tonejs.github.io/audio";
+const TONE_AUDIO =
+  "https://tonejs.github.io/audio";
 
-const TONE_DRUMS = `${TONE_AUDIO}/drum-samples`;
+const TONE_DRUMS =
+  `${TONE_AUDIO}/drum-samples`;
 
-const TONE_BERKLEE = `${TONE_AUDIO}/berklee`;
+const TONE_BERKLEE =
+  `${TONE_AUDIO}/berklee`;
 
 /*
  * ---------------------------------------------------------
@@ -28,16 +31,27 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url: `${TONE_DRUMS}/CR78/kick.mp3`,
+    url:
+      `${TONE_DRUMS}/CR78/kick.mp3`,
 
-    tags: ["kick", "drum", "vintage", "analog", "cr78", "short"],
+    tags: [
+      "kick",
+      "drum",
+      "vintage",
+      "analog",
+      "cr78",
+      "short",
+    ],
 
-    description: "Short vintage drum-machine kick.",
+    description:
+      "Short vintage drum-machine kick.",
 
     source: {
       name: "Tone.js",
-      url: "https://tonejs.github.io/",
-      license: "Verify source license before redistribution.",
+      url:
+        "https://tonejs.github.io/",
+      license:
+        "Verify source license before redistribution.",
     },
   },
 
@@ -50,16 +64,26 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url: `${TONE_DRUMS}/CR78/snare.mp3`,
+    url:
+      `${TONE_DRUMS}/CR78/snare.mp3`,
 
-    tags: ["snare", "drum", "vintage", "analog", "cr78"],
+    tags: [
+      "snare",
+      "drum",
+      "vintage",
+      "analog",
+      "cr78",
+    ],
 
-    description: "Vintage CR-78 style snare.",
+    description:
+      "Vintage CR-78 style snare.",
 
     source: {
       name: "Tone.js",
-      url: "https://tonejs.github.io/",
-      license: "Verify source license before redistribution.",
+      url:
+        "https://tonejs.github.io/",
+      license:
+        "Verify source license before redistribution.",
     },
   },
 
@@ -72,89 +96,29 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url: `${TONE_DRUMS}/CR78/hihat.mp3`,
+    url:
+      `${TONE_DRUMS}/CR78/hihat.mp3`,
 
-    tags: ["hat", "hihat", "hi-hat", "drum", "vintage", "analog", "cr78"],
+    tags: [
+      "hat",
+      "hihat",
+      "hi-hat",
+      "drum",
+      "vintage",
+      "analog",
+      "cr78",
+    ],
 
-    description: "Short vintage hi-hat.",
+    description:
+      "Short vintage hi-hat.",
 
     source: {
       name: "Tone.js",
-      url: "https://tonejs.github.io/",
-      license: "Verify source license before redistribution.",
+      url:
+        "https://tonejs.github.io/",
+      license:
+        "Verify source license before redistribution.",
     },
-  },
-
-  {
-    id: "drums.claps.synth",
-    name: "Synth Clap",
-
-    category: "drums",
-    subcategory: "claps",
-
-    type: "synth",
-
-    synth: {
-      engine: "noise",
-
-      noise: {
-        type: "white",
-      },
-
-      filter: {
-        type: "bandpass",
-        frequency: 1800,
-      },
-
-      envelope: {
-        attack: 0.001,
-        decay: 0.15,
-        sustain: 0,
-        release: 0.1,
-      },
-
-      duration: "16n",
-    },
-
-    tags: ["clap", "drum", "noise", "synthesized", "short"],
-
-    description: "Synthesized band-passed noise clap.",
-  },
-
-  {
-    id: "drums.openhats.synth",
-    name: "Synth Open Hat",
-
-    category: "drums",
-    subcategory: "openhats",
-
-    type: "synth",
-
-    synth: {
-      engine: "noise",
-
-      noise: {
-        type: "white",
-      },
-
-      filter: {
-        type: "highpass",
-        frequency: 6000,
-      },
-
-      envelope: {
-        attack: 0.001,
-        decay: 0.25,
-        sustain: 0,
-        release: 0.1,
-      },
-
-      duration: "8n",
-    },
-
-    tags: ["hat", "open", "drum", "noise", "synthesized"],
-
-    description: "Synthesized high-passed open hi-hat.",
   },
 
   {
@@ -166,16 +130,24 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url: `${TONE_DRUMS}/handdrum-loop.mp3`,
+    url:
+      `${TONE_DRUMS}/handdrum-loop.mp3`,
 
-    tags: ["hand", "drum", "percussion"],
+    tags: [
+      "hand",
+      "drum",
+      "percussion",
+    ],
 
-    description: "Hand-drum percussion texture.",
+    description:
+      "Hand-drum percussion texture.",
 
     source: {
       name: "Tone.js",
-      url: "https://tonejs.github.io/",
-      license: "Verify source license before redistribution.",
+      url:
+        "https://tonejs.github.io/",
+      license:
+        "Verify source license before redistribution.",
     },
   },
 
@@ -188,16 +160,25 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url: `${TONE_DRUMS}/conga-rhythm.mp3`,
+    url:
+      `${TONE_DRUMS}/conga-rhythm.mp3`,
 
-    tags: ["conga", "drum", "percussion", "rhythm"],
+    tags: [
+      "conga",
+      "drum",
+      "percussion",
+      "rhythm",
+    ],
 
-    description: "Conga percussion rhythm.",
+    description:
+      "Conga percussion rhythm.",
 
     source: {
       name: "Tone.js",
-      url: "https://tonejs.github.io/",
-      license: "Verify source license before redistribution.",
+      url:
+        "https://tonejs.github.io/",
+      license:
+        "Verify source license before redistribution.",
     },
   },
 
@@ -216,16 +197,27 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url: `${TONE_BERKLEE}/gong_1.mp3`,
+    url:
+      `${TONE_BERKLEE}/gong_1.mp3`,
 
-    tags: ["gong", "metal", "impact", "texture", "cinematic"],
+    tags: [
+      "gong",
+      "metal",
+      "impact",
+      "texture",
+      "cinematic",
+    ],
 
-    description: "Long resonant gong texture.",
+    description:
+      "Long resonant gong texture.",
 
     source: {
-      name: "Tone.js Berklee samples",
-      url: "https://tonejs.github.io/",
-      license: "Verify source license before redistribution.",
+      name:
+        "Tone.js Berklee samples",
+      url:
+        "https://tonejs.github.io/",
+      license:
+        "Verify source license before redistribution.",
     },
   },
 
@@ -252,9 +244,16 @@ export const SOUND_LIBRARY = [
       duration: "8n",
     },
 
-    tags: ["stab", "synth", "short", "rhythmic", "house"],
+    tags: [
+      "stab",
+      "synth",
+      "short",
+      "rhythmic",
+      "house",
+    ],
 
-    description: "Short percussive synth stab.",
+    description:
+      "Short percussive synth stab.",
   },
 
   {
@@ -278,34 +277,16 @@ export const SOUND_LIBRARY = [
       duration: "4n",
     },
 
-    tags: ["pad", "synth", "polyphonic", "chord", "ambient"],
+    tags: [
+      "pad",
+      "synth",
+      "polyphonic",
+      "chord",
+      "ambient",
+    ],
 
-    description: "Soft polyphonic synth pad.",
-  },
-
-  {
-    id: "bass.808.kick",
-    name: "808 Kick",
-
-    category: "bass",
-    subcategory: "808",
-
-    type: "synth",
-
-    synth: {
-      engine: "membrane",
-
-      pitchDecay: 0.02,
-      octaves: 6,
-
-      note: "C1",
-
-      duration: "8n",
-    },
-
-    tags: ["808", "kick", "bass", "sub", "trap", "hip-hop"],
-
-    description: "Synthesized 808-style sub kick.",
+    description:
+      "Soft polyphonic synth pad.",
   },
 
   {
@@ -336,9 +317,16 @@ export const SOUND_LIBRARY = [
       duration: "8n",
     },
 
-    tags: ["bass", "sub", "sine", "low", "deep"],
+    tags: [
+      "bass",
+      "sub",
+      "sine",
+      "low",
+      "deep",
+    ],
 
-    description: "Clean low-frequency sub bass.",
+    description:
+      "Clean low-frequency sub bass.",
   },
 
   {
@@ -375,9 +363,16 @@ export const SOUND_LIBRARY = [
       duration: "8n",
     },
 
-    tags: ["bass", "acid", "303", "saw", "resonant"],
+    tags: [
+      "bass",
+      "acid",
+      "303",
+      "saw",
+      "resonant",
+    ],
 
-    description: "Resonant acid-style bass.",
+    description:
+      "Resonant acid-style bass.",
   },
 
   {
@@ -408,9 +403,15 @@ export const SOUND_LIBRARY = [
       duration: "8n",
     },
 
-    tags: ["lead", "synth", "square", "melody"],
+    tags: [
+      "lead",
+      "synth",
+      "square",
+      "melody",
+    ],
 
-    description: "Simple bright square-wave lead.",
+    description:
+      "Simple bright square-wave lead.",
   },
 
   {
@@ -433,9 +434,15 @@ export const SOUND_LIBRARY = [
       dampening: 4000,
     },
 
-    tags: ["pluck", "synth", "short", "arp"],
+    tags: [
+      "pluck",
+      "synth",
+      "short",
+      "arp",
+    ],
 
-    description: "Short resonant plucked synth.",
+    description:
+      "Short resonant plucked synth.",
   },
 
   {
@@ -459,9 +466,15 @@ export const SOUND_LIBRARY = [
       duration: "8n",
     },
 
-    tags: ["keys", "electric", "fm", "chord"],
+    tags: [
+      "keys",
+      "electric",
+      "fm",
+      "chord",
+    ],
 
-    description: "Bright FM electric-key style sound.",
+    description:
+      "Bright FM electric-key style sound.",
   },
 
   {
@@ -485,8 +498,14 @@ export const SOUND_LIBRARY = [
       duration: "4n",
     },
 
-    tags: ["bell", "fm", "digital", "melodic"],
+    tags: [
+      "bell",
+      "fm",
+      "digital",
+      "melodic",
+    ],
 
-    description: "Bright metallic digital bell.",
+    description:
+      "Bright metallic digital bell.",
   },
 ];

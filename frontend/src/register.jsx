@@ -1,10 +1,8 @@
 import { useState } from "react";
+import { useNavigate, NavLink } from "react-router-dom";
 import { useAuth } from "./AuthContext/AuthContext";
-import { useNavigate } from "react-router";
-
 
 export default function RegisterPage() {
-  
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -13,45 +11,67 @@ export default function RegisterPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-
     setPending(true);
 
     const formData = new FormData(event.target);
-
     const result = await register({
       username: formData.get("username")?.toString().trim(),
       password: formData.get("password")?.toString(),
     });
 
+    setMessage(result.message);
     if (result.status === "success") {
       navigate("/userPage");
     }
-    setMessage(result.message);
     setPending(false);
   }
 
   return (
-    <div>
-      <h1>Register</h1>
+    <div className="auth-wrapper">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <span className="auth-logo-icon">🎵</span>
+          <h1>Register</h1>
+        </div>
 
-      <form onSubmit={handleSubmit}>
-        <label>Username</label>
-        <input type="text" name="username" required />
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <div className="auth-field">
+            <label htmlFor="register-username">Username</label>
+            <input
+              id="register-username"
+              type="text"
+              name="username"
+              placeholder="Pick a name"
+              required
+            />
+          </div>
 
-        <label>Password</label>
-        <input
-          type="password"
-          name="password"
-          required
-          minLength={8}
-        />
+          <div className="auth-field">
+            <label htmlFor="register-password">Password</label>
+            <input
+              id="register-password"
+              type="password"
+              name="password"
+              placeholder="At least 8 characters"
+              required
+              minLength={8}
+            />
+          </div>
 
-        <button type="submit" disabled={pending}>
-          {pending ? "Creating account..." : "Create account"}
-        </button>
-      </form>
+          <button type="submit" className="auth-submit" disabled={pending}>
+            {pending ? "Creating account…" : "Create Account"}
+          </button>
+        </form>
 
-      {message && <p>{message}</p>}
+        {message && <p className="auth-message">{message}</p>}
+
+        <p className="auth-switch">
+          Already have an account?{" "}
+          <NavLink to="/login" className="auth-link">
+            Log in
+          </NavLink>
+        </p>
+      </div>
     </div>
   );
 }

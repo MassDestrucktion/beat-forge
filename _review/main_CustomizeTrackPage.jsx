@@ -664,8 +664,8 @@ export default function CustomizeTrackPage() {
               onClick={handlePreview}
             >
               {isPreviewing
-                ? "⏹ Stop"
-                : "▶ Preview"}
+                ? "ΓÅ╣ Stop"
+                : "Γû╢ Preview"}
             </button>
           </div>
         </section>

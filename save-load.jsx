@@ -9,8 +9,8 @@ const track_name = "CoolBeats"
 const trackConfig = [
     {type: "MembraneSyth", note:"A1", duration: "8n"},
     {type: "NoiseSynth", note: "1n"},
-    {type: MetalSyth, note: "2n"},
-    {type: Synth, note: "c4", "2n"}
+    {type: "MetalSyth", note: "2n"},
+    {type: "Synth", note: "c4", "2n"}
 ];
 
 
@@ -19,7 +19,7 @@ export default function savePayloadBody() {
     return {
         name: track_name,
         savedAt: new Date().toISOString(),
-         transport: {
+        transport: {
             bpm: Tone.Transport.bpm.value,
             },
             tracks: grid.map((steps, trackIndex) => ({
@@ -28,6 +28,8 @@ export default function savePayloadBody() {
                 note: trackConfig[trackIndex].note,
                 duration: trackConfig[trackIndex].duration,
                 steps,
+                // Piano roll pitch data
+                pitch: trackConfig[trackIndex].pitch || null,
             })),
 
     };
@@ -52,8 +54,8 @@ catch(error){
     }
 }
 
-};
 
+};
 
 // Load Functions:
 
@@ -70,6 +72,8 @@ const getSequence = () => {
                 note: trackConfig[trackIndex].note,
                 duration: trackConfig[trackIndex].duration,
                 steps,
+                // Piano roll pitch data
+                pitch: trackConfig[trackIndex].pitch || null,
             })),
         }
 };

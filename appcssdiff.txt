@@ -1,0 +1,251 @@
+diff --git a/frontend/src/App.css b/frontend/src/App.css
+index 3be3417..907b7ea 100644
+--- a/frontend/src/App.css
++++ b/frontend/src/App.css
+@@ -298,86 +298,80 @@
+    Profile Page Container
+    ========================================== */
+ 
+- .profileGrid {
+-    display: grid;
+-    border: 1px solid black;
+-    grid-template-columns: 1fr 1fr;
+-    grid-template-rows: 1fr 1fr;
+-  }
++.profileGrid {
++  display: grid;
++  border: 1px solid black;
++  grid-template-columns: 1fr 1fr;
++  grid-template-rows: 1fr 1fr;
++}
+ 
+-  .pgrid1{
+-    border: 1px solid blue;
+-    grid-column: 1 / 2;
+-    grid-row: 1 / 2;
+-  }
++.pgrid1 {
++  border: 1px solid blue;
++  grid-column: 1 / 2;
++  grid-row: 1 / 2;
++}
+ 
+-  .pgrid2{
+-    border: 1px solid blue;
+-    grid-column: 2 / 3;
+-    grid-row: 1 / 2;
+-  }
++.pgrid2 {
++  border: 1px solid blue;
++  grid-column: 2 / 3;
++  grid-row: 1 / 2;
++}
+ 
+-   .pgrid3{
+-    border: 1px solid blue;
+-    grid-column: 1 / 2;
+-    grid-row: 2 / 3;
+-  }
++.pgrid3 {
++  border: 1px solid blue;
++  grid-column: 1 / 2;
++  grid-row: 2 / 3;
++}
+ 
+-   /* ==========================================
++/* ==========================================
+    Landing Page Container
+    ========================================== */
+ 
+-  .landingGrid {
+-    display: grid;
+-    grid-template-columns:  1fr 1fr;
+-    grid-template-rows: 1fr 1fr;
+-  }
++.landingGrid {
++  display: grid;
++  grid-template-columns: 1fr 1fr;
++  grid-template-rows: 1fr 1fr;
++}
++
++.landingItem1 {
++  grid-column: 1 / 2;
++  grid-row: 1 /2;
++}
++
++.landingItem2 {
++  grid-column: 2 / 3;
++  grid-row: 1 /2;
++}
+ 
+-  .landingItem1{
+-    grid-column: 1 / 2;
+-    grid-row: 1 /2;
+- 
+-  } 
+-
+-  .landingItem2{
+-    grid-column: 2 / 3;
+-    grid-row: 1 /2;
+-    
+-  } 
+-  
+-  /* ==========================================
++/* ==========================================
+    Featured Page Container
+    ========================================== */
+ 
+-   .featuredGrid {
+-    display: grid;
+-    grid-template-columns:  1fr 1fr;
+-    grid-template-rows: 1fr 1fr;
+-  }
++.featuredGrid {
++  display: grid;
++  grid-template-columns: 1fr 1fr;
++  grid-template-rows: 1fr 1fr;
++}
++
++.featuredItem1 {
++  grid-column: 1 / 2;
++  grid-row: 1 /2;
++}
++
++.featuredItem2 {
++  grid-column: 2 / 3;
++  grid-row: 1 /2;
++}
+ 
+-  .featuredItem1{
+-    grid-column: 1 / 2;
+-    grid-row: 1 /2;
+- 
+-  } 
+-
+-  .featuredItem2{
+-    grid-column: 2 / 3;
+-    grid-row: 1 /2;
+-    
+-  } 
+-
+-  .featuredItem3{
+-    grid-column: 1 / 2;
+-    grid-row: 2 /3;
+-    
+-  } 
+-
+-  .featuredItem4{
+-    grid-column: 2 / 3;
+-    grid-row: 2 /3;
+-    
+-  } 
++.featuredItem3 {
++  grid-column: 1 / 2;
++  grid-row: 2 /3;
++}
++
++.featuredItem4 {
++  grid-column: 2 / 3;
++  grid-row: 2 /3;
++}
+ 
+ @media (max-width: 760px) {
+   .hero-card,
+@@ -400,11 +394,8 @@
+     width: auto;
+     text-align: left;
+   }
+-
+-
+ }
+ 
+-
+ .customize-track-button {
+   border: 1px solid rgba(255, 255, 255, 0.12);
+   background: rgba(255, 255, 255, 0.06);
+@@ -426,11 +417,25 @@
+   transform: translateY(-1px);
+ }
+ 
+-.mute-track-button {
++.mute-track-button,
++.solo-track-button {
+   border: 1px solid #3b4252;
+   background: #1f2430;
+   color: #ffffff;
+   cursor: pointer;
++  padding: 8px 12px;
++  border-radius: 8px;
++  font-size: 13px;
++  font-weight: 600;
++  transition:
++    background 0.2s ease,
++    border-color 0.2s ease,
++    transform 0.2s ease;
++}
++
++.mute-track-button:hover,
++.solo-track-button:hover {
++  transform: translateY(-1px);
+ }
+ 
+ .mute-track-button.muted {
+@@ -439,15 +444,56 @@
+   color: #ffffff;
+ }
+ 
++.solo-track-button.soloed {
++  background: #b45309;
++  border-color: #f59e0b;
++  color: #ffffff;
++}
++
+ .track-muted {
+   opacity: 0.72;
+ }
+ 
++.track-soloed {
++  outline: 2px solid rgba(245, 158, 11, 0.5);
++  outline-offset: -2px;
++}
++
+ .muted-badge {
+   background: #7f1d1d;
+   color: #fecaca;
+ }
+ 
++.solo-badge {
++  background: #b45309;
++  color: #fef3c7;
++}
++
+ .muted-step {
+   opacity: 0.55;
+-}
+\ No newline at end of file
++}
++
++.add-track-button {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 8px;
++  padding: 14px 20px;
++  border-radius: 14px;
++  border: 2px dashed rgba(255, 255, 255, 0.18);
++  background: rgba(255, 255, 255, 0.04);
++  color: #d1d5db;
++  font-size: 14px;
++  font-weight: 700;
++  cursor: pointer;
++  transition:
++    border-color 0.15s ease,
++    background-color 0.15s ease,
++    color 0.15s ease;
++}
++
++.add-track-button:hover {
++  border-color: rgba(139, 92, 246, 0.6);
++  background: rgba(139, 92, 246, 0.08);
++  color: #f3f4f6;
++}

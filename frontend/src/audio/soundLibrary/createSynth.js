@@ -13,20 +13,16 @@ import * as Tone from "tone";
  * Routing is handled here so every synth is connected
  * to the destination supplied by the sound engine.
  */
-export function createSynthForSound(
-  sound,
-  destination
-) {
+export function createSynthForSound(sound, destination) {
   if (!sound || sound.type !== "synth") {
     return null;
   }
 
   const config = sound.synth || {};
 
-  const output =
-    destination || Tone.getDestination();
+  const output = destination || Tone.getDestination();
 
-  let synth = null;
+  let synth;
 
   /**
    * -------------------------------------------------------
@@ -36,151 +32,153 @@ export function createSynthForSound(
 
   if (config.engine === "membrane") {
     synth = new Tone.MembraneSynth({
-      pitchDecay:
-        config.pitchDecay ?? 0.05,
+      pitchDecay: config.pitchDecay ?? 0.05,
 
-      octaves:
-        config.octaves ?? 10,
+      octaves: config.octaves ?? 10,
 
-      oscillator:
-        config.oscillator || {
-          type: "sine",
-        },
+      oscillator: config.oscillator || {
+        type: "sine",
+      },
 
-      envelope:
-        config.envelope || {
-          attack: 0.001,
-          decay: 0.4,
-          sustain: 0.01,
-          release: 1.4,
-        },
+      envelope: config.envelope || {
+        attack: 0.001,
+        decay: 0.4,
+        sustain: 0.01,
+        release: 1.4,
+      },
     });
-  }
-
-  /**
-   * -------------------------------------------------------
-   * POLY
-   * -------------------------------------------------------
-   */
-
-  else if (config.engine === "poly") {
-    synth = new Tone.PolySynth(
-      Tone.Synth
-    );
+  } else if (config.engine === "poly") {
+    /**
+     * -------------------------------------------------------
+     * POLY
+     * -------------------------------------------------------
+     */
+    synth = new Tone.PolySynth(Tone.Synth);
 
     if (config.oscillator) {
       synth.set({
-        oscillator:
-          config.oscillator,
+        oscillator: config.oscillator,
       });
     }
 
     if (config.envelope) {
       synth.set({
-        envelope:
-          config.envelope,
+        envelope: config.envelope,
       });
     }
-  }
-
-  /**
-   * -------------------------------------------------------
-   * MONO
-   * -------------------------------------------------------
-   */
-
-  else if (config.engine === "mono") {
+  } else if (config.engine === "mono") {
+    /**
+     * -------------------------------------------------------
+     * MONO
+     * -------------------------------------------------------
+     */
     synth = new Tone.MonoSynth({
-      oscillator:
-        config.oscillator || {
-          type: "sawtooth",
-        },
+      oscillator: config.oscillator || {
+        type: "sawtooth",
+      },
 
-      envelope:
-        config.envelope || {
-          attack: 0.01,
-          decay: 0.1,
-          sustain: 0.7,
-          release: 0.2,
-        },
+      envelope: config.envelope || {
+        attack: 0.01,
+        decay: 0.1,
+        sustain: 0.7,
+        release: 0.2,
+      },
 
-      filter:
-        config.filter || {
-          type: "lowpass",
-          frequency: 1200,
-          rolloff: -12,
-        },
+      filter: config.filter || {
+        type: "lowpass",
+        frequency: 1200,
+        rolloff: -12,
+      },
     });
-  }
-
-  /**
-   * -------------------------------------------------------
-   * PLUCK
-   * -------------------------------------------------------
-   */
-
-  else if (config.engine === "pluck") {
+  } else if (config.engine === "pluck") {
+    /**
+     * -------------------------------------------------------
+     * PLUCK
+     * -------------------------------------------------------
+     */
     synth = new Tone.PluckSynth({
-      resonance:
-        config.resonance ?? 0.5,
+      resonance: config.resonance ?? 0.5,
 
-      dampening:
-        config.dampening ?? 4000,
+      dampening: config.dampening ?? 4000,
     });
-  }
-
-  /**
-   * -------------------------------------------------------
-   * FM
-   * -------------------------------------------------------
-   */
-
-  else if (config.engine === "fm") {
+  } else if (config.engine === "fm") {
+    /**
+     * -------------------------------------------------------
+     * FM
+     * -------------------------------------------------------
+     */
     synth = new Tone.FMSynth({
-      harmonicity:
-        config.harmonicity ?? 2,
+      harmonicity: config.harmonicity ?? 2,
 
-      modulationIndex:
-        config.modulationIndex ?? 8,
+      modulationIndex: config.modulationIndex ?? 8,
 
-      oscillator:
-        config.oscillator || {
-          type: "sine",
-        },
+      oscillator: config.oscillator || {
+        type: "sine",
+      },
 
-      envelope:
-        config.envelope || {
-          attack: 0.01,
-          decay: 0.1,
-          sustain: 0.5,
-          release: 0.2,
-        },
+      envelope: config.envelope || {
+        attack: 0.01,
+        decay: 0.1,
+        sustain: 0.5,
+        release: 0.2,
+      },
 
-      modulation:
-        config.modulation || {
-          type: "square",
-        },
+      modulation: config.modulation || {
+        type: "square",
+      },
 
-      modulationEnvelope:
-        config.modulationEnvelope || {
-          attack: 0.5,
-          decay: 0.2,
-          sustain: 0.2,
-          release: 0.1,
-        },
+      modulationEnvelope: config.modulationEnvelope || {
+        attack: 0.5,
+        decay: 0.2,
+        sustain: 0.2,
+        release: 0.1,
+      },
     });
-  }
+  } else if (config.engine === "noise") {
+    /**
+     * -------------------------------------------------------
+     * NOISE
+     * -------------------------------------------------------
+     */
+    const noiseSynth = new Tone.NoiseSynth({
+      noise: config.noise || { type: "white" },
+      envelope: config.envelope || {
+        attack: 0.001,
+        decay: 0.2,
+        sustain: 0,
+        release: 0.1,
+      },
+    });
 
-  /**
-   * -------------------------------------------------------
-   * UNKNOWN ENGINE
-   * -------------------------------------------------------
-   */
+    let filter = null;
+    if (config.filter) {
+      filter = new Tone.Filter(
+        config.filter.frequency || 1800,
+        config.filter.type || "bandpass",
+      );
+      noiseSynth.connect(filter);
+      filter.connect(output);
+    } else {
+      noiseSynth.connect(output);
+    }
 
-  else {
-    console.warn(
-      `Unknown synth engine: ${config.engine}`
-    );
+    return {
+      connect() {},
+      triggerAttackRelease(note, duration, time) {
+        noiseSynth.triggerAttackRelease(duration, time);
+      },
+      dispose() {
+        noiseSynth.dispose();
+        if (filter) filter.dispose();
+      },
+    };
+  } else {
+    /**
+     * -------------------------------------------------------
+     * UNKNOWN ENGINE
+     * -------------------------------------------------------
+     */
+    console.warn(`Unknown synth engine: ${config.engine}`);
 
     return null;
   }

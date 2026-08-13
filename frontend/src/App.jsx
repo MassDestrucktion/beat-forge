@@ -7,27 +7,25 @@ import LoginPage from "./login";
 import UserPage from "./userPage";
 import SequencerPage from "./SequencerPage";
 import GettingStarted from "./getingStarted";
-import FeaturedProjects from "./featuredprojects"
-import CustomizeTrack from "./CustomizeTrackPage.jsx";
+import FeaturedProjects from "./featuredprojects";
 
 export default function App() {
-    return (
-        <>
-            <Navbar />
+  return (
+    <>
+      <Navbar />
 
-            <main className="main-content">
-                <Routes>
-                    <Route path="/" element={<LandingPage />} />
-                    <Route path="/getting-started" element={<GettingStarted />} />
-                    <Route path="/sequencer" element={<SequencerPage />} />
-                    <Route path="/customize-track" element={<CustomizeTrack />} />
-                    <Route path="/FeaturedProjects" element={<FeaturedProjects />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/userPage" element={<UserPage />} />
-                    <Route path="*" element={<div>404 - Page Not Found</div>} />
-                </Routes>
-            </main>
-        </>
-    );
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/getting-started" element={<GettingStarted />} />
+          <Route path="/sequencer" element={<SequencerPage />} />
+          <Route path="/FeaturedProjects" element={<FeaturedProjects />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/userPage" element={<UserPage />} />
+          <Route path="*" element={<div>404 - Page Not Found</div>} />
+        </Routes>
+      </main>
+    </>
+  );
 }
