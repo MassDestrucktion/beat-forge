@@ -121,53 +121,5 @@ usersRouter.post(
     }
 );
 
-usersRouter.get("/:id/following", async(req, res, next) => {
-    const following = await getFollowing();
-    res.send(following);
-});
 
-userRouter.post("/:id/follow", requireAuth, async (req, res, next) => {
-    try {
-        const followerID = req.user.id;
-        const followeeID = req.params.id;
-
-        if (followerID === followeeID) {
-            return res.status(400).json({
-                error: "Cannot follow yourself",
-            });
-        }
-
-        const SQL = `
-            INSERT INTO follows (follower_id, followee_id)
-            VALUES ($1, $2)
-        `;
-
-        await db.query(SQL, [followerID, followeeID]);
-
-        return res.status(201).json({
-            message: "Followed successfully",
-        });
-    } catch (error) {
-        next(error);
-    }
-});
-
-userRouter.delete("/:id/follow", requireAuth, async (req, res, next) => {
-    try {
-        const SQL = `
-            DELETE FROM follows
-            WHERE follower_id = $1
-              AND followee_id = $2
-        `;
-
-        await db.query(SQL, [req.user.id, req.params.id]);
-
-        return res.status(200).json({
-            message: "Unfollowed successfully",
-        });
-    } catch (error) {
-        next(error);
-    }
-});
-
-export default userRouter;
+export default usersRouter;

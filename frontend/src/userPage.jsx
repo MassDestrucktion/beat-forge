@@ -1,7 +1,5 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import ListItem from "./components/projectList";
 import { FollowingItem } from "./components/followingItem";
 import { useAuth } from "./AuthContext/AuthContext";
 import "./styles/userPage.css";
@@ -34,13 +32,11 @@ export default function userPage() {
     const navigate = useNavigate();
 
     const [userProjects, setUserProjects] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
     const [following, setFollowing] = useState([]);
-
-     useEffect(() => {
-        followingRef.current = handleFollowing();
-      }, [following]);
+    const [loading, setLoading] = useState(true);
+    const [followingLoading, setFollowingLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [followingError, setFollowingError] = useState("");
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -55,7 +51,6 @@ export default function userPage() {
                 setLoading(true);
                 setError("");
 
-                // Keeping the FIRST file's fetch route
                 const response = await fetch(
                     `/api/users/${user.id}/projects`,
                     {
@@ -69,6 +64,7 @@ export default function userPage() {
 
                 if (!response.ok) {
                     const text = await response.text();
+
                     throw new Error(
                         text || "Failed to fetch projects"
                     );
@@ -79,14 +75,83 @@ export default function userPage() {
                 setUserProjects(projects);
             } catch (err) {
                 console.error(err);
-                setError(err.message || "Failed to load projects");
+
+                setError(
+                    err.message ||
+                        "Failed to load projects"
+                );
             } finally {
                 setLoading(false);
             }
         }
 
         fetchProjects();
-    }, [isAuthenticated, user?.id, token, navigate]);
+    }, [
+        isAuthenticated,
+        user?.id,
+        token,
+        navigate,
+    ]);
+
+    useEffect(() => {
+        if (!isAuthenticated || !user?.id) {
+            return;
+        }
+
+        async function fetchFollowing() {
+            try {
+                setFollowingLoading(true);
+                setFollowingError("");
+
+                const response = await fetch(
+                    `/api/users/${user.id}/following`,
+                    {
+                        headers: {
+                            Authorization: token
+                                ? `Bearer ${token}`
+                                : "",
+                        },
+                    }
+                );
+
+                if (!response.ok) {
+                    const text =
+                        await response.text();
+
+                    throw new Error(
+                        text ||
+                            "Failed to fetch following"
+                    );
+                }
+
+                const followingUsers =
+                    await response.json();
+
+                setFollowing(
+                    Array.isArray(followingUsers)
+                        ? followingUsers
+                        : []
+                );
+            } catch (err) {
+                console.error(err);
+
+                setFollowingError(
+                    err.message ||
+                        "Failed to load following"
+                );
+
+                setFollowing([]);
+            } finally {
+                setFollowingLoading(false);
+            }
+        }
+
+        fetchFollowing();
+    }, [
+        isAuthenticated,
+        user?.id,
+        token,
+    ]);
 
     const handleDelete = async (projectId) => {
         if (
@@ -111,22 +176,32 @@ export default function userPage() {
             );
 
             if (!response.ok) {
-                const text = await response.text();
+                const text =
+                    await response.text();
+
                 throw new Error(
-                    text || "Failed to delete project"
+                    text ||
+                        "Failed to delete project"
                 );
             }
 
             setUserProjects((prev) =>
-                prev.filter((project) => project.id !== projectId)
+                prev.filter(
+                    (project) =>
+                        project.id !== projectId
+                )
             );
         } catch (err) {
-            alert(`Delete failed: ${err.message}`);
+            alert(
+                `Delete failed: ${err.message}`
+            );
         }
     };
 
     const handleOpen = (projectId) => {
-        navigate(`/sequencer?projectId=${projectId}`);
+        navigate(
+            `/sequencer?projectId=${projectId}`
+        );
     };
 
     const handleNewProject = () => {
@@ -141,63 +216,91 @@ export default function userPage() {
         return (
             <main className="dashboard">
                 <section className="welcomeCard">
-                    <h1>Loading projects...</h1>
+                    <h1>
+                        Loading projects...
+                    </h1>
                 </section>
             </main>
         );
     }
 
-   
-    async function handleFollowing() {
-    const response = await fetch(`/api/users/${user.id}/following`, {
-        headers: {
-            Authorization: token ? `Bearer ${token}` : ""
-        }
-    });
-    const following = await response.json();
-    setFollowing(following);
-    }
-
-
     return (
         <main className="dashboard">
             <section className="welcomeCard">
                 <h1>
-                    Welcome, {user?.username || "User"}
+                    Welcome,{" "}
+                    {user?.username || "User"}
                 </h1>
 
                 <p>
-                    Manage your music projects below.
+                    Manage your music projects
+                    below.
                 </p>
             </section>
+
             <section className="followingSection">
                 <div className="followingHeader">
                     <h2>People You Follow</h2>
                 </div>
-                <p> List of people you follow as links to their profiles
-                    probably move to right column of page
-                </p>
-                <ul>
-                    {following.map((user) => (
-                        <li key={user.id}>
-                            <FollowingItem following={user} />
-                        </li>
-                    ))}
-                </ul>
+
+                {followingLoading && (
+                    <p>Loading following...</p>
+                )}
+
+                {followingError && (
+                    <p className="error-message">
+                        {followingError}
+                    </p>
+                )}
+
+                {!followingLoading &&
+                    !followingError &&
+                    following.length === 0 && (
+                        <p>
+                            You aren't following
+                            anyone yet.
+                        </p>
+                    )}
+
+                {!followingLoading &&
+                    following.length > 0 && (
+                        <ul>
+                            {following.map(
+                                (followedUser) => (
+                                    <li
+                                        key={
+                                            followedUser.id
+                                        }
+                                    >
+                                        <FollowingItem
+                                            following={
+                                                followedUser
+                                            }
+                                        />
+                                    </li>
+                                )
+                            )}
+                        </ul>
+                    )}
             </section>
+
             <section className="projectsSection">
                 <div className="projectsHeader">
                     <div>
                         <h2>Your Projects</h2>
 
                         <p className="user-name">
-                            👤 {user?.username || "User"}
+                            👤{" "}
+                            {user?.username ||
+                                "User"}
                         </p>
                     </div>
 
                     <button
                         className="newProjectBtn"
-                        onClick={handleNewProject}
+                        onClick={
+                            handleNewProject
+                        }
                     >
                         + New Project
                     </button>
@@ -209,82 +312,96 @@ export default function userPage() {
                     </p>
                 )}
 
-                {!error && userProjects.length === 0 ? (
+                {!error &&
+                userProjects.length === 0 ? (
                     <div className="emptyProjects">
-                        <h3>No projects yet</h3>
+                        <h3>
+                            No projects yet
+                        </h3>
 
                         <p>
-                            Start creating your first track.
+                            Start creating your
+                            first track.
                         </p>
 
                         <button
                             className="link-btn"
-                            onClick={handleNewProject}
+                            onClick={
+                                handleNewProject
+                            }
                         >
                             Start one now!
                         </button>
                     </div>
                 ) : (
                     <div className="projectsGrid">
-                        {userProjects.map((project) => (
-                            <div
-                                key={project.id}
-                                className="project-card"
-                            >
-                                <div className="project-card-header">
-                                    <h3>
-                                        {project.name ||
-                                            "Untitled Project"}
-                                    </h3>
+                        {userProjects.map(
+                            (project) => (
+                                <div
+                                    key={
+                                        project.id
+                                    }
+                                    className="project-card"
+                                >
+                                    <div className="project-card-header">
+                                        <h3>
+                                            {project.name ||
+                                                "Untitled Project"}
+                                        </h3>
 
-                                    <span className="project-date">
-                                        {timeAgo(
-                                            project.created_at
-                                        )}
-                                    </span>
-                                </div>
+                                        <span className="project-date">
+                                            {timeAgo(
+                                                project.created_at
+                                            )}
+                                        </span>
+                                    </div>
 
-                                <div className="project-card-details">
-                                    <span>
-                                        BPM:{" "}
-                                        {project.tempo || 120}
-                                    </span>
+                                    <div className="project-card-details">
+                                        <span>
+                                            BPM:{" "}
+                                            {project.tempo ||
+                                                120}
+                                        </span>
 
-                                    <span>
-                                        Tracks:{" "}
-                                        {Array.isArray(
-                                            project.grid
-                                        )
-                                            ? project.grid.length
-                                            : "—"}
-                                    </span>
-                                </div>
-
-                                <div className="project-card-actions">
-                                    <button
-                                        className="nav-btn"
-                                        onClick={() =>
-                                            handleOpen(
-                                                project.id
+                                        <span>
+                                            Tracks:{" "}
+                                            {Array.isArray(
+                                                project.grid
                                             )
-                                        }
-                                    >
-                                        Open in Sequencer
-                                    </button>
+                                                ? project
+                                                      .grid
+                                                      .length
+                                                : "—"}
+                                        </span>
+                                    </div>
 
-                                    <button
-                                        className="nav-btn delete-btn"
-                                        onClick={() =>
-                                            handleDelete(
-                                                project.id
-                                            )
-                                        }
-                                    >
-                                        🗑 Delete
-                                    </button>
+                                    <div className="project-card-actions">
+                                        <button
+                                            className="nav-btn"
+                                            onClick={() =>
+                                                handleOpen(
+                                                    project.id
+                                                )
+                                            }
+                                        >
+                                            Open in
+                                            Sequencer
+                                        </button>
+
+                                        <button
+                                            className="nav-btn delete-btn"
+                                            onClick={() =>
+                                                handleDelete(
+                                                    project.id
+                                                )
+                                            }
+                                        >
+                                            🗑 Delete
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            )
+                        )}
                     </div>
                 )}
             </section>
