@@ -115,6 +115,8 @@ export default function userPage() {
         }
 
         async function fetchFollowing() {
+            console.log("TOKEN:", token);
+    console.log("USER:", user);
             try {
                 const response = await fetch(
                     `/api/users/${user.id}/following`,
@@ -128,14 +130,13 @@ export default function userPage() {
                 );
 
                 if (!response.ok) {
-                    const text =
-                        await response.text();
+    const text = await response.text();
+    
+    console.log("STATUS:", response.status);
+    console.log("SERVER ERROR:", text);
 
-                    throw new Error(
-                        text ||
-                            "Failed to fetch following"
-                    );
-                }
+    throw new Error(text || "Failed to fetch following");
+}
 
                 const followingUsers =
                     await response.json();
@@ -318,21 +319,13 @@ export default function userPage() {
                     <ul>
                         {following.map(
                             (followingUser) => (
-                                <li
-                                    key={
-                                        followingUser.id
-                                    }
-                                >
-                                    <FollowingItem
-                                        following={
-                                            followingUser
-                                        }
-                                    />
+                                <li key={followingUser.id}>
+                                    <FollowingItem following={followingUser} />  
                                 </li>
                             )
                         )}
                     </ul>
-                    <button>Follow</button>
+                    <button onClick={handleFollow}>Follow</button>
                     </div>
                 )}
             </section>

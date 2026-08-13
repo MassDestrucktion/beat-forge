@@ -95,17 +95,25 @@ export async function getUser(id) {
 }
 
 export async function getFollowing(id) {
-    const SQL =`
-        SELECT u.id, u.username, u.display_name, u.avatar_url
-        FROM follows f
-        JOIN users u ON u.id = f.followee_id
+    const SQL = `
+        SELECT
+            u.id,
+            u.username
+        FROM app.follows f
+        JOIN app.users u
+            ON u.id = f.followee_id
         WHERE f.follower_id = $1
         ORDER BY f.created_at DESC;
     `;
 
-    const { rows: followings } = await db.query(SQL, [id]);
-    return followings;
-};
+    console.log("getFollowing ID:", id);
+
+    const { rows } = await db.query(SQL, [id]);
+
+    console.log("getFollowing rows:", rows);
+
+    return rows;
+}
 
 export async function followUser(followerId, followeeId) {
     const SQL = `  

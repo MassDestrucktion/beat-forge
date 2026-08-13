@@ -5,6 +5,7 @@ import { createUser, userLogin, getUser } from "../db/queries/users.js";
 import { createToken } from "../jwt/jwt.js";
 import { get_user_projects } from "../db/queries/projects.js";
 import { getFollowing, followUser, unfollowUser } from "../db/queries/users.js";
+import authenticate from "../middleware/authenticate.js";
 
 
 const usersRouter = Router();
@@ -109,35 +110,30 @@ usersRouter.post(
     }
 );
 
-usersRouter.get("/:id/following", async (req, res, next) => {
-    try {
-        const following = await getFollowing();
-        res.send(following);
-    } catch (error) {
-        console.log(error);
-        next(error);
-    }
-});
+usersRouter.get(
+    "/:id/following",
 
-usersRouter.post("/:id/follow", requireAuth, async (req, res, next) => {
-    try {
-        const followerID = req.user.id;
-        const followeeID = req.params.id;
+    async (req, res, next) => {
+        try {
+            console.log("Route ID:", req.params.id);
 
-    if(followerID === followeeID) {
-        return res.status(400).json({"error": "Cannot follow yourself"})
+            const following = await getFollowing(
+                req.params.id
+            );
+
+            console.log("Sending:", following);
+
+            res.json(following);
+        } catch (error) {
+            console.error("FOLLOWING ERROR:", error);
+            next(error);
+        }
     }
-    const follow = await followUser(followerID, followeeID);
-    res.status(201).send(follow);
-    }
-    catch (error) {
-        console.log(error);
-        next(error);
-    }
-});
+);
+
     
 
-    usersRouter.delete("/:id/follow", requireAuth, async(req, res, next) => {
+    usersRouter.delete("/:id/follow", async(req, res, next) => {
         const unfollow = await unfollowUser(req.user.id, req.params.id);
         res.send(unfollow);
         });
