@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import ListItem from "./components/projectList";
 import { FollowingItem } from "./components/followingItem";
+
 import { useAuth } from "./AuthContext/AuthContext";
 import "./styles/userPage.css";
 
@@ -307,13 +308,13 @@ export default function userPage() {
                         People You Follow
                     </h2>
                 </div>
-
                 {following.length === 0 ? (
                     <p>
                         You aren't following
                         anyone yet.
                     </p>
                 ) : (
+                    <div>
                     <ul>
                         {following.map(
                             (followingUser) => (
@@ -331,6 +332,8 @@ export default function userPage() {
                             )
                         )}
                     </ul>
+                    <button>Follow</button>
+                    </div>
                 )}
             </section>
 
