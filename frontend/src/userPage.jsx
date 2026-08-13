@@ -139,7 +139,7 @@ export default function userPage() {
 
                 const followingUsers =
                     await response.json();
-
+                    console.log("Following users:", followingUsers);
                 setFollowing(
                     Array.isArray(
                         followingUsers

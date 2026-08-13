@@ -1,7 +1,8 @@
 DROP TABLE IF EXISTS tracks CASCADE;
 DROP TABLE IF EXISTS projects CASCADE;
+DROP TABLE IF EXISTS follows CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS friendships CASCADE;
+
 
 CREATE TABLE users (
     id UUID PRIMARY KEY,
@@ -41,8 +42,8 @@ CREATE INDEX idx_tracks_project_id
 ON tracks(project_id);
 
 CREATE TABLE follows (
-  follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  followee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  followee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 
   PRIMARY KEY (follower_id, followee_id),

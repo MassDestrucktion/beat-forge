@@ -109,7 +109,7 @@ usersRouter.post(
     }
 );
 
-usersRouter.get("/:id/following", requireAuth,async (req, res, next) => {
+usersRouter.get("/:id/following", async (req, res, next) => {
     try {
         const following = await getFollowing();
         res.send(following);
