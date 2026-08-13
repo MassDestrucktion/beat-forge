@@ -1,5 +1,3 @@
-// src/CustomizeTrack.jsx
-
 import * as Tone from "tone";
 
 import {
@@ -50,25 +48,22 @@ const DEFAULT_TRACK_SETTINGS = [
  * -------------------------------------------------------
  */
 
-const PREVIEW_SAMPLES =
-  new Tone.Players({
-    kick:
-      "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
+const PREVIEW_SAMPLES = new Tone.Players({
+  kick:
+    "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
 
-    snare:
-      "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
+  snare:
+    "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
 
-    hihat:
-      "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
-  });
+  hihat:
+    "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
+});
 
 const previewStabSynth =
   new Tone.MembraneSynth();
 
 const previewPadSynth =
-  new Tone.PolySynth(
-    Tone.Synth
-  );
+  new Tone.PolySynth(Tone.Synth);
 
 const previewGain =
   new Tone.Gain(1);
@@ -116,22 +111,10 @@ const previewReverb =
  * -------------------------------------------------------
  */
 
-previewGain.connect(
-  previewFilter
-);
-
-previewFilter.connect(
-  previewDistortion
-);
-
-previewDistortion.connect(
-  previewDelay
-);
-
-previewDelay.connect(
-  previewReverb
-);
-
+previewGain.connect(previewFilter);
+previewFilter.connect(previewDistortion);
+previewDistortion.connect(previewDelay);
+previewDelay.connect(previewReverb);
 previewReverb.toDestination();
 
 /**
@@ -141,68 +124,54 @@ previewReverb.toDestination();
  */
 
 function normalizeEffects(track) {
-  const effects =
-    track?.effects || {};
+  const effects = track?.effects || {};
 
   return {
     reverb: {
       enabled:
-        effects.reverb?.enabled ??
-        false,
+        effects.reverb?.enabled ?? false,
 
       wet:
-        effects.reverb?.wet ??
-        0.35,
+        effects.reverb?.wet ?? 0.35,
 
       decay:
-        effects.reverb?.decay ??
-        1.5,
+        effects.reverb?.decay ?? 1.5,
     },
 
     delay: {
       enabled:
-        effects.delay?.enabled ??
-        false,
+        effects.delay?.enabled ?? false,
 
       wet:
-        effects.delay?.wet ??
-        0.25,
+        effects.delay?.wet ?? 0.25,
 
       delayTime:
-        effects.delay?.delayTime ??
-        "8n",
+        effects.delay?.delayTime ?? "8n",
 
       feedback:
-        effects.delay?.feedback ??
-        0.25,
+        effects.delay?.feedback ?? 0.25,
     },
 
     distortion: {
       enabled:
-        effects.distortion?.enabled ??
-        false,
+        effects.distortion?.enabled ?? false,
 
       amount:
-        effects.distortion?.amount ??
-        0.25,
+        effects.distortion?.amount ?? 0.25,
     },
 
     filter: {
       enabled:
-        effects.filter?.enabled ??
-        false,
+        effects.filter?.enabled ?? false,
 
       frequency:
-        effects.filter?.frequency ??
-        2000,
+        effects.filter?.frequency ?? 2000,
 
       type:
-        effects.filter?.type ??
-        "lowpass",
+        effects.filter?.type ?? "lowpass",
 
       rolloff:
-        effects.filter?.rolloff ??
-        -12,
+        effects.filter?.rolloff ?? -12,
     },
   };
 }
@@ -249,12 +218,6 @@ function applyPreviewEffects(effects) {
    * -----------------------------------------------------
    * DELAY
    * -----------------------------------------------------
-   *
-   * IMPORTANT:
-   *
-   * delayTime is a Tone signal/param.
-   * We must update .value instead of replacing
-   * the read-only object.
    */
 
   previewDelay.wet.value =
@@ -285,18 +248,6 @@ function applyPreviewEffects(effects) {
    * -----------------------------------------------------
    * FILTER
    * -----------------------------------------------------
-   *
-   * A disabled high-pass or band-pass filter cannot simply
-   * have its frequency moved to 20kHz.
-   *
-   * For example:
-   *
-   * highpass @ 20kHz
-   *
-   * can effectively remove the entire sound.
-   *
-   * Instead, when disabled, force the filter into a neutral
-   * low-pass configuration at the top of the audible range.
    */
 
   if (filter.enabled) {
@@ -336,9 +287,7 @@ export default function CustomizeTrack() {
   const trackIndex =
     incomingState?.trackIndex ??
     Number(
-      searchParams.get(
-        "track"
-      ) || 0
+      searchParams.get("track") || 0
     );
 
   const originalTrackSettings =
@@ -368,11 +317,10 @@ export default function CustomizeTrack() {
     );
 
   const [effects, setEffects] =
-    useState(
-      () =>
-        normalizeEffects(
-          currentTrack
-        )
+    useState(() =>
+      normalizeEffects(
+        currentTrack
+      )
     );
 
   const [
@@ -513,8 +461,7 @@ export default function CustomizeTrack() {
         await Tone.start();
 
         if (
-          Tone.getContext()
-            .state !==
+          Tone.getContext().state !==
           "running"
         ) {
           await Tone.getContext().resume();
@@ -522,10 +469,6 @@ export default function CustomizeTrack() {
 
         stopPreview();
 
-        /**
-         * Re-apply the latest settings immediately
-         * before playback.
-         */
         applyPreviewEffects(
           effects
         );
@@ -575,11 +518,6 @@ export default function CustomizeTrack() {
             await PREVIEW_SAMPLES.load();
           }
 
-          /**
-           * Route the Players node through
-           * the preview effect chain.
-           */
-
           PREVIEW_SAMPLES.disconnect();
 
           PREVIEW_SAMPLES.connect(
@@ -588,15 +526,11 @@ export default function CustomizeTrack() {
 
           player.start();
 
-          setIsPreviewing(
-            true
-          );
+          setIsPreviewing(true);
 
           previewTimeoutRef.current =
             setTimeout(() => {
-              setIsPreviewing(
-                false
-              );
+              setIsPreviewing(false);
 
               previewTimeoutRef.current =
                 null;
@@ -643,15 +577,11 @@ export default function CustomizeTrack() {
             duration
           );
 
-          setIsPreviewing(
-            true
-          );
+          setIsPreviewing(true);
 
           previewTimeoutRef.current =
             setTimeout(() => {
-              setIsPreviewing(
-                false
-              );
+              setIsPreviewing(false);
 
               previewTimeoutRef.current =
                 null;
@@ -695,15 +625,11 @@ export default function CustomizeTrack() {
           duration
         );
 
-        setIsPreviewing(
-          true
-        );
+        setIsPreviewing(true);
 
         previewTimeoutRef.current =
           setTimeout(() => {
-            setIsPreviewing(
-              false
-            );
+            setIsPreviewing(false);
 
             previewTimeoutRef.current =
               null;
@@ -714,9 +640,7 @@ export default function CustomizeTrack() {
           error
         );
 
-        setIsPreviewing(
-          false
-        );
+        setIsPreviewing(false);
 
         setSaveStatus(
           `Preview failed: ${error.message}`

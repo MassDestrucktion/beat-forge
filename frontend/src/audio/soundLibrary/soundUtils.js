@@ -1,14 +1,24 @@
+// src/audio/soundLibrary/soundUtils.js
+
 import {
   SOUND_LIBRARY,
 } from "./soundLibrary";
 
-export function getSoundById(id) {
+/**
+ * Get a sound by ID.
+ */
+export function getSoundById(
+  id
+) {
   return SOUND_LIBRARY.find(
     (sound) =>
       sound.id === id
   );
 }
 
+/**
+ * Get sounds by category/subcategory.
+ */
 export function getSoundsByCategory(
   category,
   subcategory
@@ -24,6 +34,9 @@ export function getSoundsByCategory(
   );
 }
 
+/**
+ * Get sounds by type.
+ */
 export function getSoundsByType(
   type
 ) {
@@ -33,23 +46,55 @@ export function getSoundsByType(
   );
 }
 
+/**
+ * Get regular one-shot samples.
+ */
 export function getSampleSounds() {
   return getSoundsByType(
     "sample"
   );
 }
 
+/**
+ * Get synth sounds.
+ */
 export function getSynthSounds() {
   return getSoundsByType(
     "synth"
   );
 }
 
+/**
+ * Get sampled instruments.
+ */
+export function getPianoSounds() {
+  return getSoundsByType(
+    "piano"
+  );
+}
+
+/**
+ * Get all playable sounds.
+ */
+export function getPlayableSounds() {
+  return SOUND_LIBRARY.filter(
+    (sound) =>
+      sound.type === "sample" ||
+      sound.type === "synth" ||
+      sound.type === "piano"
+  );
+}
+
+/**
+ * Search sound library.
+ */
 export function searchSounds(
   query
 ) {
   const normalized =
-    query.trim().toLowerCase();
+    String(query || "")
+      .trim()
+      .toLowerCase();
 
   if (!normalized) {
     return SOUND_LIBRARY;
@@ -76,6 +121,9 @@ export function searchSounds(
   );
 }
 
+/**
+ * Get human-readable sound label.
+ */
 export function getSoundLabel(
   soundId
 ) {

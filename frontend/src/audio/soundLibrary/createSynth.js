@@ -1,30 +1,38 @@
-// src/audio/soundLibrary/createSynth.js
-
 import * as Tone from "tone";
 
 /**
- * ---------------------------------------------------------
+ * -------------------------------------------------------
  * CREATE SYNTH FOR SOUND
- * ---------------------------------------------------------
+ * -------------------------------------------------------
  *
  * Creates the actual Tone.js instrument for a
  * sound-library synth definition.
  *
  * Routing is handled here so every synth is connected
  * to the destination supplied by the sound engine.
+ *
+ * @param {Object} sound
+ * @param {Tone.ToneAudioNode} destination
+ * @returns {Tone.ToneInstrument|null}
  */
+
 export function createSynthForSound(
   sound,
   destination
 ) {
-  if (!sound || sound.type !== "synth") {
+  if (
+    !sound ||
+    sound.type !== "synth"
+  ) {
     return null;
   }
 
-  const config = sound.synth || {};
+  const config =
+    sound.synth || {};
 
   const output =
-    destination || Tone.getDestination();
+    destination ||
+    Tone.getDestination();
 
   let synth = null;
 
@@ -34,27 +42,33 @@ export function createSynthForSound(
    * -------------------------------------------------------
    */
 
-  if (config.engine === "membrane") {
-    synth = new Tone.MembraneSynth({
-      pitchDecay:
-        config.pitchDecay ?? 0.05,
+  if (
+    config.engine ===
+    "membrane"
+  ) {
+    synth =
+      new Tone.MembraneSynth({
+        pitchDecay:
+          config.pitchDecay ??
+          0.05,
 
-      octaves:
-        config.octaves ?? 10,
+        octaves:
+          config.octaves ??
+          10,
 
-      oscillator:
-        config.oscillator || {
-          type: "sine",
-        },
+        oscillator:
+          config.oscillator || {
+            type: "sine",
+          },
 
-      envelope:
-        config.envelope || {
-          attack: 0.001,
-          decay: 0.4,
-          sustain: 0.01,
-          release: 1.4,
-        },
-    });
+        envelope:
+          config.envelope || {
+            attack: 0.001,
+            decay: 0.4,
+            sustain: 0.01,
+            release: 1.4,
+          },
+      });
   }
 
   /**
@@ -63,19 +77,27 @@ export function createSynthForSound(
    * -------------------------------------------------------
    */
 
-  else if (config.engine === "poly") {
-    synth = new Tone.PolySynth(
-      Tone.Synth
-    );
+  else if (
+    config.engine ===
+    "poly"
+  ) {
+    synth =
+      new Tone.PolySynth(
+        Tone.Synth
+      );
 
-    if (config.oscillator) {
+    if (
+      config.oscillator
+    ) {
       synth.set({
         oscillator:
           config.oscillator,
       });
     }
 
-    if (config.envelope) {
+    if (
+      config.envelope
+    ) {
       synth.set({
         envelope:
           config.envelope,
@@ -89,28 +111,32 @@ export function createSynthForSound(
    * -------------------------------------------------------
    */
 
-  else if (config.engine === "mono") {
-    synth = new Tone.MonoSynth({
-      oscillator:
-        config.oscillator || {
-          type: "sawtooth",
-        },
+  else if (
+    config.engine ===
+    "mono"
+  ) {
+    synth =
+      new Tone.MonoSynth({
+        oscillator:
+          config.oscillator || {
+            type: "sawtooth",
+          },
 
-      envelope:
-        config.envelope || {
-          attack: 0.01,
-          decay: 0.1,
-          sustain: 0.7,
-          release: 0.2,
-        },
+        envelope:
+          config.envelope || {
+            attack: 0.01,
+            decay: 0.1,
+            sustain: 0.7,
+            release: 0.2,
+          },
 
-      filter:
-        config.filter || {
-          type: "lowpass",
-          frequency: 1200,
-          rolloff: -12,
-        },
-    });
+        filter:
+          config.filter || {
+            type: "lowpass",
+            frequency: 1200,
+            rolloff: -12,
+          },
+      });
   }
 
   /**
@@ -119,14 +145,20 @@ export function createSynthForSound(
    * -------------------------------------------------------
    */
 
-  else if (config.engine === "pluck") {
-    synth = new Tone.PluckSynth({
-      resonance:
-        config.resonance ?? 0.5,
+  else if (
+    config.engine ===
+    "pluck"
+  ) {
+    synth =
+      new Tone.PluckSynth({
+        resonance:
+          config.resonance ??
+          0.5,
 
-      dampening:
-        config.dampening ?? 4000,
-    });
+        dampening:
+          config.dampening ??
+          4000,
+      });
   }
 
   /**
@@ -135,40 +167,46 @@ export function createSynthForSound(
    * -------------------------------------------------------
    */
 
-  else if (config.engine === "fm") {
-    synth = new Tone.FMSynth({
-      harmonicity:
-        config.harmonicity ?? 2,
+  else if (
+    config.engine ===
+    "fm"
+  ) {
+    synth =
+      new Tone.FMSynth({
+        harmonicity:
+          config.harmonicity ??
+          2,
 
-      modulationIndex:
-        config.modulationIndex ?? 8,
+        modulationIndex:
+          config.modulationIndex ??
+          8,
 
-      oscillator:
-        config.oscillator || {
-          type: "sine",
-        },
+        oscillator:
+          config.oscillator || {
+            type: "sine",
+          },
 
-      envelope:
-        config.envelope || {
-          attack: 0.01,
-          decay: 0.1,
-          sustain: 0.5,
-          release: 0.2,
-        },
+        envelope:
+          config.envelope || {
+            attack: 0.01,
+            decay: 0.1,
+            sustain: 0.5,
+            release: 0.2,
+          },
 
-      modulation:
-        config.modulation || {
-          type: "square",
-        },
+        modulation:
+          config.modulation || {
+            type: "square",
+          },
 
-      modulationEnvelope:
-        config.modulationEnvelope || {
-          attack: 0.5,
-          decay: 0.2,
-          sustain: 0.2,
-          release: 0.1,
-        },
-    });
+        modulationEnvelope:
+          config.modulationEnvelope || {
+            attack: 0.5,
+            decay: 0.2,
+            sustain: 0.2,
+            release: 0.1,
+          },
+      });
   }
 
   /**

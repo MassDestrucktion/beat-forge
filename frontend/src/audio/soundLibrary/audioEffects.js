@@ -3,9 +3,9 @@
 import * as Tone from "tone";
 
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * DEFAULT EFFECT SETTINGS
- * ---------------------------------------------------------
+ * =========================================================
  */
 
 export const DEFAULT_AUDIO_EFFECTS = {
@@ -40,13 +40,10 @@ export const DEFAULT_AUDIO_EFFECTS = {
   },
 };
 
-
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * NORMALIZE EFFECT SETTINGS
- * ---------------------------------------------------------
- *
- * Makes older saved projects compatible.
+ * =========================================================
  */
 
 export function normalizeAudioEffects(
@@ -54,12 +51,16 @@ export function normalizeAudioEffects(
 ) {
   return {
     volume:
-      Number.isFinite(settings.volume)
+      Number.isFinite(
+        settings.volume
+      )
         ? settings.volume
         : DEFAULT_AUDIO_EFFECTS.volume,
 
     pan:
-      Number.isFinite(settings.pan)
+      Number.isFinite(
+        settings.pan
+      )
         ? settings.pan
         : DEFAULT_AUDIO_EFFECTS.pan,
 
@@ -85,32 +86,26 @@ export function normalizeAudioEffects(
   };
 }
 
-
 /**
- * ---------------------------------------------------------
+ * =========================================================
  * CREATE EFFECT CHAIN
- * ---------------------------------------------------------
+ * =========================================================
  *
- * Input:
- *
- *   sound
- *     ↓
- *   volume
- *     ↓
- *   pan
- *     ↓
- *   filter
- *     ↓
- *   distortion
- *     ↓
- *   delay
- *     ↓
- *   reverb
- *     ↓
- *   destination
- *
- * The returned input is where the sound engine
- * should connect its instrument/player.
+ * sound
+ *   ↓
+ * volume
+ *   ↓
+ * pan
+ *   ↓
+ * filter
+ *   ↓
+ * distortion
+ *   ↓
+ * delay
+ *   ↓
+ * reverb
+ *   ↓
+ * destination
  */
 
 export function createAudioEffectChain(
@@ -118,7 +113,13 @@ export function createAudioEffectChain(
   settings = {}
 ) {
   const effects =
-    normalizeAudioEffects(settings);
+    normalizeAudioEffects(
+      settings
+    );
+
+  const output =
+    destination ||
+    Tone.getDestination();
 
   /**
    * Volume
@@ -138,8 +139,6 @@ export function createAudioEffectChain(
 
   /**
    * Filter
-   *
-   * Start in a neutral state if disabled.
    */
   const filter =
     new Tone.Filter({
@@ -147,15 +146,17 @@ export function createAudioEffectChain(
         effects.filter.enabled
           ? effects.filter.frequency
           : effects.filter.type ===
-              "highpass"
-            ? 1
-            : 20000,
+            "highpass"
+          ? 1
+          : 20000,
 
       type:
-        effects.filter.type || "lowpass",
+        effects.filter.type ||
+        "lowpass",
 
       Q:
-        effects.filter.resonance ?? 1,
+        effects.filter.resonance ??
+        1,
     });
 
   /**
@@ -204,7 +205,7 @@ export function createAudioEffectChain(
     });
 
   /**
-   * Chain everything together.
+   * Chain.
    */
   volume.chain(
     pan,
@@ -212,13 +213,13 @@ export function createAudioEffectChain(
     distortion,
     delay,
     reverb,
-    destination
+    output
   );
 
   /**
-   * -------------------------------------------------------
+   * =======================================================
    * UPDATE
-   * -------------------------------------------------------
+   * =======================================================
    */
 
   const update = (
@@ -236,30 +237,33 @@ export function createAudioEffectChain(
       next.pan;
 
     /**
-     * Filter
-     *
-     * When disabled, make it effectively
-     * transparent.
+     * Filter.
      */
     filter.type =
-      next.filter.type || "lowpass";
+      next.filter.type ||
+      "lowpass";
 
     filter.Q.value =
-      next.filter.resonance ?? 1;
+      next.filter.resonance ??
+      1;
 
-    if (next.filter.enabled) {
+    if (
+      next.filter.enabled
+    ) {
       filter.frequency.value =
         next.filter.frequency;
     } else if (
-      next.filter.type === "highpass"
+      next.filter.type ===
+      "highpass"
     ) {
       filter.frequency.value = 1;
     } else {
-      filter.frequency.value = 20000;
+      filter.frequency.value =
+        20000;
     }
 
     /**
-     * Distortion
+     * Distortion.
      */
     distortion.distortion =
       next.distortion.amount;
@@ -270,7 +274,7 @@ export function createAudioEffectChain(
         : 0;
 
     /**
-     * Delay
+     * Delay.
      */
     delay.delayTime.value =
       next.delay.time;
@@ -284,7 +288,7 @@ export function createAudioEffectChain(
         : 0;
 
     /**
-     * Reverb
+     * Reverb.
      */
     reverb.decay =
       next.reverb.decay;
@@ -296,14 +300,14 @@ export function createAudioEffectChain(
   };
 
   /**
-   * Apply initial values.
+   * Apply initial settings.
    */
   update(effects);
 
   /**
-   * -------------------------------------------------------
+   * =======================================================
    * DISPOSE
-   * -------------------------------------------------------
+   * =======================================================
    */
 
   const dispose = () => {

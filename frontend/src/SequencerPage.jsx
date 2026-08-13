@@ -168,6 +168,35 @@ function getAvailableSounds() {
  * ---------------------------------------------------------
  */
 
+function normalizeTrackNotes(track) {
+  if (Array.isArray(track?.notes)) {
+    const notes = track.notes
+      .map((note) => String(note).trim())
+      .filter(Boolean);
+
+    if (notes.length > 0) {
+      return notes;
+    }
+  }
+
+  if (typeof track?.notes === "string") {
+    const notes = track.notes
+      .split(/[\s,]+/)
+      .map((note) => note.trim())
+      .filter(Boolean);
+
+    if (notes.length > 0) {
+      return notes;
+    }
+  }
+
+  if (track?.note) {
+    return [track.note];
+  }
+
+  return ["C4"];
+}
+
 function normalizeEffects(track) {
   const effects =
     track?.effects || {};

@@ -1,25 +1,19 @@
-// src/audio/soundLibrary/soundLibrary.js
+// frontend/src/audio/soundLibrary/soundLibrary.js
 
-const TONE_AUDIO =
-  "https://tonejs.github.io/audio";
+const PIANO_SUSTAINS = "/audio/piano/sustains/";
+const PIANO_RELEASES = "/audio/piano/releases/";
 
-const TONE_DRUMS =
-  `${TONE_AUDIO}/drum-samples`;
-
-const TONE_BERKLEE =
-  `${TONE_AUDIO}/berklee`;
-
-/*
- * ---------------------------------------------------------
+/**
+ * =========================================================
  * SOUND LIBRARY
- * ---------------------------------------------------------
+ * =========================================================
  */
 
 export const SOUND_LIBRARY = [
-  /*
-   * =========================================================
+  /**
+   * =======================================================
    * DRUMS
-   * =========================================================
+   * =======================================================
    */
 
   {
@@ -31,8 +25,7 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url:
-      `${TONE_DRUMS}/CR78/kick.mp3`,
+    url: "https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3",
 
     tags: [
       "kick",
@@ -48,8 +41,7 @@ export const SOUND_LIBRARY = [
 
     source: {
       name: "Tone.js",
-      url:
-        "https://tonejs.github.io/",
+      url: "https://tonejs.github.io/",
       license:
         "Verify source license before redistribution.",
     },
@@ -64,8 +56,7 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url:
-      `${TONE_DRUMS}/CR78/snare.mp3`,
+    url: "https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3",
 
     tags: [
       "snare",
@@ -80,8 +71,7 @@ export const SOUND_LIBRARY = [
 
     source: {
       name: "Tone.js",
-      url:
-        "https://tonejs.github.io/",
+      url: "https://tonejs.github.io/",
       license:
         "Verify source license before redistribution.",
     },
@@ -96,8 +86,7 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url:
-      `${TONE_DRUMS}/CR78/hihat.mp3`,
+    url: "https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3",
 
     tags: [
       "hat",
@@ -114,8 +103,7 @@ export const SOUND_LIBRARY = [
 
     source: {
       name: "Tone.js",
-      url:
-        "https://tonejs.github.io/",
+      url: "https://tonejs.github.io/",
       license:
         "Verify source license before redistribution.",
     },
@@ -130,8 +118,7 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url:
-      `${TONE_DRUMS}/handdrum-loop.mp3`,
+    url: "https://tonejs.github.io/audio/drum-samples/handdrum-loop.mp3",
 
     tags: [
       "hand",
@@ -144,8 +131,7 @@ export const SOUND_LIBRARY = [
 
     source: {
       name: "Tone.js",
-      url:
-        "https://tonejs.github.io/",
+      url: "https://tonejs.github.io/",
       license:
         "Verify source license before redistribution.",
     },
@@ -160,8 +146,7 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url:
-      `${TONE_DRUMS}/conga-rhythm.mp3`,
+    url: "https://tonejs.github.io/audio/drum-samples/conga-rhythm.mp3",
 
     tags: [
       "conga",
@@ -175,17 +160,16 @@ export const SOUND_LIBRARY = [
 
     source: {
       name: "Tone.js",
-      url:
-        "https://tonejs.github.io/",
+      url: "https://tonejs.github.io/",
       license:
         "Verify source license before redistribution.",
     },
   },
 
-  /*
-   * =========================================================
+  /**
+   * =======================================================
    * FX
-   * =========================================================
+   * =======================================================
    */
 
   {
@@ -197,8 +181,7 @@ export const SOUND_LIBRARY = [
 
     type: "sample",
 
-    url:
-      `${TONE_BERKLEE}/gong_1.mp3`,
+    url: "https://tonejs.github.io/audio/berklee/gong_1.mp3",
 
     tags: [
       "gong",
@@ -212,19 +195,17 @@ export const SOUND_LIBRARY = [
       "Long resonant gong texture.",
 
     source: {
-      name:
-        "Tone.js Berklee samples",
-      url:
-        "https://tonejs.github.io/",
+      name: "Tone.js Berklee samples",
+      url: "https://tonejs.github.io/",
       license:
         "Verify source license before redistribution.",
     },
   },
 
-  /*
-   * =========================================================
+  /**
+   * =======================================================
    * SYNTHS
-   * =========================================================
+   * =======================================================
    */
 
   {
@@ -238,9 +219,7 @@ export const SOUND_LIBRARY = [
 
     synth: {
       engine: "membrane",
-
       note: "G2",
-
       duration: "8n",
     },
 
@@ -273,7 +252,6 @@ export const SOUND_LIBRARY = [
       },
 
       note: "C4",
-
       duration: "4n",
     },
 
@@ -313,7 +291,6 @@ export const SOUND_LIBRARY = [
       },
 
       note: "C2",
-
       duration: "8n",
     },
 
@@ -359,7 +336,6 @@ export const SOUND_LIBRARY = [
       },
 
       note: "C2",
-
       duration: "8n",
     },
 
@@ -399,7 +375,6 @@ export const SOUND_LIBRARY = [
       },
 
       note: "C4",
-
       duration: "8n",
     },
 
@@ -427,7 +402,6 @@ export const SOUND_LIBRARY = [
       engine: "pluck",
 
       note: "C4",
-
       duration: "8n",
 
       resonance: 0.5,
@@ -458,11 +432,9 @@ export const SOUND_LIBRARY = [
       engine: "fm",
 
       harmonicity: 2,
-
       modulationIndex: 8,
 
       note: "C4",
-
       duration: "8n",
     },
 
@@ -490,11 +462,9 @@ export const SOUND_LIBRARY = [
       engine: "fm",
 
       harmonicity: 3.5,
-
       modulationIndex: 10,
 
       note: "C5",
-
       duration: "4n",
     },
 
@@ -507,5 +477,86 @@ export const SOUND_LIBRARY = [
 
     description:
       "Bright metallic digital bell.",
+  },
+
+  /**
+   * =======================================================
+   * PIANO
+   * =======================================================
+   *
+   * VCSL / Versilian grand piano.
+   *
+   * Samples are stored locally:
+   *
+   * public/audio/piano/sustains/
+   * public/audio/piano/releases/
+   *
+   * Filenames:
+   *
+   * GPiano_sus_C4_v1_rr1_Player.flac
+   * GPiano_sus_C4_v2_rr1_Player.flac
+   * GPiano_sus_C4_v3_rr1_Player.flac
+   * GPiano_sus_C4_v4_rr1_Player.flac
+   *
+   * Release samples:
+   *
+   * GPiano_rel_C4_v2_rr1_Player.flac
+   * GPiano_rel_C4_v3_rr1_Player.flac
+   * GPiano_rel_C4_v4_rr1_Player.flac
+   *
+   * Some notes do not have every velocity/release combination,
+   * so createPiano.js handles missing samples gracefully.
+   */
+
+  {
+    id: "instruments.piano.vcsl-grand",
+    name: "VCSL Grand Piano",
+
+    category: "instruments",
+    subcategory: "piano",
+
+    type: "piano",
+
+    piano: {
+      engine: "vcsl",
+
+      sustainPath: PIANO_SUSTAINS,
+      releasePath: PIANO_RELEASES,
+
+      velocityLayers: [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+      ],
+
+      filename: {
+        sustain:
+          "GPiano_sus_{note}_{velocity}_rr1_Player.flac",
+
+        release:
+          "GPiano_rel_{note}_{velocity}_rr1_Player.flac",
+      },
+    },
+
+    tags: [
+      "piano",
+      "grand",
+      "acoustic",
+      "vcsl",
+      "sampled",
+      "instrument",
+      "keys",
+    ],
+
+    description:
+      "Sampled VCSL grand piano with four velocity layers and release samples.",
+
+    source: {
+      name:
+        "VCSL / Versilian Studios",
+      license:
+        "Verify source license before redistribution.",
+    },
   },
 ];

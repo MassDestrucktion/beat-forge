@@ -8,8 +8,6 @@ import { getFollowing, followUser, unfollowUser } from "../db/queries/users.js";
 
 const usersRouter = Router();
 
-
-// Get user by id
 usersRouter.get("/:id", async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -23,15 +21,12 @@ usersRouter.get("/:id", async (req, res, next) => {
         }
 
         res.json(user);
-
     } catch (error) {
         console.log(error);
         next(error);
     }
 });
 
-
-// Get user's projects
 usersRouter.get("/:id/projects", async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -39,15 +34,12 @@ usersRouter.get("/:id/projects", async (req, res, next) => {
         const projects = await get_user_projects(id);
 
         res.json(projects);
-
     } catch (error) {
         console.log(error);
         next(error);
     }
 });
 
-
-// Register
 usersRouter.post(
     "/register",
     requireBody(["username", "password"]),
@@ -73,7 +65,6 @@ usersRouter.post(
                 user: safeUser,
                 token
             });
-
         } catch (error) {
             console.log(error);
             next(error);
@@ -81,8 +72,6 @@ usersRouter.post(
     }
 );
 
-
-// Login
 usersRouter.post(
     "/login",
     requireBody(["username", "password"]),
@@ -92,10 +81,7 @@ usersRouter.post(
 
             console.log("LOGIN ATTEMPT:", username);
 
-            const user = await userLogin(
-                username,
-                password
-            );
+            const user = await userLogin(username, password);
 
             console.log("USER FOUND:", user);
 
@@ -115,7 +101,6 @@ usersRouter.post(
                 user: safeUser,
                 token
             });
-
         } catch (error) {
             console.log(error);
             next(error);
@@ -123,33 +108,40 @@ usersRouter.post(
     }
 );
 
-usersRouter.get("/:id/following", async(req, res, next) => {
-    const following = await getFollowing();
-    res.send(following);
+usersRouter.get("/:id/following", async (req, res, next) => {
+    try {
+        const following = await getFollowing();
+        res.send(following);
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
 });
 
-usersRouter.post("/:id/follow",  async(req, res, next) => {
-    const followerID = req.user.id;
-    const followeeID = req.params.id;
+usersRouter.post("/:id/follow", async (req, res, next) => {
+    try {
+        const followerID = req.user.id;
+        const followeeID = req.params.id;
 
     if(followerID ===Number(followeeID)) {
         return res.status(400).json({"error": "Cannot follow yourself"})
     }
-    
-        const follow = await followUser(userID, followeeID);
-         res.status(201).json(follow);
-    
+    await db.query(
+        const SQL = `
+            INSERT INTO follows (follower_id, followee-id)
+            VALUES ($1, $2)`;
+            [followerID, followeeID]
+    );
 
     });
 
-    usersRouter.delete("/:id/follow",  async(req, res, next) => {
-        const deletefollow = await unfollowUser(req.user.id, req.params.id);
-            
+    userROuter.delete("/:id/follow", requireAuth, async(req, res, next) => {
+        await db.query(
+            const SQL = `
+                DELETE FROM follows WHERE follower_id = $1 AND followee_id = $2
+                `;
+                [req.user.id, req.params.id]
+            );
         });
-
-    usersRouter.get("/:id/followCounts", async(req, res, next) => {
-    const count = await followCounts(req.params.id);
-    res.json(count);
-});
 
 export default usersRouter;
