@@ -4,7 +4,7 @@ import { createUser, userLogin, getUser } from "../db/queries/users.js";
 import { createToken } from "../jwt/jwt.js";
 import { get_user_projects } from "../db/queries/projects.js";
 import { getFollowing, followUser, unfollowUser } from "../db/queries/users.js";
-import requireAuth from "../middleware/requireAuth.js";
+
 
 const usersRouter = Router();
 
@@ -128,20 +128,21 @@ usersRouter.get("/:id/following", async(req, res, next) => {
     res.send(following);
 });
 
-userRouter.post("/:id/follow", requireAuth, async(req, res, next) => {
+usersRouter.post("/:id/follow",  async(req, res, next) => {
     const followerID = req.user.id;
     const followeeID = req.params.id;
 
     if(followerID ===Number(followeeID)) {
         return res.status(400).json({"error": "Cannot follow yourself"})
     }
-    await db.query(
+    
         const follow = await followUser(userID, followeeID);
-    );
+         res.status(201).json(follow);
+    
 
     });
 
-    userRouter.delete("/:id/follow", requireAuth, async(req, res, next) => {
+    usersRouter.delete("/:id/follow",  async(req, res, next) => {
         const deletefollow = await unfollowUser(req.user.id, req.params.id);
             
         });
