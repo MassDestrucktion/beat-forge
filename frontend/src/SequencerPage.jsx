@@ -41,9 +41,6 @@ const TRACK_LABELS = [
   "Track 8",
 ];
 
-/**
- * Default sound-library IDs for each track slot (up to 8).
- */
 const DEFAULT_TRACK_SOUNDS = [
   "drums.kicks.cr78",
   "drums.snares.cr78",
@@ -55,9 +52,6 @@ const DEFAULT_TRACK_SOUNDS = [
   "synths.bells.digital",
 ];
 
-/**
- * Notes available from the sequencer.
- */
 const NOTE_OPTIONS = [
   "C2",
   "C#2",
@@ -111,14 +105,14 @@ const NOTE_OPTIONS = [
 
 /**
  * ---------------------------------------------------------
- * GRID & TRACK SETTINGS HELPERS
+ * PROJECT / TRACK HELPERS
  * ---------------------------------------------------------
  */
 
 function createEmptyGrid(numTracks = MIN_TRACKS) {
-  return Array(numTracks)
-    .fill(null)
-    .map(() => Array(NUM_STEPS).fill(false));
+  return Array.from({ length: numTracks }, () =>
+    Array(NUM_STEPS).fill(false),
+  );
 }
 
 function createDefaultTrackSettings(numTracks = MIN_TRACKS) {
@@ -130,9 +124,26 @@ function createDefaultTrackSettings(numTracks = MIN_TRACKS) {
     const track = {
       sound: sound ? sound.id : soundId,
       muted: false,
-      reverb: { enabled: false, wet: 0.35, decay: 1.5 },
-      delay: { enabled: false, time: 0.25, feedback: 0.3, wet: 0.3 },
-      filter: { lowpass: 20000, highpass: 20, enabled: false },
+      soloed: false,
+
+      reverb: {
+        enabled: false,
+        wet: 0.35,
+        decay: 1.5,
+      },
+
+      delay: {
+        enabled: false,
+        time: 0.25,
+        feedback: 0.3,
+        wet: 0.3,
+      },
+
+      filter: {
+        lowpass: 20000,
+        highpass: 20,
+        enabled: false,
+      },
     };
 
     if (sound?.type === "synth") {
@@ -144,14 +155,131 @@ function createDefaultTrackSettings(numTracks = MIN_TRACKS) {
   });
 }
 
-/**
- * ---------------------------------------------------------
- * SOUND LIBRARY HELPERS
- * ---------------------------------------------------------
- */
+function createDefaultTrack(soundId) {
+  const sound = getSoundById(soundId);
+
+  const track = {
+    sound: sound ? sound.id : soundId,
+    muted: false,
+    soloed: false,
+
+    reverb: {
+      enabled: false,
+      wet: 0.35,
+      decay: 1.5,
+    },
+
+    delay: {
+      enabled: false,
+      time: 0.25,
+      feedback: 0.3,
+      wet: 0.3,
+    },
+
+    filter: {
+      lowpass: 20000,
+      highpass: 20,
+      enabled: false,
+    },
+  };
+
+  if (sound?.type === "synth") {
+    track.note = sound.synth?.note;
+    track.duration = sound.synth?.duration || "8n";
+  }
+
+  return track;
+}
 
 function getAvailableSounds() {
   return SOUND_LIBRARY;
+}
+
+/**
+ * Normalize project data coming from the backend.
+ *
+ * The database project is the source of truth:
+ *
+ * projects.grid
+ * projects.track_settings
+ * projects.arrangement
+ */
+function normalizeProject(project) {
+  const rawGrid = Array.isArray(project?.grid)
+    ? project.grid
+    : createEmptyGrid(MIN_TRACKS);
+
+  const rawSettings = Array.isArray(project?.track_settings)
+    ? project.track_settings
+    : createDefaultTrackSettings(MIN_TRACKS);
+
+  const trackCount = Math.min(
+    Math.max(
+      Math.max(rawGrid.length, rawSettings.length),
+      MIN_TRACKS,
+    ),
+    MAX_TRACKS,
+  );
+
+  const grid = Array.from({ length: trackCount }, (_, trackIndex) => {
+    const row = rawGrid[trackIndex];
+
+    if (!Array.isArray(row)) {
+      return Array(NUM_STEPS).fill(false);
+    }
+
+    return Array.from(
+      { length: NUM_STEPS },
+      (_, stepIndex) => Boolean(row[stepIndex]),
+    );
+  });
+
+  const trackSettings = Array.from(
+    { length: trackCount },
+    (_, trackIndex) => {
+      const existing = rawSettings[trackIndex];
+
+      if (!existing) {
+        return createDefaultTrackSettings(trackCount)[trackIndex];
+      }
+
+      return {
+        ...createDefaultTrackSettings(trackCount)[trackIndex],
+        ...existing,
+
+        reverb: {
+          ...createDefaultTrackSettings(trackCount)[trackIndex].reverb,
+          ...(existing.reverb || {}),
+        },
+
+        delay: {
+          ...createDefaultTrackSettings(trackCount)[trackIndex].delay,
+          ...(existing.delay || {}),
+        },
+
+        filter: {
+          ...createDefaultTrackSettings(trackCount)[trackIndex].filter,
+          ...(existing.filter || {}),
+        },
+
+        muted: existing.muted ?? false,
+        soloed: existing.soloed ?? false,
+      };
+    },
+  );
+
+  return {
+    ...project,
+    name: project?.name || "",
+    description: project?.description || "",
+    tempo: Number(project?.tempo) || 120,
+    grid,
+    track_settings: trackSettings,
+    arrangement: Array.isArray(project?.arrangement)
+      ? project.arrangement
+      : [],
+    shared_id: project?.shared_id || null,
+  };
 }
 
 /**
@@ -188,8 +316,19 @@ export default function SequencerPage() {
     createDefaultTrackSettings,
   );
 
+  /**
+   * This maps directly to projects.name.
+   */
   const [projectName, setProjectName] = useState("");
 
+  /**
+   * This maps directly to projects.description.
+   */
+  const [projectDescription, setProjectDescription] = useState("");
+
+  /**
+   * This maps to projects.id.
+   */
   const [projectId, setProjectId] = useState(null);
 
   const [saveStatus, setSaveStatus] = useState("");
@@ -201,19 +340,20 @@ export default function SequencerPage() {
   const [expandedTrack, setExpandedTrack] = useState(null);
 
   /**
-   * Arrangement state
+   * Arrangement is stored directly in projects.arrangement.
    */
-
   const [arrangement, setArrangement] = useState([]);
 
-  const [isArrangementPlaying, setIsArrangementPlaying] = useState(false);
+  const [isArrangementPlaying, setIsArrangementPlaying] =
+    useState(false);
 
   const [activeSectionIndex, setActiveSectionIndex] = useState(null);
 
   /**
-   * Share state
+   * Share state.
+   *
+   * shared_id comes from the project row.
    */
-
   const [sharedId, setSharedId] = useState(null);
 
   const [isSharedView, setIsSharedView] = useState(false);
@@ -239,15 +379,6 @@ export default function SequencerPage() {
   const isArrangementPlayingRef = useRef(false);
 
   const arrangementStepRef = useRef(0);
-
-  /**
-   * One audio routing chain per track:
-   *
-   *   sound engine → gain → reverb → destination
-   *
-   * The arrays grow / shrink automatically when the
-   * track count changes.
-   */
 
   const trackGainsRef = useRef([]);
 
@@ -281,53 +412,46 @@ export default function SequencerPage() {
 
   /**
    * -------------------------------------------------------
-   * SETUP AUDIO GRAPH (runs when numTracks changes)
+   * SETUP AUDIO GRAPH
    * -------------------------------------------------------
    */
 
   useEffect(() => {
-    /**
-     * Dispose existing nodes.
-     */
-
     soundEnginesRef.current.forEach((engine) => {
       engine?.dispose?.();
     });
+
     soundEnginesRef.current = [];
 
     trackGainsRef.current.forEach((gain) => {
       gain?.dispose?.();
     });
+
     trackGainsRef.current = [];
 
     trackReverbsRef.current.forEach((reverb) => {
       reverb?.dispose?.();
     });
+
     trackReverbsRef.current = [];
 
     trackDelaysRef.current.forEach((delay) => {
       delay?.dispose?.();
     });
+
     trackDelaysRef.current = [];
 
     trackLPFsRef.current.forEach((lpf) => {
       lpf?.dispose?.();
     });
+
     trackLPFsRef.current = [];
 
     trackHPFsRef.current.forEach((hpf) => {
       hpf?.dispose?.();
     });
-    trackHPFsRef.current = [];
 
-    /**
-     * Create per-track chain:
-     *
-     *   engine → gain → delay → LPF → HPF → reverb → destination
-     *
-     * Each effect's output feeds the next, so
-     * the full chain processes every sample.
-     */
+    trackHPFsRef.current = [];
 
     const gains = [];
     const delays = [];
@@ -353,10 +477,6 @@ export default function SequencerPage() {
         wet: 0,
       });
 
-      /**
-       * Chain: gain → delay → LPF → HPF → reverb → destination
-       */
-
       gain.connect(delay);
       delay.connect(lpf);
       lpf.connect(hpf);
@@ -376,10 +496,6 @@ export default function SequencerPage() {
     trackHPFsRef.current = hpffilters;
     trackReverbsRef.current = reverbs;
 
-    /**
-     * Create sound engines for each track.
-     */
-
     for (let trackIndex = 0; trackIndex < numTracks; trackIndex++) {
       const settings = trackSettings[trackIndex];
 
@@ -392,17 +508,15 @@ export default function SequencerPage() {
       }
 
       const engine = createSoundEngine(sound, gains[trackIndex]);
+
       soundEnginesRef.current[trackIndex] = engine;
     }
-
-    /**
-     * Cleanup on unmount or track-count change.
-     */
 
     return () => {
       soundEnginesRef.current.forEach((engine) => {
         engine?.dispose?.();
       });
+
       soundEnginesRef.current = [];
 
       gains.forEach((gain) => gain.dispose());
@@ -428,36 +542,21 @@ export default function SequencerPage() {
   useEffect(() => {
     trackSettings.forEach((settings, trackIndex) => {
       const gain = trackGainsRef.current[trackIndex];
-
       const delay = trackDelaysRef.current[trackIndex];
-
       const lpf = trackLPFsRef.current[trackIndex];
-
       const hpf = trackHPFsRef.current[trackIndex];
-
       const reverb = trackReverbsRef.current[trackIndex];
 
       if (!gain || !reverb) {
         return;
       }
 
-      /**
-       * MUTE
-       */
-
       gain.gain.value = settings?.muted ? 0 : 1;
-
-      /**
-       * DELAY
-       */
 
       if (delay) {
         const delayEnabled = settings?.delay?.enabled ?? false;
-
         const delayTime = settings?.delay?.time ?? 0.25;
-
         const feedback = settings?.delay?.feedback ?? 0.3;
-
         const delayWet = settings?.delay?.wet ?? 0.3;
 
         delay.delayTime.value = delayTime;
@@ -465,76 +564,55 @@ export default function SequencerPage() {
         delay.wet.value = delayEnabled ? delayWet : 0;
       }
 
-      /**
-       * FILTER — Low Pass
-       */
-
       if (lpf) {
-        const lpFreq = settings?.filter?.lowpass ?? 20000;
-
-        lpf.frequency.value = lpFreq;
+        lpf.frequency.value =
+          settings?.filter?.lowpass ?? 20000;
       }
-
-      /**
-       * FILTER — High Pass
-       */
 
       if (hpf) {
-        const hpFreq = settings?.filter?.highpass ?? 20;
-
-        hpf.frequency.value = hpFreq;
+        hpf.frequency.value =
+          settings?.filter?.highpass ?? 20;
       }
 
-      /**
-       * REVERB
-       */
-
-      const reverbEnabled = settings?.reverb?.enabled ?? false;
+      const reverbEnabled =
+        settings?.reverb?.enabled ?? false;
 
       const wet = settings?.reverb?.wet ?? 0.35;
 
       const decay = settings?.reverb?.decay ?? 1.5;
 
       reverb.decay = decay;
-
       reverb.wet.value = reverbEnabled ? wet : 0;
     });
   }, [trackSettings]);
 
   /**
    * -------------------------------------------------------
-   * RECREATE SOUND ENGINES (when sound selection changes)
+   * RECREATE SOUND ENGINES
    * -------------------------------------------------------
    */
 
   useEffect(() => {
-    for (let trackIndex = 0; trackIndex < trackSettings.length; trackIndex++) {
+    for (
+      let trackIndex = 0;
+      trackIndex < trackSettings.length;
+      trackIndex++
+    ) {
       const settings = trackSettings[trackIndex];
 
       const sound = getSoundById(settings?.sound);
 
-      /**
-       * Dispose old engine.
-       */
-
-      const oldEngine = soundEnginesRef.current[trackIndex];
+      const oldEngine =
+        soundEnginesRef.current[trackIndex];
 
       if (oldEngine) {
         oldEngine.dispose();
       }
 
-      /**
-       * No sound selected.
-       */
-
       if (!sound) {
         soundEnginesRef.current[trackIndex] = null;
         continue;
       }
-
-      /**
-       * Create new engine.
-       */
 
       const gain = trackGainsRef.current[trackIndex];
 
@@ -564,7 +642,13 @@ export default function SequencerPage() {
 
     if (Array.isArray(returnedState.grid)) {
       setGrid(returnedState.grid);
-      setNumTracks(returnedState.grid.length);
+
+      setNumTracks(
+        Math.min(
+          Math.max(returnedState.grid.length, MIN_TRACKS),
+          MAX_TRACKS,
+        ),
+      );
     }
 
     if (Array.isArray(returnedState.trackSettings)) {
@@ -572,6 +656,7 @@ export default function SequencerPage() {
         returnedState.trackSettings.map((track) => ({
           ...track,
           muted: track?.muted ?? false,
+          soloed: track?.soloed ?? false,
         })),
       );
     }
@@ -583,6 +668,12 @@ export default function SequencerPage() {
 
     if (returnedState.projectName !== undefined) {
       setProjectName(returnedState.projectName);
+    }
+
+    if (returnedState.projectDescription !== undefined) {
+      setProjectDescription(
+        returnedState.projectDescription,
+      );
     }
 
     if (returnedState.projectId !== undefined) {
@@ -599,17 +690,19 @@ export default function SequencerPage() {
 
   /**
    * -------------------------------------------------------
-   * EXPAND / COLLAPSE INLINE TRACK CONTROLS
+   * EXPAND TRACK
    * -------------------------------------------------------
    */
 
   const toggleTrackExpand = (trackIndex) => {
-    setExpandedTrack(expandedTrack === trackIndex ? null : trackIndex);
+    setExpandedTrack(
+      expandedTrack === trackIndex ? null : trackIndex,
+    );
   };
 
   /**
    * -------------------------------------------------------
-   * PREVIEW TRACK SOUND (inline)
+   * PREVIEW TRACK
    * -------------------------------------------------------
    */
 
@@ -627,17 +720,14 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    * LOAD PROJECT FROM URL
    * -------------------------------------------------------
-   *
-   * Supports two URL modes:
-   *
-   *   ?projectId=xxx   → load for editing (owner auth required)
-   *   ?sharedId=xxx    → load read-only shared view (no auth required)
    */
 
   useEffect(() => {
-    const projectIdFromUrl = searchParams.get("projectId");
+    const projectIdFromUrl =
+      searchParams.get("projectId");
 
-    const sharedIdFromUrl = searchParams.get("sharedId");
+    const sharedIdFromUrl =
+      searchParams.get("sharedId");
 
     if (!projectIdFromUrl && !sharedIdFromUrl) {
       return;
@@ -653,7 +743,7 @@ export default function SequencerPage() {
 
     const loadProjectFromUrl = async () => {
       /**
-       * Shared view — no auth required.
+       * SHARED PROJECT
        */
 
       if (sharedIdFromUrl && !projectIdFromUrl) {
@@ -664,28 +754,41 @@ export default function SequencerPage() {
             `/api/projects/shared/${sharedIdFromUrl}`,
             {
               headers: {
-                Authorization: token ? `Bearer ${token}` : "",
+                Authorization: token
+                  ? `Bearer ${token}`
+                  : "",
               },
             },
           );
 
           if (!response.ok) {
             const text = await response.text();
-            throw new Error(text || "Failed to load shared project");
+
+            throw new Error(
+              text || "Failed to load shared project",
+            );
           }
 
-          const project = await response.json();
+          const project = normalizeProject(
+            await response.json(),
+          );
 
           applyProject(project);
 
           setIsSharedView(true);
-          setSharedId(sharedIdFromUrl);
+          setSharedId(
+            project.shared_id || sharedIdFromUrl,
+          );
           setSharedBy(project.username || "");
           setProjectId(null);
 
-          setSaveStatus(`Loaded shared project "${project.name}"`);
+          setSaveStatus(
+            `Loaded shared project "${project.name}"`,
+          );
         } catch (error) {
-          setSaveStatus(`Load failed: ${error.message}`);
+          setSaveStatus(
+            `Load failed: ${error.message}`,
+          );
         } finally {
           setInitialLoadDone(true);
         }
@@ -694,24 +797,34 @@ export default function SequencerPage() {
       }
 
       /**
-       * Owned project — auth required.
+       * OWNED PROJECT
        */
 
       setSaveStatus("Loading project...");
 
       try {
-        const response = await fetch(`/api/projects/${projectIdFromUrl}`, {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
+        const response = await fetch(
+          `/api/users/${user.id}/projects/${projectIdFromUrl}`,
+          {
+            headers: {
+              Authorization: token
+                ? `Bearer ${token}`
+                : "",
+            },
           },
-        });
+        );
 
         if (!response.ok) {
           const text = await response.text();
-          throw new Error(text || "Failed to load project");
+
+          throw new Error(
+            text || "Failed to load project",
+          );
         }
 
-        const project = await response.json();
+        const project = normalizeProject(
+          await response.json(),
+        );
 
         applyProject(project);
 
@@ -719,14 +832,21 @@ export default function SequencerPage() {
 
         setSaveStatus(`Loaded "${project.name}"`);
       } catch (error) {
-        setSaveStatus(`Load failed: ${error.message}`);
+        setSaveStatus(
+          `Load failed: ${error.message}`,
+        );
       } finally {
         setInitialLoadDone(true);
       }
     };
 
     loadProjectFromUrl();
-  }, [searchParams, token, initialLoadDone, location.state]);
+  }, [
+    searchParams,
+    token,
+    initialLoadDone,
+    location.state,
+  ]);
 
   /**
    * -------------------------------------------------------
@@ -734,59 +854,31 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    */
 
-  const applyProject = (project) => {
-    setProjectName(project.name || "");
+  const applyProject = (incomingProject) => {
+    const project = normalizeProject(incomingProject);
+
+    setProjectName(project.name);
+    setProjectDescription(project.description);
 
     setProjectId(project.id || null);
 
-    const projectBpm = project.tempo || 120;
+    setBpm(project.tempo);
+    Tone.Transport.bpm.value = project.tempo;
 
-    setBpm(projectBpm);
+    setGrid(project.grid);
 
-    Tone.Transport.bpm.value = projectBpm;
+    setTrackSettings(project.track_settings);
 
-    /**
-     * Restore grid — set track count from grid length.
-     */
+    setNumTracks(project.grid.length);
 
-    if (Array.isArray(project.grid)) {
-      const trackCount = Math.min(
-        Math.max(project.grid.length, MIN_TRACKS),
-        MAX_TRACKS,
-      );
+    setArrangement(project.arrangement);
 
-      setNumTracks(trackCount);
-
-      setGrid(project.grid);
-    }
-
-    /**
-     * Restore track settings.
-     */
-
-    if (Array.isArray(project.track_settings)) {
-      const trackCount = Math.min(
-        Math.max(project.track_settings.length, MIN_TRACKS),
-        MAX_TRACKS,
-      );
-
-      setNumTracks(trackCount);
-
-      setTrackSettings(project.track_settings);
-    }
-
-    /**
-     * Restore arrangement.
-     */
-
-    if (Array.isArray(project.arrangement)) {
-      setArrangement(project.arrangement);
-    }
+    setSharedId(project.shared_id || null);
   };
 
   /**
    * -------------------------------------------------------
-   * ADD / REMOVE TRACK
+   * ADD TRACK
    * -------------------------------------------------------
    */
 
@@ -795,31 +887,28 @@ export default function SequencerPage() {
       return;
     }
 
-    const newNumTracks = numTracks + 1;
+    const soundId =
+      DEFAULT_TRACK_SOUNDS[numTracks] ||
+      DEFAULT_TRACK_SOUNDS[0];
 
-    const soundId = DEFAULT_TRACK_SOUNDS[numTracks] || DEFAULT_TRACK_SOUNDS[0];
+    setNumTracks((previous) => previous + 1);
 
-    const newTrack = {
-      sound: soundId,
-      muted: false,
-      reverb: { enabled: false, wet: 0.35, decay: 1.5 },
-      delay: { enabled: false, time: 0.25, feedback: 0.3, wet: 0.3 },
-      filter: { lowpass: 20000, highpass: 20, enabled: false },
-    };
+    setGrid((previous) => [
+      ...previous,
+      Array(NUM_STEPS).fill(false),
+    ]);
 
-    const sound = getSoundById(soundId);
-
-    if (sound?.type === "synth") {
-      newTrack.note = sound.synth?.note;
-      newTrack.duration = sound.synth?.duration || "8n";
-    }
-
-    setNumTracks(newNumTracks);
-
-    setGrid((prev) => [...prev, Array(NUM_STEPS).fill(false)]);
-
-    setTrackSettings((prev) => [...prev, newTrack]);
+    setTrackSettings((previous) => [
+      ...previous,
+      createDefaultTrack(soundId),
+    ]);
   };
+
+  /**
+   * -------------------------------------------------------
+   * REMOVE TRACK
+   * -------------------------------------------------------
+   */
 
   const removeTrack = () => {
     if (numTracks <= MIN_TRACKS) {
@@ -830,9 +919,13 @@ export default function SequencerPage() {
 
     setNumTracks(newNumTracks);
 
-    setGrid((prev) => prev.slice(0, newNumTracks));
+    setGrid((previous) =>
+      previous.slice(0, newNumTracks),
+    );
 
-    setTrackSettings((prev) => prev.slice(0, newNumTracks));
+    setTrackSettings((previous) =>
+      previous.slice(0, newNumTracks),
+    );
   };
 
   /**
@@ -841,8 +934,13 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    */
 
-  const playTrackSound = (trackIndex, time, overrides = {}) => {
-    const settings = settingsRef.current[trackIndex];
+  const playTrackSound = (
+    trackIndex,
+    time,
+    overrides = {},
+  ) => {
+    const settings =
+      settingsRef.current[trackIndex];
 
     if (!settings) {
       return;
@@ -852,101 +950,112 @@ export default function SequencerPage() {
       return;
     }
 
-    /**
-     * SOLO
-     *
-     * If any track is soloed, only
-     * play soloed tracks.
-     */
-
-    const anySolo = settingsRef.current.some((s) => s?.soloed);
+    const anySolo =
+      settingsRef.current.some(
+        (s) => s?.soloed,
+      );
 
     if (anySolo && !settings?.soloed) {
       return;
     }
 
-    const engine = soundEnginesRef.current[trackIndex];
+    const engine =
+      soundEnginesRef.current[trackIndex];
 
     if (!engine) {
-      console.warn(`No sound engine for track ${trackIndex + 1}`);
+      console.warn(
+        `No sound engine for track ${
+          trackIndex + 1
+        }`,
+      );
+
       return;
     }
 
-    /**
-     * Pass the current track note and duration
-     * into the sound engine.
-     *
-     * Explicit overrides win over track settings.
-     */
-
     const playOverrides = {
-      note: overrides.note ?? settings.note,
-      duration: overrides.duration ?? settings.duration,
+      note:
+        overrides.note ?? settings.note,
+      duration:
+        overrides.duration ??
+        settings.duration,
     };
 
     try {
       engine.play(time, playOverrides);
     } catch (error) {
-      console.error("Failed to play track sound:", error);
+      console.error(
+        "Failed to play track sound:",
+        error,
+      );
     }
   };
 
   /**
    * -------------------------------------------------------
-   * 16-STEP TRANSPORT LOOP
+   * TRANSPORT LOOP
    * -------------------------------------------------------
    */
 
   useEffect(() => {
     const repeat = (time) => {
-      /**
-       * ARRANGEMENT MODE
-       *
-       * Walk the cumulative step count to find which
-       * section is currently active, then play that
-       * section's grid. Auto-stop when all sections
-       * have finished.
-       */
-
       if (isArrangementPlayingRef.current) {
-        const sections = arrangementRef.current;
+        const sections =
+          arrangementRef.current;
 
-        if (!sections || sections.length === 0) {
-          isArrangementPlayingRef.current = false;
+        if (
+          !sections ||
+          sections.length === 0
+        ) {
+          isArrangementPlayingRef.current =
+            false;
+
           setIsArrangementPlaying(false);
           setActiveSectionIndex(null);
           setCurrentStep(null);
+
           return;
         }
 
-        const totalSteps = sections.reduce(
-          (sum, s) => sum + (s.bars || 1) * NUM_STEPS,
-          0,
-        );
+        const totalSteps =
+          sections.reduce(
+            (sum, section) =>
+              sum +
+              (section.bars || 1) *
+                NUM_STEPS,
+            0,
+          );
 
-        const globalStep = arrangementStepRef.current;
+        const globalStep =
+          arrangementStepRef.current;
 
         if (globalStep >= totalSteps) {
           Tone.Transport.stop();
           Tone.Transport.position = 0;
+
           arrangementStepRef.current = 0;
           stepCountRef.current = 0;
-          isArrangementPlayingRef.current = false;
+
+          isArrangementPlayingRef.current =
+            false;
+
           setIsArrangementPlaying(false);
           setActiveSectionIndex(null);
           setCurrentStep(null);
+
           return;
         }
-
-        /**
-         * Find the active section by walking cumulative steps.
-         */
 
         let remaining = globalStep;
         let sectionIndex = 0;
 
-        for (let i = 0; i < sections.length; i++) {
-          const sectionSteps = (sections[i].bars || 1) * NUM_STEPS;
+        for (
+          let i = 0;
+          i < sections.length;
+          i++
+        ) {
+          const sectionSteps =
+            (sections[i].bars || 1) *
+            NUM_STEPS;
 
           if (remaining < sectionSteps) {
             sectionIndex = i;
@@ -956,48 +1065,76 @@ export default function SequencerPage() {
           remaining -= sectionSteps;
         }
 
-        const step = remaining % NUM_STEPS;
+        const step =
+          remaining % NUM_STEPS;
 
         setCurrentStep(step);
-        setActiveSectionIndex(sectionIndex);
+        setActiveSectionIndex(
+          sectionIndex,
+        );
 
-        const sectionGrid = sections[sectionIndex]?.grid;
+        const sectionGrid =
+          sections[sectionIndex]?.grid;
 
-        const trackCount = sectionGrid?.length || 0;
+        const trackCount =
+          sectionGrid?.length || 0;
 
-        for (let trackIndex = 0; trackIndex < trackCount; trackIndex++) {
-          if (sectionGrid?.[trackIndex]?.[step]) {
-            playTrackSound(trackIndex, time);
+        for (
+          let trackIndex = 0;
+          trackIndex < trackCount;
+          trackIndex++
+        ) {
+          if (
+            sectionGrid?.[trackIndex]?.[step]
+          ) {
+            playTrackSound(
+              trackIndex,
+              time,
+            );
           }
         }
 
         arrangementStepRef.current++;
         stepCountRef.current++;
+
         return;
       }
 
-      /**
-       * NORMAL MODE — play the current grid.
-       */
-
-      const step = stepCountRef.current % NUM_STEPS;
+      const step =
+        stepCountRef.current %
+        NUM_STEPS;
 
       setCurrentStep(step);
 
-      const currentGrid = gridRef.current;
+      const currentGrid =
+        gridRef.current;
 
-      const trackCount = currentGrid?.length || 0;
+      const trackCount =
+        currentGrid?.length || 0;
 
-      for (let trackIndex = 0; trackIndex < trackCount; trackIndex++) {
-        if (currentGrid?.[trackIndex]?.[step]) {
-          playTrackSound(trackIndex, time);
+      for (
+        let trackIndex = 0;
+        trackIndex < trackCount;
+        trackIndex++
+      ) {
+        if (
+          currentGrid?.[trackIndex]?.[step]
+        ) {
+          playTrackSound(
+            trackIndex,
+            time,
+          );
         }
       }
 
       stepCountRef.current++;
     };
 
-    const eventId = Tone.Transport.scheduleRepeat(repeat, "16n");
+    const eventId =
+      Tone.Transport.scheduleRepeat(
+        repeat,
+        "16n",
+      );
 
     return () => {
       Tone.Transport.clear(eventId);
@@ -1021,28 +1158,40 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    */
 
-  const toggleStep = async (trackIndex, stepIndex) => {
+  const toggleStep = async (
+    trackIndex,
+    stepIndex,
+  ) => {
     await Tone.start();
 
-    if (Tone.getContext().state !== "running") {
+    if (
+      Tone.getContext().state !==
+      "running"
+    ) {
       await Tone.getContext().resume();
     }
 
-    const updatedGrid = grid.map((track) => [...track]);
+    setGrid((previous) => {
+      const updatedGrid =
+        previous.map((track) => [
+          ...track,
+        ]);
 
-    const isTurningOn = !updatedGrid[trackIndex][stepIndex];
+      const isTurningOn =
+        !updatedGrid[trackIndex][
+          stepIndex
+        ];
 
-    updatedGrid[trackIndex][stepIndex] = isTurningOn;
+      updatedGrid[trackIndex][
+        stepIndex
+      ] = isTurningOn;
 
-    setGrid(updatedGrid);
+      if (isTurningOn) {
+        playTrackSound(trackIndex);
+      }
 
-    /**
-     * Preview immediately.
-     */
-
-    if (isTurningOn) {
-      playTrackSound(trackIndex);
-    }
+      return updatedGrid;
+    });
   };
 
   /**
@@ -1051,18 +1200,24 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    */
 
-  const toggleTrackMute = (trackIndex) => {
+  const toggleTrackMute = (
+    trackIndex,
+  ) => {
     setTrackSettings((previous) =>
-      previous.map((track, index) => {
-        if (index !== trackIndex) {
-          return track;
-        }
+      previous.map(
+        (track, index) => {
+          if (
+            index !== trackIndex
+          ) {
+            return track;
+          }
 
-        return {
-          ...track,
-          muted: !track?.muted,
-        };
-      }),
+          return {
+            ...track,
+            muted: !track?.muted,
+          };
+        },
+      ),
     );
   };
 
@@ -1072,18 +1227,24 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    */
 
-  const toggleTrackSolo = (trackIndex) => {
+  const toggleTrackSolo = (
+    trackIndex,
+  ) => {
     setTrackSettings((previous) =>
-      previous.map((track, index) => {
-        if (index !== trackIndex) {
-          return track;
-        }
+      previous.map(
+        (track, index) => {
+          if (
+            index !== trackIndex
+          ) {
+            return track;
+          }
 
-        return {
-          ...track,
-          soloed: !track?.soloed,
-        };
-      }),
+          return {
+            ...track,
+            soloed: !track?.soloed,
+          };
+        },
+      ),
     );
   };
 
@@ -1093,44 +1254,55 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    */
 
-  const updateTrackSound = (trackIndex, soundId) => {
-    const sound = getSoundById(soundId);
+  const updateTrackSound = (
+    trackIndex,
+    soundId,
+  ) => {
+    const sound =
+      getSoundById(soundId);
 
     if (!sound) {
-      console.warn(`Sound not found: ${soundId}`);
+      console.warn(
+        `Sound not found: ${soundId}`,
+      );
+
       return;
     }
 
     setTrackSettings((previous) =>
-      previous.map((track, index) => {
-        if (index !== trackIndex) {
-          return track;
-        }
+      previous.map(
+        (track, index) => {
+          if (
+            index !== trackIndex
+          ) {
+            return track;
+          }
 
-        return {
-          ...track,
-          sound: sound.id,
+          return {
+            ...track,
 
-          /**
-           * Synth sounds get a note.
-           *
-           * Keep the user's current note when
-           * switching between synths.
-           */
-          note:
-            sound.type === "synth"
-              ? (track.note ?? sound.synth?.note ?? "C4")
-              : undefined,
+            sound: sound.id,
 
-          /**
-           * Synth duration.
-           */
-          duration:
-            sound.type === "synth"
-              ? (track.duration ?? sound.synth?.duration ?? "8n")
-              : undefined,
-        };
-      }),
+            note:
+              sound.type === "synth"
+                ? (
+                    track.note ??
+                    sound.synth?.note ??
+                    "C4"
+                  )
+                : undefined,
+
+            duration:
+              sound.type === "synth"
+                ? (
+                    track.duration ??
+                    sound.synth?.duration ??
+                    "8n"
+                  )
+                : undefined,
+          };
+        },
+      ),
     );
   };
 
@@ -1143,35 +1315,46 @@ export default function SequencerPage() {
   const togglePlay = async () => {
     await Tone.start();
 
-    if (Tone.getContext().state !== "running") {
+    if (
+      Tone.getContext().state !==
+      "running"
+    ) {
       await Tone.getContext().resume();
     }
 
-    /**
-     * Cancel arrangement mode if it's running.
-     */
+    if (
+      isArrangementPlayingRef.current
+    ) {
+      isArrangementPlayingRef.current =
+        false;
 
-    if (isArrangementPlayingRef.current) {
-      isArrangementPlayingRef.current = false;
       setIsArrangementPlaying(false);
       setActiveSectionIndex(null);
+
       arrangementStepRef.current = 0;
     }
 
     if (isPlaying) {
       Tone.Transport.stop();
       Tone.Transport.position = 0;
+
       stepCountRef.current = 0;
+
       setIsPlaying(false);
       setCurrentStep(null);
+
       return;
     }
 
     Tone.Transport.stop();
     Tone.Transport.position = 0;
+
     stepCountRef.current = 0;
+
     Tone.Transport.bpm.value = bpm;
+
     Tone.Transport.start();
+
     setIsPlaying(true);
   };
 
@@ -1182,73 +1365,125 @@ export default function SequencerPage() {
    */
 
   const addSection = () => {
-    setArrangement((prev) => [
-      ...prev,
+    setArrangement((previous) => [
+      ...previous,
+
       {
         id: crypto.randomUUID(),
         name: "",
         bars: 1,
-        grid: grid.map((track) => [...track]),
+
+        /**
+         * Snapshot the current project grid.
+         */
+        grid: grid.map((track) => [
+          ...track,
+        ]),
+
         tempo: bpm,
       },
     ]);
   };
 
   const removeSection = (id) => {
-    setArrangement((prev) => prev.filter((s) => s.id !== id));
-  };
-
-  const renameSection = (id, newName) => {
-    setArrangement((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, name: newName } : s)),
+    setArrangement((previous) =>
+      previous.filter(
+        (section) =>
+          section.id !== id,
+      ),
     );
   };
 
-  const changeSectionBars = (id, newBars) => {
-    const clamped = Math.min(16, Math.max(1, Number(newBars) || 1));
-
-    setArrangement((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, bars: clamped } : s)),
+  const renameSection = (
+    id,
+    newName,
+  ) => {
+    setArrangement((previous) =>
+      previous.map((section) =>
+        section.id === id
+          ? {
+              ...section,
+              name: newName,
+            }
+          : section,
+      ),
     );
   };
 
-  const toggleArrangementPlay = async () => {
-    await Tone.start();
+  const changeSectionBars = (
+    id,
+    newBars,
+  ) => {
+    const clamped = Math.min(
+      16,
+      Math.max(
+        1,
+        Number(newBars) || 1,
+      ),
+    );
 
-    if (Tone.getContext().state !== "running") {
-      await Tone.getContext().resume();
-    }
+    setArrangement((previous) =>
+      previous.map((section) =>
+        section.id === id
+          ? {
+              ...section,
+              bars: clamped,
+            }
+          : section,
+      ),
+    );
+  };
 
-    if (isArrangementPlayingRef.current) {
+  const toggleArrangementPlay =
+    async () => {
+      await Tone.start();
+
+      if (
+        Tone.getContext().state !==
+        "running"
+      ) {
+        await Tone.getContext().resume();
+      }
+
+      if (
+        isArrangementPlayingRef.current
+      ) {
+        Tone.Transport.stop();
+        Tone.Transport.position = 0;
+
+        arrangementStepRef.current = 0;
+        stepCountRef.current = 0;
+
+        isArrangementPlayingRef.current =
+          false;
+
+        setIsArrangementPlaying(false);
+        setActiveSectionIndex(null);
+        setCurrentStep(null);
+
+        return;
+      }
+
+      if (isPlaying) {
+        setIsPlaying(false);
+      }
+
       Tone.Transport.stop();
       Tone.Transport.position = 0;
+
       arrangementStepRef.current = 0;
       stepCountRef.current = 0;
-      isArrangementPlayingRef.current = false;
-      setIsArrangementPlaying(false);
-      setActiveSectionIndex(null);
-      setCurrentStep(null);
-      return;
-    }
 
-    /**
-     * Cancel normal play mode.
-     */
+      Tone.Transport.bpm.value = bpm;
 
-    if (isPlaying) {
-      setIsPlaying(false);
-    }
+      isArrangementPlayingRef.current =
+        true;
 
-    Tone.Transport.stop();
-    Tone.Transport.position = 0;
-    arrangementStepRef.current = 0;
-    stepCountRef.current = 0;
-    Tone.Transport.bpm.value = bpm;
-    isArrangementPlayingRef.current = true;
-    setIsArrangementPlaying(true);
-    setActiveSectionIndex(0);
-    Tone.Transport.start();
-  };
+      setIsArrangementPlaying(true);
+      setActiveSectionIndex(0);
+
+      Tone.Transport.start();
+    };
 
   /**
    * -------------------------------------------------------
@@ -1257,7 +1492,9 @@ export default function SequencerPage() {
    */
 
   const clearGrid = () => {
-    setGrid(createEmptyGrid(numTracks));
+    setGrid(
+      createEmptyGrid(numTracks),
+    );
   };
 
   /**
@@ -1269,27 +1506,50 @@ export default function SequencerPage() {
   const handleNewProject = () => {
     Tone.Transport.stop();
     Tone.Transport.position = 0;
+
     stepCountRef.current = 0;
     arrangementStepRef.current = 0;
-    isArrangementPlayingRef.current = false;
+
+    isArrangementPlayingRef.current =
+      false;
+
     setIsArrangementPlaying(false);
     setActiveSectionIndex(null);
     setIsPlaying(false);
     setCurrentStep(null);
+
     setProjectName("");
+    setProjectDescription("");
+
     setProjectId(null);
     setSharedId(null);
+
     setIsSharedView(false);
     setSharedBy("");
+
     setArrangement([]);
-    setGrid(createEmptyGrid(MIN_TRACKS));
-    setTrackSettings(createDefaultTrackSettings(MIN_TRACKS));
+
+    setGrid(
+      createEmptyGrid(MIN_TRACKS),
+    );
+
+    setTrackSettings(
+      createDefaultTrackSettings(
+        MIN_TRACKS,
+      ),
+    );
+
     setNumTracks(MIN_TRACKS);
+
     setBpm(120);
+
     Tone.Transport.bpm.value = 120;
+
     setSaveStatus("");
     setLoadId("");
+
     setInitialLoadDone(false);
+
     setSearchParams({});
   };
 
@@ -1299,15 +1559,20 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    */
 
-  const updateTrackSetting = (trackIndex, key, value) => {
+  const updateTrackSetting = (
+    trackIndex,
+    key,
+    value,
+  ) => {
     setTrackSettings((previous) =>
-      previous.map((track, index) =>
-        index === trackIndex
-          ? {
-              ...track,
-              [key]: value,
-            }
-          : track,
+      previous.map(
+        (track, index) =>
+          index === trackIndex
+            ? {
+                ...track,
+                [key]: value,
+              }
+            : track,
       ),
     );
   };
@@ -1318,62 +1583,178 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    */
 
-  const audioBufferToWav = (buffer) => {
-    const numChannels = buffer.numberOfChannels;
-    const sampleRate = buffer.sampleRate;
+  const audioBufferToWav = (
+    buffer,
+  ) => {
+    const numChannels =
+      buffer.numberOfChannels;
+
+    const sampleRate =
+      buffer.sampleRate;
+
     const format = 1;
     const bitDepth = 16;
 
     const channelData = [];
-    for (let channel = 0; channel < numChannels; channel++) {
-      channelData.push(buffer.getChannelData(channel));
+
+    for (
+      let channel = 0;
+      channel < numChannels;
+      channel++
+    ) {
+      channelData.push(
+        buffer.getChannelData(
+          channel,
+        ),
+      );
     }
 
-    const interleaved = new Float32Array(buffer.length * numChannels);
+    const interleaved =
+      new Float32Array(
+        buffer.length *
+          numChannels,
+      );
 
     let offset = 0;
-    for (let i = 0; i < buffer.length; i++) {
-      for (let channel = 0; channel < numChannels; channel++) {
-        interleaved[offset++] = channelData[channel][i];
+
+    for (
+      let i = 0;
+      i < buffer.length;
+      i++
+    ) {
+      for (
+        let channel = 0;
+        channel < numChannels;
+        channel++
+      ) {
+        interleaved[offset++] =
+          channelData[channel][i];
       }
     }
 
-    const dataLength = interleaved.length * 2;
-    const arrayBuffer = new ArrayBuffer(44 + dataLength);
-    const view = new DataView(arrayBuffer);
+    const dataLength =
+      interleaved.length * 2;
 
-    const writeString = (offset, string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i));
+    const arrayBuffer =
+      new ArrayBuffer(
+        44 + dataLength,
+      );
+
+    const view =
+      new DataView(arrayBuffer);
+
+    const writeString = (
+      offset,
+      string,
+    ) => {
+      for (
+        let i = 0;
+        i < string.length;
+        i++
+      ) {
+        view.setUint8(
+          offset + i,
+          string.charCodeAt(i),
+        );
       }
     };
 
     writeString(0, "RIFF");
-    view.setUint32(4, 36 + dataLength, true);
+
+    view.setUint32(
+      4,
+      36 + dataLength,
+      true,
+    );
+
     writeString(8, "WAVE");
     writeString(12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, format, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
-    view.setUint16(32, numChannels * (bitDepth / 8), true);
-    view.setUint16(34, bitDepth, true);
+
+    view.setUint32(
+      16,
+      16,
+      true,
+    );
+
+    view.setUint16(
+      20,
+      format,
+      true,
+    );
+
+    view.setUint16(
+      22,
+      numChannels,
+      true,
+    );
+
+    view.setUint32(
+      24,
+      sampleRate,
+      true,
+    );
+
+    view.setUint32(
+      28,
+      sampleRate *
+        numChannels *
+        (bitDepth / 8),
+      true,
+    );
+
+    view.setUint16(
+      32,
+      numChannels *
+        (bitDepth / 8),
+      true,
+    );
+
+    view.setUint16(
+      34,
+      bitDepth,
+      true,
+    );
+
     writeString(36, "data");
-    view.setUint32(40, dataLength, true);
+
+    view.setUint32(
+      40,
+      dataLength,
+      true,
+    );
 
     let writeOffset = 44;
-    for (let i = 0; i < interleaved.length; i++) {
-      const sample = Math.max(-1, Math.min(1, interleaved[i]));
+
+    for (
+      let i = 0;
+      i < interleaved.length;
+      i++
+    ) {
+      const sample = Math.max(
+        -1,
+        Math.min(
+          1,
+          interleaved[i],
+        ),
+      );
+
       view.setInt16(
         writeOffset,
-        sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+        sample < 0
+          ? sample * 0x8000
+          : sample * 0x7fff,
         true,
       );
+
       writeOffset += 2;
     }
 
-    return new Blob([arrayBuffer], { type: "audio/wav" });
+    return new Blob(
+      [arrayBuffer],
+      {
+        type: "audio/wav",
+      },
+    );
   };
 
   /**
@@ -1387,159 +1768,237 @@ export default function SequencerPage() {
     filename = "track.wav",
   ) => {
     try {
-      setSaveStatus("Rendering track...");
+      setSaveStatus(
+        "Rendering track...",
+      );
 
-      const renderGrid = gridRef.current;
-      const renderSettings = settingsRef.current;
-      const renderTrackCount = renderGrid?.length || 0;
+      const renderGrid =
+        gridRef.current;
 
-      const buffer = await Tone.Offline((context) => {
-        context.transport.bpm.value = bpm;
+      const renderSettings =
+        settingsRef.current;
 
-        const offlineGains = [];
-        const offlineDelays = [];
-        const offlineLPFs = [];
-        const offlineHPFs = [];
-        const offlineReverbs = [];
-        const offlineEngines = [];
+      const renderTrackCount =
+        renderGrid?.length || 0;
 
-        /**
-         * Create routing per track:
-         *   engine → gain → delay → LPF → HPF → reverb → destination
-         */
+      const buffer =
+        await Tone.Offline(
+          (context) => {
+            context.transport.bpm.value =
+              bpm;
 
-        for (let trackIndex = 0; trackIndex < renderTrackCount; trackIndex++) {
-          const settings = renderSettings[trackIndex];
+            const offlineGains = [];
+            const offlineDelays = [];
+            const offlineLPFs = [];
+            const offlineHPFs = [];
+            const offlineReverbs = [];
+            const offlineEngines = [];
 
-          const gain = new Tone.Gain(settings?.muted ? 0 : 1);
+            for (
+              let trackIndex = 0;
+              trackIndex <
+              renderTrackCount;
+              trackIndex++
+            ) {
+              const settings =
+                renderSettings[
+                  trackIndex
+                ];
 
-          /**
-           * Delay
-           */
+              const gain =
+                new Tone.Gain(
+                  settings?.muted
+                    ? 0
+                    : 1,
+                );
 
-          const delay = new Tone.FeedbackDelay({
-            delayTime: settings?.delay?.time ?? 0.25,
-            feedback: settings?.delay?.feedback ?? 0.3,
-            wet: settings?.delay?.enabled ? (settings?.delay?.wet ?? 0.3) : 0,
-          });
+              const delay =
+                new Tone.FeedbackDelay(
+                  {
+                    delayTime:
+                      settings?.delay
+                        ?.time ??
+                      0.25,
 
-          /**
-           * Filters
-           */
+                    feedback:
+                      settings?.delay
+                        ?.feedback ??
+                      0.3,
 
-          const lpf = new Tone.Filter(
-            settings?.filter?.lowpass ?? 20000,
-            "lowpass",
-          );
+                    wet: settings
+                      ?.delay
+                      ?.enabled
+                      ? settings
+                          ?.delay
+                          ?.wet ??
+                        0.3
+                      : 0,
+                  },
+                );
 
-          const hpf = new Tone.Filter(
-            settings?.filter?.highpass ?? 20,
-            "highpass",
-          );
+              const lpf =
+                new Tone.Filter(
+                  settings?.filter
+                    ?.lowpass ??
+                    20000,
+                  "lowpass",
+                );
 
-          /**
-           * Reverb
-           */
+              const hpf =
+                new Tone.Filter(
+                  settings?.filter
+                    ?.highpass ??
+                    20,
+                  "highpass",
+                );
 
-          const reverb = new Tone.Reverb({
-            decay: settings?.reverb?.decay ?? 1.5,
-            wet: settings?.reverb?.enabled
-              ? (settings?.reverb?.wet ?? 0.35)
-              : 0,
-          });
+              const reverb =
+                new Tone.Reverb({
+                  decay:
+                    settings?.reverb
+                      ?.decay ??
+                    1.5,
 
-          /**
-           * Chain: gain → delay → LPF → HPF → reverb → destination
-           */
+                  wet: settings
+                    ?.reverb
+                    ?.enabled
+                    ? settings
+                        ?.reverb
+                        ?.wet ??
+                      0.35
+                    : 0,
+                });
 
-          gain.connect(delay);
-          delay.connect(lpf);
-          lpf.connect(hpf);
-          hpf.connect(reverb);
-          reverb.toDestination();
+              gain.connect(delay);
+              delay.connect(lpf);
+              lpf.connect(hpf);
+              hpf.connect(reverb);
+              reverb.toDestination();
 
-          offlineGains.push(gain);
-          offlineDelays.push(delay);
-          offlineLPFs.push(lpf);
-          offlineHPFs.push(hpf);
-          offlineReverbs.push(reverb);
+              offlineGains.push(gain);
+              offlineDelays.push(
+                delay,
+              );
+              offlineLPFs.push(lpf);
+              offlineHPFs.push(hpf);
+              offlineReverbs.push(
+                reverb,
+              );
 
-          const sound = getSoundById(settings?.sound);
+              const sound =
+                getSoundById(
+                  settings?.sound,
+                );
 
-          if (sound) {
-            const engine = createSoundEngine(sound, gain);
-            offlineEngines.push(engine);
-          } else {
-            offlineEngines.push(null);
-          }
-        }
+              if (sound) {
+                const engine =
+                  createSoundEngine(
+                    sound,
+                    gain,
+                  );
 
-        /**
-         * Dispose offline effect nodes after rendering.
-         */
-
-        setTimeout(() => {
-          offlineDelays.forEach((d) => d?.dispose?.());
-          offlineLPFs.forEach((f) => f?.dispose?.());
-          offlineHPFs.forEach((f) => f?.dispose?.());
-          offlineReverbs.forEach((r) => r?.dispose?.());
-        }, durationInSeconds * 1000);
-
-        /**
-         * Schedule pattern.
-         */
-
-        for (let step = 0; step < NUM_STEPS; step++) {
-          const stepTime = step * (60 / bpm / 4);
-
-          for (
-            let trackIndex = 0;
-            trackIndex < renderTrackCount;
-            trackIndex++
-          ) {
-            const settings = renderSettings[trackIndex];
-
-            if (settings?.muted) {
-              continue;
+                offlineEngines.push(
+                  engine,
+                );
+              } else {
+                offlineEngines.push(
+                  null,
+                );
+              }
             }
 
-            if (!renderGrid?.[trackIndex]?.[step]) {
-              continue;
+            for (
+              let step = 0;
+              step < NUM_STEPS;
+              step++
+            ) {
+              const stepTime =
+                step *
+                (60 / bpm / 4);
+
+              for (
+                let trackIndex = 0;
+                trackIndex <
+                renderTrackCount;
+                trackIndex++
+              ) {
+                const settings =
+                  renderSettings[
+                    trackIndex
+                  ];
+
+                if (
+                  settings?.muted
+                ) {
+                  continue;
+                }
+
+                if (
+                  !renderGrid?.[
+                    trackIndex
+                  ]?.[step]
+                ) {
+                  continue;
+                }
+
+                const engine =
+                  offlineEngines[
+                    trackIndex
+                  ];
+
+                if (!engine) {
+                  continue;
+                }
+
+                engine.play(
+                  stepTime,
+                  {
+                    note:
+                      settings?.note,
+
+                    duration:
+                      settings?.duration,
+                  },
+                );
+              }
             }
 
-            const engine = offlineEngines[trackIndex];
+            context.transport.start();
+          },
+          durationInSeconds,
+        );
 
-            if (!engine) {
-              continue;
-            }
+      const wavBlob =
+        audioBufferToWav(buffer);
 
-            engine.play(stepTime, {
-              note: settings?.note,
-              duration: settings?.duration,
-            });
-          }
-        }
+      const url =
+        URL.createObjectURL(
+          wavBlob,
+        );
 
-        context.transport.start();
-      }, durationInSeconds);
+      const a =
+        document.createElement("a");
 
-      const wavBlob = audioBufferToWav(buffer);
-      const url = URL.createObjectURL(wavBlob);
-
-      const a = document.createElement("a");
       a.href = url;
       a.download = filename;
 
       document.body.appendChild(a);
+
       a.click();
+
       document.body.removeChild(a);
 
       URL.revokeObjectURL(url);
 
-      setSaveStatus("Track downloaded successfully.");
+      setSaveStatus(
+        "Track downloaded successfully.",
+      );
     } catch (error) {
       console.error(error);
-      setSaveStatus(`Download failed: ${error.message}`);
+
+      setSaveStatus(
+        `Download failed: ${error.message}`,
+      );
     }
   };
 
@@ -1547,56 +2006,130 @@ export default function SequencerPage() {
    * -------------------------------------------------------
    * SAVE PROJECT
    * -------------------------------------------------------
+   *
+   * IMPORTANT:
+   *
+   * The frontend payload mirrors the projects table.
+   *
+   * We send:
+   *
+   *   name
+   *   description
+   *   tempo
+   *   grid
+   *   track_settings
+   *   arrangement
+   *
+   * We do NOT send:
+   *
+   *   id
+   *   user_id
+   *   created_at
+   *   updated_at
+   *   shared_id
+   *
+   * Those belong to the backend/database.
    */
 
   const saveProject = async () => {
     if (!projectName.trim()) {
-      setSaveStatus("Please enter a project name.");
+      setSaveStatus(
+        "Please enter a project name.",
+      );
+
       return;
     }
 
     if (!isAuthenticated) {
-      setSaveStatus("Please log in to save your project.");
+      setSaveStatus(
+        "Please log in to save your project.",
+      );
+
       return;
     }
 
     const payload = {
-      name: projectName,
+      name: projectName.trim(),
+
+      description:
+        projectDescription.trim() || null,
+
       tempo: bpm,
+
       grid,
-      track_settings: trackSettings,
+
+      track_settings:
+        trackSettings,
+
       arrangement,
-      shared_id: sharedId || undefined,
     };
 
-    const isUpdate = Boolean(projectId);
+    const isUpdate =
+      Boolean(projectId);
 
     try {
-      const url = isUpdate ? `/api/projects/${projectId}` : "/api/projects";
+      const url = isUpdate
+        ? `/api/users/${user.id}/projects/${projectId}`
+        : `/api/users/${user.id}/projects`;
 
-      const method = isUpdate ? "PUT" : "POST";
+      const method = isUpdate
+        ? "PUT"
+        : "POST";
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-        body: JSON.stringify(payload),
-      });
+      const response =
+        await fetch(url, {
+          method,
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization: token
+              ? `Bearer ${token}`
+              : "",
+          },
+
+          body: JSON.stringify(
+            payload,
+          ),
+        });
 
       if (!response.ok) {
-        const err = await response.text();
-        throw new Error(err || "Failed to save project");
+        const err =
+          await response.text();
+
+        throw new Error(
+          err ||
+            "Failed to save project",
+        );
       }
 
-      const project = await response.json();
+      const project =
+        normalizeProject(
+          await response.json(),
+        );
 
+      /**
+       * Backend is authoritative after save.
+       */
       setProjectId(project.id);
-      setSharedId(project.shared_id || null);
+
+      setSharedId(
+        project.shared_id || null,
+      );
+
+      setProjectName(
+        project.name,
+      );
+
+      setProjectDescription(
+        project.description,
+      );
 
       setSearchParams({
-        projectId: String(project.id),
+        projectId: String(
+          project.id,
+        ),
       });
 
       setInitialLoadDone(true);
@@ -1604,10 +2137,12 @@ export default function SequencerPage() {
       setSaveStatus(
         isUpdate
           ? `Updated "${project.name}"`
-          : `Saved "${project.name}" (ID: ${project.id})`,
+          : `Saved "${project.name}"`,
       );
     } catch (error) {
-      setSaveStatus(`Save failed: ${error.message}`);
+      setSaveStatus(
+        `Save failed: ${error.message}`,
+      );
     }
   };
 
@@ -1619,75 +2154,104 @@ export default function SequencerPage() {
 
   const shareProject = async () => {
     if (!projectId) {
-      setSaveStatus("Please save your project first.");
+      setSaveStatus(
+        "Please save your project first.",
+      );
+
       return;
     }
 
     if (!isAuthenticated) {
-      setSaveStatus("Please log in to share your project.");
+      setSaveStatus(
+        "Please log in to share your project.",
+      );
+
       return;
     }
 
-    setSaveStatus("Generating share link...");
+    setSaveStatus(
+      "Generating share link...",
+    );
 
     try {
-      const response = await fetch(`/api/projects/${projectId}/share`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-      });
+      const response =
+        await fetch(
+          `/api/projects/${projectId}/share`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization: token
+                ? `Bearer ${token}`
+                : "",
+            },
+          },
+        );
 
       if (!response.ok) {
-        const err = await response.text();
-        throw new Error(err || "Failed to share project");
+        const err =
+          await response.text();
+
+        throw new Error(
+          err ||
+            "Failed to share project",
+        );
       }
 
-      const project = await response.json();
+      const project =
+        normalizeProject(
+          await response.json(),
+        );
 
-      setSharedId(project.shared_id);
+      setSharedId(
+        project.shared_id,
+      );
 
-      const link = `${window.location.origin}/sequencer?sharedId=${project.shared_id}`;
+      const link =
+        `${window.location.origin}/sequencer?sharedId=${project.shared_id}`;
 
       setShareLink(link);
 
-      setSaveStatus(`Project shared! Link copied to clipboard.`);
-      navigator.clipboard.writeText(link);
+      setSaveStatus(
+        "Project shared! Link copied to clipboard.",
+      );
+
+      navigator.clipboard.writeText(
+        link,
+      );
     } catch (error) {
-      setSaveStatus(`Share failed: ${error.message}`);
+      setSaveStatus(
+        `Share failed: ${error.message}`,
+      );
     }
   };
 
   /**
    * -------------------------------------------------------
-   * ADD TO MY LIBRARY (fork shared project)
+   * ADD TO MY LIBRARY
    * -------------------------------------------------------
    */
 
   const addToMyLibrary = () => {
-    /**
-     * The project is already loaded into the sequencer state.
-     * We just need to exit shared-view mode, clear the project ID
-     * (so Save creates a new project), and pre-fill the name.
-     */
-
     setIsSharedView(false);
+
     setSharedId(null);
+
     setSharedBy("");
+
     setProjectId(null);
 
-    setProjectName(`Copy of ${projectName}`);
-
-    setSaveStatus(
-      "✏️ Edit your copy, then click 'Save Project' to add it to your library.",
+    setProjectName(
+      `Copy of ${projectName}`,
     );
 
-    /**
-     * Clear URL params.
-     */
+    setSaveStatus(
+      "Edit your copy, then click 'Save Project' to add it to your library.",
+    );
 
-    setSearchParams({ projectId: "" });
     setSearchParams({});
   };
 
@@ -1699,44 +2263,74 @@ export default function SequencerPage() {
 
   const loadProject = async () => {
     if (!loadId.trim()) {
-      setSaveStatus("Please enter a project ID to load.");
+      setSaveStatus(
+        "Please enter a project ID to load.",
+      );
+
       return;
     }
 
     if (!isAuthenticated) {
-      setSaveStatus("Please log in to load your project.");
+      setSaveStatus(
+        "Please log in to load your project.",
+      );
+
       return;
     }
 
     try {
-      const response = await fetch(`/api/projects/${loadId.trim()}`, {
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-      });
+      const response =
+        await fetch(
+          `/api/users/${user.id}/projects/${loadId.trim()}`,
+          {
+            headers: {
+              Authorization: token
+                ? `Bearer ${token}`
+                : "",
+            },
+          },
+        );
 
       if (!response.ok) {
-        const err = await response.text();
-        throw new Error(err || "Failed to load project");
+        const err =
+          await response.text();
+
+        throw new Error(
+          err ||
+            "Failed to load project",
+        );
       }
 
-      const project = await response.json();
+      const project =
+        normalizeProject(
+          await response.json(),
+        );
 
       applyProject(project);
 
-      setSharedId(project.shared_id || null);
+      setSharedId(
+        project.shared_id || null,
+      );
+
       setIsSharedView(false);
+
       setSharedBy("");
 
       setInitialLoadDone(true);
 
       setSearchParams({
-        projectId: String(project.id),
+        projectId: String(
+          project.id,
+        ),
       });
 
-      setSaveStatus(`Loaded "${project.name}"`);
+      setSaveStatus(
+        `Loaded "${project.name}"`,
+      );
     } catch (error) {
-      setSaveStatus(`Load failed: ${error.message}`);
+      setSaveStatus(
+        `Load failed: ${error.message}`,
+      );
     }
   };
 
@@ -1751,40 +2345,70 @@ export default function SequencerPage() {
       <section className="hero-card">
         <div>
           <p className="eyebrow">
-            {isSharedView ? "Shared beat" : "MVP sketchpad"}
+            {isSharedView
+              ? "Shared beat"
+              : "MVP sketchpad"}
           </p>
 
           <h1>
             {isSharedView
-              ? `BeatForge: ${projectName || "Shared Project"}`
+              ? `BeatForge: ${
+                  projectName ||
+                  "Shared Project"
+                }`
               : "BeatForge Sketchbook"}
           </h1>
 
           <p>
             {isSharedView
               ? `A beat shared with you by ${
-                  sharedBy ? `@${sharedBy}` : "another creator"
+                  sharedBy
+                    ? `@${sharedBy}`
+                    : "another creator"
                 }. Edit it and add it to your library.`
               : "A simple rhythm prototype for building, saving, and sharing beat ideas."}
           </p>
         </div>
 
         <div className="status-badge">
-          <span className={`status-dot ${isPlaying ? "live" : "stopped"}`} />
-          {isPlaying ? "Playing" : "Stopped"}
+          <span
+            className={`status-dot ${
+              isPlaying
+                ? "live"
+                : "stopped"
+            }`}
+          />
+
+          {isPlaying
+            ? "Playing"
+            : "Stopped"}
         </div>
       </section>
 
       {isSharedView && (
         <section className="shared-view-banner">
           <div className="shared-banner-content">
-            <span className="shared-banner-icon">🔗</span>
+            <span className="shared-banner-icon">
+              🔗
+            </span>
+
             <span>
               Viewing shared project:
-              <strong> {projectName}</strong>
-              {sharedBy && ` by @${sharedBy}`}
+              <strong>
+                {" "}
+                {projectName}
+              </strong>
+
+              {sharedBy &&
+                ` by @${sharedBy}`}
             </span>
-            <button className="add-to-library-btn" onClick={addToMyLibrary}>
+
+            <button
+              className="add-to-library-btn"
+              onClick={
+                addToMyLibrary
+              }
+            >
               📥 Add to My Library
             </button>
           </div>
@@ -1793,22 +2417,47 @@ export default function SequencerPage() {
 
       <section className="controls-card">
         <div className="controls">
-          <button onClick={togglePlay}>
-            {isPlaying ? "⏹ Stop" : "▶ Play"}
+          <button
+            onClick={togglePlay}
+          >
+            {isPlaying
+              ? "⏹ Stop"
+              : "▶ Play"}
           </button>
 
-          <button onClick={clearGrid}>Clear Pattern</button>
+          <button
+            onClick={clearGrid}
+          >
+            Clear Pattern
+          </button>
 
-          <button onClick={() => downloadTrackAsWav()}>Download Track</button>
+          <button
+            onClick={() =>
+              downloadTrackAsWav()
+            }
+          >
+            Download Track
+          </button>
 
-          <button onClick={handleNewProject}>New Project</button>
+          <button
+            onClick={
+              handleNewProject
+            }
+          >
+            New Project
+          </button>
 
           {!isSharedView && (
             <>
               <button
                 className="track-count-btn"
-                onClick={removeTrack}
-                disabled={numTracks <= MIN_TRACKS}
+                onClick={
+                  removeTrack
+                }
+                disabled={
+                  numTracks <=
+                  MIN_TRACKS
+                }
                 title="Remove track"
               >
                 − Track
@@ -1817,7 +2466,10 @@ export default function SequencerPage() {
               <button
                 className="track-count-btn"
                 onClick={addTrack}
-                disabled={numTracks >= MAX_TRACKS}
+                disabled={
+                  numTracks >=
+                  MAX_TRACKS
+                }
                 title="Add track (up to 8)"
               >
                 + Track
@@ -1827,13 +2479,21 @@ export default function SequencerPage() {
 
           <label className="bpm-control">
             <span>BPM</span>
+
             <input
               type="range"
               min="60"
               max="180"
               value={bpm}
-              onChange={(e) => handleBpmChange(Number(e.target.value))}
+              onChange={(e) =>
+                handleBpmChange(
+                  Number(
+                    e.target.value,
+                  ),
+                )
+              }
             />
+
             <strong>{bpm}</strong>
           </label>
         </div>
@@ -1844,34 +2504,58 @@ export default function SequencerPage() {
           <input
             type="text"
             placeholder={
-              isSharedView ? "Enter name for your copy..." : "Project name"
+              isSharedView
+                ? "Enter name for your copy..."
+                : "Project name"
             }
             value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
+            onChange={(e) =>
+              setProjectName(
+                e.target.value,
+              )
+            }
           />
 
-          {!isSharedView ? (
-            <button onClick={saveProject}>
-              {projectId ? "💾 Update Project" : "💾 Save Project"}
-            </button>
-          ) : (
-            <button
-              onClick={saveProject}
-              disabled={!isAuthenticated}
-              title={
-                isAuthenticated
+          <input
+            type="text"
+            placeholder="Project description"
+            value={
+              projectDescription
+            }
+            onChange={(e) =>
+              setProjectDescription(
+                e.target.value,
+              )
+            }
+          />
+
+          <button
+            onClick={saveProject}
+            disabled={
+              isSharedView &&
+              !isAuthenticated
+            }
+            title={
+              isSharedView
+                ? isAuthenticated
                   ? "Save this as a new project in your library"
                   : "Log in to save"
-              }
-            >
-              💾 Save Copy to Library
-            </button>
-          )}
+                : ""
+            }
+          >
+            {isSharedView
+              ? "💾 Save Copy to Library"
+              : projectId
+                ? "💾 Update Project"
+                : "💾 Save Project"}
+          </button>
 
           {projectId && (
             <button
               className="share-btn"
-              onClick={shareProject}
+              onClick={
+                shareProject
+              }
               title="Share this project with others"
             >
               🔗 Share
@@ -1879,376 +2563,781 @@ export default function SequencerPage() {
           )}
         </div>
 
-        {!isSharedView && sharedId && (
-          <div className="share-section">
-            <span className="share-link">
-              {`${window.location.origin}/sequencer?sharedId=${sharedId}`}
-            </span>
-            <button
-              className="copy-link-btn"
-              onClick={() => {
-                const link = `${window.location.origin}/sequencer?sharedId=${sharedId}`;
-                navigator.clipboard.writeText(link);
-                setSaveStatus("Share link copied to clipboard!");
-              }}
-            >
-              Copy Link
-            </button>
-          </div>
-        )}
+        {!isSharedView &&
+          sharedId && (
+            <div className="share-section">
+              <span className="share-link">
+                {`${window.location.origin}/sequencer?sharedId=${sharedId}`}
+              </span>
 
-        {saveStatus && <p className="save-status">{saveStatus}</p>}
+              <button
+                className="copy-link-btn"
+                onClick={() => {
+                  const link =
+                    `${window.location.origin}/sequencer?sharedId=${sharedId}`;
+
+                  navigator.clipboard.writeText(
+                    link,
+                  );
+
+                  setSaveStatus(
+                    "Share link copied to clipboard!",
+                  );
+                }}
+              >
+                Copy Link
+              </button>
+            </div>
+          )}
+
+        {saveStatus && (
+          <p className="save-status">
+            {saveStatus}
+          </p>
+        )}
       </section>
 
       <div className="tracks">
-        {grid.map((track, trackIndex) => {
-          const currentSoundId =
-            trackSettings[trackIndex]?.sound ||
-            DEFAULT_TRACK_SOUNDS[trackIndex] ||
-            DEFAULT_TRACK_SOUNDS[0];
+        {grid.map(
+          (track, trackIndex) => {
+            const currentSoundId =
+              trackSettings[
+                trackIndex
+              ]?.sound ||
+              DEFAULT_TRACK_SOUNDS[
+                trackIndex
+              ] ||
+              DEFAULT_TRACK_SOUNDS[0];
 
-          const currentSound = getSoundById(currentSoundId);
+            const currentSound =
+              getSoundById(
+                currentSoundId,
+              );
 
-          const isSynth = currentSound?.type === "synth";
+            const isSynth =
+              currentSound?.type ===
+              "synth";
 
-          const reverbEnabled =
-            trackSettings[trackIndex]?.reverb?.enabled || false;
+            const reverbEnabled =
+              trackSettings[
+                trackIndex
+              ]?.reverb?.enabled ||
+              false;
 
-          const delayEnabled =
-            trackSettings[trackIndex]?.delay?.enabled || false;
+            const delayEnabled =
+              trackSettings[
+                trackIndex
+              ]?.delay?.enabled ||
+              false;
 
-          const filterLowpass =
-            trackSettings[trackIndex]?.filter?.lowpass ?? 20000;
+            const filterLowpass =
+              trackSettings[
+                trackIndex
+              ]?.filter?.lowpass ??
+              20000;
 
-          const filterHighpass =
-            trackSettings[trackIndex]?.filter?.highpass ?? 20;
+            const filterHighpass =
+              trackSettings[
+                trackIndex
+              ]?.filter?.highpass ??
+              20;
 
-          const filterActive = filterLowpass < 15000 || filterHighpass > 40;
+            const filterActive =
+              filterLowpass <
+                15000 ||
+              filterHighpass > 40;
 
-          const isMuted = trackSettings[trackIndex]?.muted || false;
+            const isMuted =
+              trackSettings[
+                trackIndex
+              ]?.muted || false;
 
-          const selectedNote =
-            trackSettings[trackIndex]?.note ||
-            currentSound?.synth?.note ||
-            "C4";
+            const selectedNote =
+              trackSettings[
+                trackIndex
+              ]?.note ||
+              currentSound?.synth
+                ?.note ||
+              "C4";
 
-          const selectedDuration =
-            trackSettings[trackIndex]?.duration ||
-            currentSound?.synth?.duration ||
-            "8n";
+            const selectedDuration =
+              trackSettings[
+                trackIndex
+              ]?.duration ||
+              currentSound?.synth
+                ?.duration ||
+              "8n";
 
-          const isSoloed = trackSettings[trackIndex]?.soloed || false;
+            const isSoloed =
+              trackSettings[
+                trackIndex
+              ]?.soloed || false;
 
-          return (
-            <div
-              key={trackIndex}
-              className={`track-row ${isMuted ? "track-muted" : ""} ${isSoloed ? "track-soloed" : ""}`}
-            >
-              <div className="track-main">
-                <span className="track-label">{TRACK_LABELS[trackIndex]}</span>
+            return (
+              <div
+                key={trackIndex}
+                className={`track-row ${
+                  isMuted
+                    ? "track-muted"
+                    : ""
+                } ${
+                  isSoloed
+                    ? "track-soloed"
+                    : ""
+                }`}
+              >
+                <div className="track-main">
+                  <span className="track-label">
+                    {
+                      TRACK_LABELS[
+                        trackIndex
+                      ]
+                    }
+                  </span>
 
-                <div className="track-controls">
-                  <label>
-                    <span>Sound</span>
-                    <select
-                      value={currentSoundId}
-                      onChange={(e) =>
-                        updateTrackSound(trackIndex, e.target.value)
+                  <div className="track-controls">
+                    <label>
+                      <span>
+                        Sound
+                      </span>
+
+                      <select
+                        value={
+                          currentSoundId
+                        }
+                        onChange={(e) =>
+                          updateTrackSound(
+                            trackIndex,
+                            e.target
+                              .value,
+                          )
+                        }
+                      >
+                        {getAvailableSounds().map(
+                          (sound) => (
+                            <option
+                              key={
+                                sound.id
+                              }
+                              value={
+                                sound.id
+                              }
+                            >
+                              {
+                                sound.name
+                              }
+                            </option>
+                          ),
+                        )}
+                      </select>
+                    </label>
+
+                    <button
+                      type="button"
+                      className={`mute-track-button ${
+                        isMuted
+                          ? "muted"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        toggleTrackMute(
+                          trackIndex,
+                        )
+                      }
+                      aria-pressed={
+                        isMuted
                       }
                     >
-                      {getAvailableSounds().map((sound) => (
-                        <option key={sound.id} value={sound.id}>
-                          {sound.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      {isMuted
+                        ? "🔇 Unmute"
+                        : "🔊 Mute"}
+                    </button>
 
-                  <button
-                    type="button"
-                    className={`mute-track-button ${isMuted ? "muted" : ""}`}
-                    onClick={() => toggleTrackMute(trackIndex)}
-                    aria-pressed={isMuted}
-                  >
-                    {isMuted ? "🔇 Unmute" : "🔊 Mute"}
-                  </button>
+                    <button
+                      type="button"
+                      className={`solo-track-button ${
+                        isSoloed
+                          ? "soloed"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        toggleTrackSolo(
+                          trackIndex,
+                        )
+                      }
+                      aria-pressed={
+                        isSoloed
+                      }
+                    >
+                      {isSoloed
+                        ? "🔈 Unmute All"
+                        : "🎧 Solo"}
+                    </button>
 
-                  <button
-                    type="button"
-                    className={`solo-track-button ${isSoloed ? "soloed" : ""}`}
-                    onClick={() => toggleTrackSolo(trackIndex)}
-                    aria-pressed={isSoloed}
-                  >
-                    {isSoloed ? "🔈 Unmute All" : "🎧 Solo"}
-                  </button>
+                    <button
+                      type="button"
+                      className={`expand-chevron ${
+                        expandedTrack ===
+                        trackIndex
+                          ? "expanded"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        toggleTrackExpand(
+                          trackIndex,
+                        )
+                      }
+                      aria-label="Toggle track controls"
+                    >
+                      {expandedTrack ===
+                      trackIndex
+                        ? "▲"
+                        : "▼"}
+                    </button>
 
-                  <button
-                    type="button"
-                    className={`expand-chevron ${
-                      expandedTrack === trackIndex ? "expanded" : ""
-                    }`}
-                    onClick={() => toggleTrackExpand(trackIndex)}
-                    aria-label="Toggle track controls"
-                  >
-                    {expandedTrack === trackIndex ? "▲" : "▼"}
-                  </button>
+                    {reverbEnabled && (
+                      <span className="effect-badge">
+                        Reverb
+                      </span>
+                    )}
 
-                  {reverbEnabled && (
-                    <span className="effect-badge">Reverb</span>
-                  )}
+                    {delayEnabled && (
+                      <span className="effect-badge">
+                        Delay
+                      </span>
+                    )}
 
-                  {delayEnabled && <span className="effect-badge">Delay</span>}
+                    {filterActive && (
+                      <span className="effect-badge">
+                        Filter
+                      </span>
+                    )}
 
-                  {filterActive && <span className="effect-badge">Filter</span>}
+                    {isMuted && (
+                      <span className="effect-badge muted-badge">
+                        Muted
+                      </span>
+                    )}
 
-                  {isMuted && (
-                    <span className="effect-badge muted-badge">Muted</span>
-                  )}
+                    {isSynth && (
+                      <>
+                        <label>
+                          <span>
+                            Note
+                          </span>
 
-                  {isSynth && (
-                    <>
-                      <label>
-                        <span>Note</span>
-                        <select
-                          value={selectedNote}
-                          onChange={(e) =>
-                            updateTrackSetting(
-                              trackIndex,
-                              "note",
-                              e.target.value,
-                            )
-                          }
-                        >
-                          {NOTE_OPTIONS.map((note) => (
-                            <option key={note} value={note}>
-                              {note}
+                          <select
+                            value={
+                              selectedNote
+                            }
+                            onChange={(e) =>
+                              updateTrackSetting(
+                                trackIndex,
+                                "note",
+                                e
+                                  .target
+                                  .value,
+                              )
+                            }
+                          >
+                            {NOTE_OPTIONS.map(
+                              (note) => (
+                                <option
+                                  key={
+                                    note
+                                  }
+                                  value={
+                                    note
+                                  }
+                                >
+                                  {
+                                    note
+                                  }
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+
+                        <label>
+                          <span>
+                            Duration
+                          </span>
+
+                          <select
+                            value={
+                              selectedDuration
+                            }
+                            onChange={(e) =>
+                              updateTrackSetting(
+                                trackIndex,
+                                "duration",
+                                e
+                                  .target
+                                  .value,
+                              )
+                            }
+                          >
+                            <option value="16n">
+                              16n
                             </option>
-                          ))}
-                        </select>
-                      </label>
 
+                            <option value="8n">
+                              8n
+                            </option>
+
+                            <option value="4n">
+                              4n
+                            </option>
+
+                            <option value="2n">
+                              2n
+                            </option>
+                          </select>
+                        </label>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="step-row">
+                  {track.map(
+                    (
+                      isActive,
+                      stepIndex,
+                    ) => (
+                      <button
+                        key={
+                          stepIndex
+                        }
+                        onClick={() =>
+                          toggleStep(
+                            trackIndex,
+                            stepIndex,
+                          )
+                        }
+                        className={`
+                          ${
+                            isActive
+                              ? "active"
+                              : ""
+                          }
+                          ${
+                            currentStep ===
+                              stepIndex &&
+                            isPlaying
+                              ? "playing"
+                              : ""
+                          }
+                          ${
+                            isMuted
+                              ? "muted-step"
+                              : ""
+                          }
+                        `}
+                      >
+                        {stepIndex + 1}
+                      </button>
+                    ),
+                  )}
+                </div>
+
+                {expandedTrack ===
+                  trackIndex && (
+                  <div className="track-controls-expanded">
+                    <div className="slider-control">
                       <label>
-                        <span>Duration</span>
-                        <select
-                          value={selectedDuration}
+                        <span>
+                          Delay On
+                        </span>
+
+                        <input
+                          type="checkbox"
+                          checked={
+                            delayEnabled
+                          }
                           onChange={(e) =>
                             updateTrackSetting(
                               trackIndex,
-                              "duration",
-                              e.target.value,
+                              "delay",
+                              {
+                                ...trackSettings[
+                                  trackIndex
+                                ]?.delay,
+
+                                enabled:
+                                  e
+                                    .target
+                                    .checked,
+                              },
                             )
                           }
-                        >
-                          <option value="16n">16n</option>
-                          <option value="8n">8n</option>
-                          <option value="4n">4n</option>
-                          <option value="2n">2n</option>
-                        </select>
+                        />
                       </label>
-                    </>
-                  )}
-                </div>
-              </div>
+                    </div>
 
-              <div className="step-row">
-                {track.map((isActive, stepIndex) => (
-                  <button
-                    key={stepIndex}
-                    onClick={() => toggleStep(trackIndex, stepIndex)}
-                    className={`
-                      ${isActive ? "active" : ""}
-                      ${currentStep === stepIndex && isPlaying ? "playing" : ""}
-                      ${isMuted ? "muted-step" : ""}
-                    `}
-                  >
-                    {stepIndex + 1}
-                  </button>
-                ))}
-              </div>
-
-              {expandedTrack === trackIndex && (
-                <div className="track-controls-expanded">
-                  {/* ---- DELAY ---- */}
-                  <div className="slider-control">
-                    <label>
-                      <span>Delay On</span>
-                      <input
-                        type="checkbox"
-                        checked={delayEnabled}
+                    <div className="dial-row">
+                      <Dial
+                        label="Delay Time"
+                        value={
+                          trackSettings[
+                            trackIndex
+                          ]?.delay
+                            ?.time ??
+                          0.25
+                        }
+                        min={0.05}
+                        max={0.75}
+                        step={0.01}
+                        formatValue={(
+                          value,
+                        ) =>
+                          `${Math.round(
+                            value *
+                              1000,
+                          )}ms`
+                        }
                         onChange={(e) =>
-                          updateTrackSetting(trackIndex, "delay", {
-                            ...trackSettings[trackIndex]?.delay,
-                            enabled: e.target.checked,
-                          })
+                          updateTrackSetting(
+                            trackIndex,
+                            "delay",
+                            {
+                              ...trackSettings[
+                                trackIndex
+                              ]?.delay,
+
+                              enabled:
+                                true,
+
+                              time: parseFloat(
+                                e.target
+                                  .value,
+                              ),
+                            },
+                          )
                         }
                       />
-                    </label>
-                  </div>
 
-                  <div className="dial-row">
-                    <Dial
-                      label="Delay Time"
-                      value={trackSettings[trackIndex]?.delay?.time ?? 0.25}
-                      min={0.05}
-                      max={0.75}
-                      step={0.01}
-                      formatValue={(v) => `${Math.round(v * 1000)}ms`}
-                      onChange={(e) =>
-                        updateTrackSetting(trackIndex, "delay", {
-                          ...trackSettings[trackIndex]?.delay,
-                          enabled: true,
-                          time: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-
-                    <Dial
-                      label="Delay Feedback"
-                      value={trackSettings[trackIndex]?.delay?.feedback ?? 0.3}
-                      min={0}
-                      max={0.8}
-                      step={0.01}
-                      formatValue={(v) => `${Math.round(v * 100)}%`}
-                      onChange={(e) =>
-                        updateTrackSetting(trackIndex, "delay", {
-                          ...trackSettings[trackIndex]?.delay,
-                          enabled: true,
-                          feedback: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-
-                    <Dial
-                      label="Delay Wet"
-                      value={trackSettings[trackIndex]?.delay?.wet ?? 0.3}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      formatValue={(v) => `${Math.round(v * 100)}%`}
-                      onChange={(e) =>
-                        updateTrackSetting(trackIndex, "delay", {
-                          ...trackSettings[trackIndex]?.delay,
-                          enabled: true,
-                          wet: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-
-                  {/* ---- FILTER ---- */}
-                  <div className="dial-row">
-                    <Dial
-                      label="Low Pass"
-                      value={filterLowpass}
-                      min={100}
-                      max={20000}
-                      step={10}
-                      formatValue={(v) => `${Math.round(v)} Hz`}
-                      onChange={(e) => {
-                        const freq = parseFloat(e.target.value);
-                        updateTrackSetting(trackIndex, "filter", {
-                          ...trackSettings[trackIndex]?.filter,
-                          enabled: true,
-                          lowpass: freq,
-                        });
-                      }}
-                    />
-
-                    <Dial
-                      label="High Pass"
-                      value={filterHighpass}
-                      min={20}
-                      max={8000}
-                      step={10}
-                      formatValue={(v) => `${Math.round(v)} Hz`}
-                      onChange={(e) => {
-                        const freq = parseFloat(e.target.value);
-                        updateTrackSetting(trackIndex, "filter", {
-                          ...trackSettings[trackIndex]?.filter,
-                          enabled: true,
-                          highpass: freq,
-                        });
-                      }}
-                    />
-                  </div>
-
-                  {/* ---- REVERB ---- */}
-                  <div className="dial-row">
-                    <Dial
-                      label="Reverb Wet"
-                      value={trackSettings[trackIndex]?.reverb?.wet ?? 0.35}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      formatValue={(v) => `${Math.round(v * 100)}%`}
-                      onChange={(e) =>
-                        updateTrackSetting(trackIndex, "reverb", {
-                          ...trackSettings[trackIndex]?.reverb,
-                          enabled: true,
-                          wet: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-
-                    <Dial
-                      label="Reverb Decay"
-                      value={trackSettings[trackIndex]?.reverb?.decay ?? 1.5}
-                      min={0.1}
-                      max={10}
-                      step={0.1}
-                      formatValue={(v) => `${v.toFixed(1)}s`}
-                      onChange={(e) =>
-                        updateTrackSetting(trackIndex, "reverb", {
-                          ...trackSettings[trackIndex]?.reverb,
-                          enabled: true,
-                          decay: parseFloat(e.target.value),
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="slider-control">
-                    <label>
-                      <span>Reverb On</span>
-                      <input
-                        type="checkbox"
-                        checked={reverbEnabled}
+                      <Dial
+                        label="Delay Feedback"
+                        value={
+                          trackSettings[
+                            trackIndex
+                          ]?.delay
+                            ?.feedback ??
+                          0.3
+                        }
+                        min={0}
+                        max={0.8}
+                        step={0.01}
+                        formatValue={(
+                          value,
+                        ) =>
+                          `${Math.round(
+                            value *
+                              100,
+                          )}%`
+                        }
                         onChange={(e) =>
-                          updateTrackSetting(trackIndex, "reverb", {
-                            ...trackSettings[trackIndex]?.reverb,
-                            enabled: e.target.checked,
-                          })
+                          updateTrackSetting(
+                            trackIndex,
+                            "delay",
+                            {
+                              ...trackSettings[
+                                trackIndex
+                              ]?.delay,
+
+                              enabled:
+                                true,
+
+                              feedback:
+                                parseFloat(
+                                  e
+                                    .target
+                                    .value,
+                                ),
+                            },
+                          )
                         }
                       />
-                    </label>
+
+                      <Dial
+                        label="Delay Wet"
+                        value={
+                          trackSettings[
+                            trackIndex
+                          ]?.delay
+                            ?.wet ??
+                          0.3
+                        }
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        formatValue={(
+                          value,
+                        ) =>
+                          `${Math.round(
+                            value *
+                              100,
+                          )}%`
+                        }
+                        onChange={(e) =>
+                          updateTrackSetting(
+                            trackIndex,
+                            "delay",
+                            {
+                              ...trackSettings[
+                                trackIndex
+                              ]?.delay,
+
+                              enabled:
+                                true,
+
+                              wet: parseFloat(
+                                e.target
+                                  .value,
+                              ),
+                            },
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="dial-row">
+                      <Dial
+                        label="Low Pass"
+                        value={
+                          filterLowpass
+                        }
+                        min={100}
+                        max={20000}
+                        step={10}
+                        formatValue={(
+                          value,
+                        ) =>
+                          `${Math.round(
+                            value,
+                          )} Hz`
+                        }
+                        onChange={(e) => {
+                          const freq =
+                            parseFloat(
+                              e.target
+                                .value,
+                            );
+
+                          updateTrackSetting(
+                            trackIndex,
+                            "filter",
+                            {
+                              ...trackSettings[
+                                trackIndex
+                              ]?.filter,
+
+                              enabled:
+                                true,
+
+                              lowpass:
+                                freq,
+                            },
+                          );
+                        }}
+                      />
+
+                      <Dial
+                        label="High Pass"
+                        value={
+                          filterHighpass
+                        }
+                        min={20}
+                        max={8000}
+                        step={10}
+                        formatValue={(
+                          value,
+                        ) =>
+                          `${Math.round(
+                            value,
+                          )} Hz`
+                        }
+                        onChange={(e) => {
+                          const freq =
+                            parseFloat(
+                              e.target
+                                .value,
+                            );
+
+                          updateTrackSetting(
+                            trackIndex,
+                            "filter",
+                            {
+                              ...trackSettings[
+                                trackIndex
+                              ]?.filter,
+
+                              enabled:
+                                true,
+
+                              highpass:
+                                freq,
+                            },
+                          );
+                        }}
+                      />
+                    </div>
+
+                    <div className="dial-row">
+                      <Dial
+                        label="Reverb Wet"
+                        value={
+                          trackSettings[
+                            trackIndex
+                          ]?.reverb
+                            ?.wet ??
+                          0.35
+                        }
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        formatValue={(
+                          value,
+                        ) =>
+                          `${Math.round(
+                            value *
+                              100,
+                          )}%`
+                        }
+                        onChange={(e) =>
+                          updateTrackSetting(
+                            trackIndex,
+                            "reverb",
+                            {
+                              ...trackSettings[
+                                trackIndex
+                              ]?.reverb,
+
+                              enabled:
+                                true,
+
+                              wet: parseFloat(
+                                e.target
+                                  .value,
+                              ),
+                            },
+                          )
+                        }
+                      />
+
+                      <Dial
+                        label="Reverb Decay"
+                        value={
+                          trackSettings[
+                            trackIndex
+                          ]?.reverb
+                            ?.decay ??
+                          1.5
+                        }
+                        min={0.1}
+                        max={10}
+                        step={0.1}
+                        formatValue={(
+                          value,
+                        ) =>
+                          `${value.toFixed(
+                            1,
+                          )}s`
+                        }
+                        onChange={(e) =>
+                          updateTrackSetting(
+                            trackIndex,
+                            "reverb",
+                            {
+                              ...trackSettings[
+                                trackIndex
+                              ]?.reverb,
+
+                              enabled:
+                                true,
+
+                              decay: parseFloat(
+                                e.target
+                                  .value,
+                              ),
+                            },
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="slider-control">
+                      <label>
+                        <span>
+                          Reverb On
+                        </span>
+
+                        <input
+                          type="checkbox"
+                          checked={
+                            reverbEnabled
+                          }
+                          onChange={(e) =>
+                            updateTrackSetting(
+                              trackIndex,
+                              "reverb",
+                              {
+                                ...trackSettings[
+                                  trackIndex
+                                ]?.reverb,
+
+                                enabled:
+                                  e
+                                    .target
+                                    .checked,
+                              },
+                            )
+                          }
+                        />
+                      </label>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="preview-btn-inline"
+                      onClick={() =>
+                        previewTrackInline(
+                          trackIndex,
+                        )
+                      }
+                    >
+                      &#9654; Preview
+                    </button>
                   </div>
-
-                  <button
-                    type="button"
-                    className="preview-btn-inline"
-                    onClick={() => previewTrackInline(trackIndex)}
-                  >
-                    &#9654; Preview
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {!isSharedView && numTracks < MAX_TRACKS && (
-          <div
-            className="add-track-card"
-            onClick={addTrack}
-            title="Add track (up to 8)"
-          >
-            <span className="add-track-icon">+</span>
-            <span className="add-track-label">Add Track</span>
-            <span className="add-track-sub">
-              {numTracks}/{MAX_TRACKS} tracks
-            </span>
-          </div>
+                )}
+              </div>
+            );
+          },
         )}
+
+        {!isSharedView &&
+          numTracks < MAX_TRACKS && (
+            <div
+              className="add-track-card"
+              onClick={addTrack}
+              title="Add track (up to 8)"
+            >
+              <span className="add-track-icon">
+                +
+              </span>
+
+              <span className="add-track-label">
+                Add Track
+              </span>
+
+              <span className="add-track-sub">
+                {numTracks}/
+                {MAX_TRACKS} tracks
+              </span>
+            </div>
+          )}
       </div>
 
       <ArrangementView
@@ -2256,12 +3345,20 @@ export default function SequencerPage() {
         onAddSection={addSection}
         onRemove={removeSection}
         onRename={renameSection}
-        onBarsChange={changeSectionBars}
-        onPlayArrangement={toggleArrangementPlay}
-        isPlaying={isArrangementPlaying}
+        onBarsChange={
+          changeSectionBars
+        }
+        onPlayArrangement={
+          toggleArrangementPlay
+        }
+        isPlaying={
+          isArrangementPlaying
+        }
         numTracks={numTracks}
         currentStep={currentStep}
-        activeSectionIndex={activeSectionIndex}
+        activeSectionIndex={
+          activeSectionIndex
+        }
       />
     </main>
   );
