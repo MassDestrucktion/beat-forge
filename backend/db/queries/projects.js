@@ -6,17 +6,20 @@ export async function createProject(
     user_id,
     name,
     tempo = 120,
-    description = null
+    grid,
+    track_settings
 ) {
+    console.log('Creating project with params:', { id, user_id, name, tempo, grid, track_settings });
     const SQL = `
-        INSERT INTO app.projects (
+        INSERT INTO  projects (
             id,
             user_id,
             name,
-            description,
-            tempo
+            tempo,
+            grid,
+            track_settings
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
     `;
 
@@ -26,8 +29,9 @@ export async function createProject(
         id,
         user_id,
         name,
-        description,
         tempo,
+        JSON.stringify(grid),
+        JSON.stringify(track_settings),
     ]);
 
     return project;
@@ -39,18 +43,16 @@ export async function updateProject(
     projectId,
     userId,
     name,
-    tempo,
-    description = null
+    tempo
 ) {
     const SQL = `
-        UPDATE app.projects
+        UPDATE projects
         SET
             name = $1,
             tempo = $2,
-            description = $3,
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $4
-          AND user_id = $5
+        WHERE id = $3
+          AND user_id = $4
         RETURNING *
     `;
 
@@ -59,7 +61,6 @@ export async function updateProject(
     } = await db.query(SQL, [
         name,
         tempo,
-        description,
         projectId,
         userId,
     ]);
@@ -72,7 +73,7 @@ export async function updateProject(
 export async function get_user_projects(user_id) {
     const SQL = `
         SELECT *
-        FROM app.projects
+        FROM projects
         WHERE user_id = $1
         ORDER BY updated_at DESC
     `;
@@ -87,7 +88,7 @@ export async function get_user_projects(user_id) {
 export async function get_project_by_id(projectId, userId) {
     const SQL = `
         SELECT *
-        FROM app.projects
+        FROM projects
         WHERE id = $1
           AND user_id = $2
     `;
@@ -106,24 +107,20 @@ export async function update_project_by_id(
   project_id,
   user_id,
   name,
-  description,
   tempo,
   grid,
-  track_settings,
-  arrangement,
+  track_settings
 ) {
   const SQL = `
-    UPDATE app.projects
+    UPDATE projects
     SET
       name = $1,
-      description = $2,
-      tempo = $3,
-      grid = $4,
-      track_settings = $5,
-      arrangement = $6,
+      tempo = $2,
+      grid = $3,
+      track_settings = $4,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $7
-      AND user_id = $8
+    WHERE id = $5
+      AND user_id = $6
     RETURNING *
   `;
 
@@ -131,11 +128,9 @@ export async function update_project_by_id(
     rows: [project],
   } = await db.query(SQL, [
     name,
-    description,
     tempo,
     JSON.stringify(grid),
     JSON.stringify(track_settings),
-    JSON.stringify(arrangement),
     project_id,
     user_id,
   ]);
@@ -147,7 +142,7 @@ export async function update_project_by_id(
 // Delete a project belonging to a user
 export async function delete_project(projectId, userId) {
     const SQL = `
-        DELETE FROM app.projects
+        DELETE FROM projects
         WHERE id = $1
           AND user_id = $2
         RETURNING *

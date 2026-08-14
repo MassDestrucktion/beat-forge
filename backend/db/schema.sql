@@ -14,11 +14,9 @@ CREATE TABLE projects (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    description TEXT,
     tempo INTEGER DEFAULT 120,
     grid JSONB,
     track_settings JSONB,
-    arrangement JSONB,
     shared_id UUID UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
