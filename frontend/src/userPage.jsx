@@ -93,15 +93,17 @@ export default function userPage() {
         navigate,
     ]);
 
+
+   //     Getting Followers from the API ?//
+
     useEffect(() => {
         if (!isAuthenticated || !user?.id) {
             return;
         }
-
         async function fetchFollowing() {
             try {
                 setFollowingLoading(true);
-                setFollowingError("");
+                setFollowingError("Error loading followers");
 
                 const response = await fetch(
                     `/api/users/${user.id}/following`,
@@ -115,9 +117,7 @@ export default function userPage() {
                 );
 
                 if (!response.ok) {
-                    const text =
-                        await response.text();
-
+                    const text = await response.text();
                     throw new Error(
                         text ||
                             "Failed to fetch following"
@@ -132,16 +132,11 @@ export default function userPage() {
                         ? followingUsers
                         : []
                 );
-            } catch (err) {
-                console.error(err);
-
-                setFollowingError(
-                    err.message ||
-                        "Failed to load following"
-                );
-
+            } catch (error) {
+                console.log(error);
                 setFollowing([]);
             } finally {
+                
                 setFollowingLoading(false);
             }
         }
@@ -153,6 +148,7 @@ export default function userPage() {
         token,
     ]);
 
+    
     const handleDelete = async (projectId) => {
         if (
             !window.confirm(
@@ -267,16 +263,8 @@ export default function userPage() {
                         <ul>
                             {following.map(
                                 (followedUser) => (
-                                    <li
-                                        key={
-                                            followedUser.id
-                                        }
-                                    >
-                                        <FollowingItem
-                                            following={
-                                                followedUser
-                                            }
-                                        />
+                                    <li key={followedUser.id}>
+                                        <FollowingItem following={followedUser}/>
                                     </li>
                                 )
                             )}
