@@ -1,10 +1,10 @@
 import { NavLink } from "react-router-dom";
-import heroImg from "./assets/hero.png";
+import heroImg from "./assets/sequencer-hero.svg";
 import bgHero from "./media/pacha-wide-LEAD.webp";
 
 export default function LandingPage() {
   return (
-    <div className="landing-wrapper">
+    <>
       {/* ===== HERO ===== */}
       <section
         className="landing-hero"
@@ -14,7 +14,7 @@ export default function LandingPage() {
       >
         <div className="landing-hero-overlay" />
         <div className="landing-hero-content">
-          <h1 className="landing-title">BeatForge</h1>
+          <h1 className="landing-title pixel-title">BeatForge</h1>
           <p className="landing-tagline">Craft. Collaborate. Share.</p>
           <p className="landing-description">
             BeatForge is a dynamic web-based beat-making application. Create
@@ -62,6 +62,6 @@ export default function LandingPage() {
           </p>
         </div>
       </section>
-    </div>
+    </>
   );
 }

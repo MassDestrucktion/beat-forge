@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320">
+  <defs>
+    <linearGradient id="padActive" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 4x4 drum pads -->
+  <g id="pads">
+    <!-- Row 1 -->
+    <rect x="10" y="10" width="66" height="66" rx="12" fill="url(#padActive)" filter="url(#glow)"/>
+    <rect x="90" y="10" width="66" height="66" rx="12" fill="#1f2430" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>
+    <rect x="170" y="10" width="66" height="66" rx="12" fill="#1f2430" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>
+    <rect x="250" y="10" width="66" height="66" rx="12" fill="url(#padActive)" filter="url(#glow)"/>
+
+    <!-- Row 2 -->
+    <rect x="10" y="90" width="66" height="66" rx="12" fill="#1f2430" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>
+    <rect x="90" y="90" width="66" height="66" rx="12" fill="url(#padActive)" filter="url(#glow)"/>
+    <rect x="170" y="90" width="66" height="66" rx="12" fill="#1f2430" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>
+    <rect x="250" y="90" width="66" height="66" rx="12" fill="#1f2430" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>
+
+    <!-- Row 3 -->
+    <rect x="10" y="170" width="66" height="66" rx="12" fill="#1f2430" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>
+    <rect x="90" y="170" width="66" height="66" rx="12" fill="#1f2430" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>
+    <rect x="170" y="170" width="66" height="66" rx="12" fill="url(#padActive)" filter="url(#glow)"/>
+    <rect x="250" y="170" width="66" height="66" rx="12" fill="#1f2430" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>
+
+    <!-- Row 4 -->
+    <rect x="10" y="250" width="66" height="66" rx="12" fill="url(#padActive)" filter="url(#glow)"/>
+    <rect x="90" y="250" width="66" height="66" rx="12" fill="#1f2430" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>
+    <rect x="170" y="250" width="66" height="66" rx="12" fill="#1f2430" stroke="rgba(255,255,255,0.10)" stroke-width="2"/>
+    <rect x="250" y="250" width="66" height="66" rx="12" fill="url(#padActive)" filter="url(#glow)"/>
+  </g>
+</svg>

@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router } from "express";
 import requireBody from "../middleware/requireBody.js";
 import { createToken } from "../jwt/jwt.js";
@@ -67,8 +68,10 @@ usersRouter.post(
   async (req, res, next) => {
     try {
       const { id: user_id } = req.params;
+      console.log('user_id from params:', user_id);
 
       const user = await getUser(user_id);
+      console.log('user from getUser:', user);
 
       if (!user) {
         return res.status(404).json({
@@ -78,7 +81,6 @@ usersRouter.post(
 
       const {
         name,
-        description = null,
         tempo,
         grid,
         track_settings,
@@ -89,11 +91,9 @@ usersRouter.post(
         crypto.randomUUID(),
         user_id,
         name,
-        description,
         tempo,
         grid,
-        track_settings,
-        arrangement,
+        track_settings
       );
 
       res.status(201).json(project);
@@ -171,11 +171,13 @@ usersRouter.put(
   async (req, res, next) => {
     try {
       const { id: user_id, projectId: project_id } = req.params;
+      console.log('user_id from params:', user_id);
 
       const existingProject = await get_project_by_id(
         project_id,
         user_id,
       );
+      console.log('existingProject from get_project_by_id:', existingProject);
 
       if (!existingProject) {
         return res.status(404).json({
@@ -185,7 +187,6 @@ usersRouter.put(
 
       const {
         name,
-        description = null,
         tempo,
         grid,
         track_settings,
@@ -196,11 +197,9 @@ usersRouter.put(
         project_id,
         user_id,
         name,
-        description,
         tempo,
         grid,
-        track_settings,
-        arrangement,
+        track_settings
       );
 
       res.json(project);

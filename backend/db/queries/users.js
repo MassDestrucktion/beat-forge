@@ -4,8 +4,13 @@ import { randomUUID } from "crypto";
 
 
 export async function createUser(username, password) {
+    const existingUser = await findUserByUsername(username);
+    if (existingUser) {
+        throw new Error("Username already taken");
+    }
+
     const SQL = `
-        INSERT INTO app.users (id, username, password)
+        INSERT INTO  users (id, username, password)
         VALUES ($1, $2, $3)
         RETURNING *
     `;
@@ -47,7 +52,7 @@ export async function createUser(username, password) {
 export async function userLogin(username, password) {
     const SQL = `
         SELECT *
-        FROM app.users
+        FROM users
         WHERE username = $1
     `;
 
@@ -76,12 +81,23 @@ export async function userLogin(username, password) {
     return null;
 }
 
+export async function findUserByUsername(username) {
+    const SQL = `
+        SELECT *
+        FROM users
+        WHERE username = $1
+    `;
+
+    const { rows: [user] } = await db.query(SQL, [username]);
+    return user;
+}
+
 
 
 export async function getUser(id) {
     const SQL = `
         SELECT *
-        FROM app.users
+        FROM users
         WHERE id = $1
     `;
 
