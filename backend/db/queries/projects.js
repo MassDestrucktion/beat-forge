@@ -102,6 +102,47 @@ export async function get_project_by_id(projectId, userId) {
     return project;
 }
 
+export async function update_project_by_id(
+  project_id,
+  user_id,
+  name,
+  description,
+  tempo,
+  grid,
+  track_settings,
+  arrangement,
+) {
+  const SQL = `
+    UPDATE app.projects
+    SET
+      name = $1,
+      description = $2,
+      tempo = $3,
+      grid = $4,
+      track_settings = $5,
+      arrangement = $6,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = $7
+      AND user_id = $8
+    RETURNING *
+  `;
+
+  const {
+    rows: [project],
+  } = await db.query(SQL, [
+    name,
+    description,
+    tempo,
+    JSON.stringify(grid),
+    JSON.stringify(track_settings),
+    JSON.stringify(arrangement),
+    project_id,
+    user_id,
+  ]);
+
+  return project;
+}
+
 
 // Delete a project belonging to a user
 export async function delete_project(projectId, userId) {

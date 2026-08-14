@@ -1,129 +1,190 @@
 .dashboard {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 2rem;
-    color: white;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem;
+  color: white;
 }
-
 
 /* Top welcome area */
 
 .welcomeCard {
-    background: #181818;
-    padding: 2rem;
-    border-radius: 16px;
-    margin-bottom: 2rem;
+  background: #181818;
+  padding: 2rem;
+  border-radius: 16px;
+  margin-bottom: 2rem;
 }
 
 .welcomeCard h1 {
-    margin: 0;
-    font-size: 2.2rem;
+  margin: 0;
+  font-size: 2.2rem;
 }
 
 .welcomeCard p {
-    color: #aaa;
+  color: #aaa;
 }
-
-
 
 /* Projects */
 
 .projectsSection {
-    background: #111;
-    padding: 2rem;
-    border-radius: 16px;
+  background: #111;
+  padding: 2rem;
+  border-radius: 16px;
 }
-
 
 .projectsHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
 }
 
-s
 .projectsHeader h2 {
-    margin: 0;
+  margin: 0;
 }
 
-
+.user-name {
+  margin: 0.25rem 0 0;
+  color: #aaa;
+  font-size: 0.9rem;
+}
 
 /* Project cards */
 
 .projectsGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
 }
 
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
 
+  background: #1a1a1a;
+  border: 1px solid #262626;
+  border-radius: 12px;
+  padding: 1.25rem;
+
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.project-card:hover {
+  border-color: #3a3a3a;
+  transform: translateY(-2px);
+}
+
+.project-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.project-card-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: white;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-date {
+  flex-shrink: 0;
+  color: #888;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.project-card-details {
+  display: flex;
+  gap: 0.75rem;
+  color: #aaa;
+  font-size: 0.85rem;
+}
+
+.project-card-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: auto;
+  padding-top: 0.6rem;
+  border-top: 1px solid #262626;
+}
+
+.nav-btn {
+  flex: 1;
+  background: #262626;
+  color: white;
+  border: none;
+  padding: 0.55rem 0.9rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.12s ease;
+}
+
+.nav-btn:hover {
+  background: #333;
+}
+
+.nav-btn.delete-btn {
+  flex: 0 0 auto;
+  background: transparent;
+  color: #f87171;
+  border: 1px solid #3a2222;
+}
+
+.nav-btn.delete-btn:hover {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: #f87171;
+}
 
 .emptyProjects {
-    background: #222;
-    padding: 2rem;
-    border-radius: 12px;
-    text-align: center;
-    color: #aaa;
+  background: #222;
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  color: #aaa;
 }
 
+.link-btn {
+  background: none;
+  border: none;
+  color: #a78bfa;
+  cursor: pointer;
+  font-size: 0.95rem;
+  text-decoration: underline;
+  padding: 0;
+  margin-top: 0.5rem;
+}
 
+.link-btn:hover {
+  color: #c4b5fd;
+}
+
+.error-message {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
 
 /* Button */
 
 .newProjectBtn {
-    background: #7c3aed;
-    color: white;
-    border: none;
-    padding: .8rem 1.4rem;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 1rem;
+  background: #7c3aed;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.4rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1rem;
 }
-
 
 .newProjectBtn:hover {
-    background: #6d28d9;
-}
-
-
-/* Following */
-.followingSection {
-    background: #111;
-    padding: 2rem;
-    border-radius: 16px;
-    margin-bottom: 10px;
-}
-
-
-.followingHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-
-.followingHeader h2 {
-    margin: 0;
-}
-
-
-
-/* Project cards */
-
-.followingGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-}
-
-
-
-.emptyfollowing {
-    background: #222;
-    padding: 2rem;
-    border-radius: 12px;
-    text-align: center;
-    color: #aaa;
+  background: #6d28d9;
 }
