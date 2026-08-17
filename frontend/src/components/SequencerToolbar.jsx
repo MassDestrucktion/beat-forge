@@ -19,7 +19,6 @@ export default function SequencerToolbar({
   onTogglePlay,
   onClearGrid,
   onDownloadWav,
-  onNewProject,
   onAddTrack,
   onRemoveTrack,
   onBpmChange,
@@ -63,8 +62,6 @@ export default function SequencerToolbar({
           <button onClick={onClearGrid}>Clear Pattern</button>
 
           <button onClick={onDownloadWav}>Download Track</button>
-
-          <button onClick={onNewProject}>New Project</button>
 
           {!isSharedView && (
             <>

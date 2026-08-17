@@ -1,3 +1,5 @@
+// src/SequencerPage.jsx
+
 import * as Tone from "tone";
 
 import { useState, useEffect } from "react";
@@ -10,13 +12,11 @@ import ArrangementView from "./components/ArrangementView.jsx";
 import TrackRow from "./components/TrackRow.jsx";
 import SequencerToolbar from "./components/SequencerToolbar.jsx";
 import SaveLoadPanel from "./components/SaveLoadPanel.jsx";
-import ClipEditorModal from "./components/ClipEditorModal.jsx";
 
 import {
   MIN_TRACKS,
   MAX_TRACKS,
   NUM_STEPS,
-  TRACK_LABELS,
   DEFAULT_TRACK_SOUNDS,
   createEmptyGrid,
   createDefaultTrackSettings,
@@ -30,16 +30,36 @@ import { useTransport } from "./sequencer/useTransport";
 import { useProjectPersistence } from "./sequencer/useProjectPersistence";
 
 import { downloadTrackAsWav } from "./sequencer/wavExport";
-import { arrayMove } from "@dnd-kit/sortable";
 
 import "./App.css";
 
+/**
+ * ---------------------------------------------------------
+ * SEQUENCER
+ * ---------------------------------------------------------
+ *
+ * This component is the orchestrator. Musical state and UI
+ * handlers live here; everything else is delegated:
+ *
+ *   src/sequencer/projectModel.js        — constants + pure helpers
+ *   src/sequencer/useAudioGraph.js       — Tone.js per-track chains
+ *   src/sequencer/useTransport.js        — playback loop + play/stop
+ *   src/sequencer/useProjectPersistence.js — save/share/load
+ *   src/sequencer/wavExport.js           — offline render + WAV download
+ *   src/components/TrackRow.jsx          — one track's UI
+ *   src/components/SequencerToolbar.jsx  — hero + transport controls
+ *   src/components/SaveLoadPanel.jsx     — save/share UI
+ */
 export default function SequencerPage() {
   const navigate = useNavigate();
 
   const location = useLocation();
 
-  /* MUSICAL STATE */
+  /**
+   * -------------------------------------------------------
+   * MUSICAL STATE
+   * -------------------------------------------------------
+   */
 
   const [numTracks, setNumTracks] = useState(MIN_TRACKS);
 
@@ -53,10 +73,16 @@ export default function SequencerPage() {
 
   const [expandedTrack, setExpandedTrack] = useState(null);
 
+  /**
+   * Arrangement is stored directly in projects.arrangement.
+   */
   const [arrangement, setArrangement] = useState([]);
-  const [editingClipId, setEditingClipId] = useState(null);
 
-  /* AUDIO + TRANSPORT + PERSISTENCE */
+  /**
+   * -------------------------------------------------------
+   * AUDIO + TRANSPORT + PERSISTENCE
+   * -------------------------------------------------------
+   */
 
   const { playTrackSound } = useAudioGraph({
     numTracks,
@@ -91,29 +117,29 @@ export default function SequencerPage() {
     setProjectDescription,
 
     projectId,
-    setProjectId,
 
     saveStatus,
     setSaveStatus,
 
     sharedId,
-    setSharedId,
 
     isSharedView,
-    setIsSharedView,
 
     sharedBy,
+
+    setSearchParams,
+
+    setProjectId,
+
+    setSharedId,
+
+    setIsSharedView,
+
     setSharedBy,
 
     setLoadId,
 
     setInitialLoadDone,
-
-    setSearchParams,
-
-    saveProject,
-    shareProject,
-    addToMyLibrary,
   } = useProjectPersistence({
     bpm,
 
@@ -134,7 +160,11 @@ export default function SequencerPage() {
     setArrangement,
   });
 
-  /* RETURN FROM CUSTOMIZE TRACK */
+  /**
+   * -------------------------------------------------------
+   * RETURN FROM CUSTOMIZE TRACK
+   * -------------------------------------------------------
+   */
 
   useEffect(() => {
     const returnedState = location.state;
@@ -186,7 +216,11 @@ export default function SequencerPage() {
     });
   }, [location.state, navigate]);
 
-  /* TRACK HANDLERS   */
+  /**
+   * -------------------------------------------------------
+   * TRACK HANDLERS
+   * -------------------------------------------------------
+   */
 
   const toggleTrackExpand = (trackIndex) => {
     setExpandedTrack(expandedTrack === trackIndex ? null : trackIndex);
@@ -337,7 +371,11 @@ export default function SequencerPage() {
     );
   };
 
-  /* TRANSPORT HANDLERS */
+  /**
+   * -------------------------------------------------------
+   * TRANSPORT HANDLERS
+   * -------------------------------------------------------
+   */
 
   const handleBpmChange = (newBpm) => {
     setBpm(newBpm);
@@ -400,76 +438,70 @@ export default function SequencerPage() {
     }
   };
 
-  /* ARRANGEMENT HANDLERS  */
+  /**
+   * -------------------------------------------------------
+   * ARRANGEMENT HANDLERS
+   * -------------------------------------------------------
+   */
 
-  const addSection = () => {};
-  const removeSection = () => {};
+  const addSection = () => {
+    setArrangement((previous) => [
+      ...previous,
 
-  const handleClipNameChange = (clipId, newName) => {
-    setArrangement((prev) =>
-      prev.map((clip) =>
-        clip.id === clipId ? { ...clip, name: newName } : clip
-      )
-    );
-  };
-
-  const handleClipBarsChange = (clipId, newBars) => {
-    setArrangement((prev) =>
-      prev.map((clip) =>
-        clip.id === clipId ? { ...clip, bars: newBars } : clip
-      )
-    );
-  };
-
-  const handleUpdateClipGrid = (clipId, newGrid) => {
-    setArrangement((prev) =>
-      prev.map((clip) =>
-        clip.id === clipId ? { ...clip, grid: newGrid } : clip
-      )
-    );
-  };
-
-  const addTrackToArrangement = (trackIndex) => {
-    setArrangement((prevArrangement) => {
-      const clipsInTrack = prevArrangement.filter(
-        (clip) => clip.y === trackIndex
-      );
-      const nextX = clipsInTrack.reduce(
-        (max, clip) => Math.max(max, clip.x + clip.bars),
-        0
-      );
-
-      const newClip = {
+      {
         id: crypto.randomUUID(),
-        name: TRACK_LABELS[trackIndex] || "",
+        name: "",
         bars: 1,
-        grid: [grid[trackIndex]],
-        tempo: bpm,
-        sourceTrackIndex: trackIndex,
-        x: nextX,
-        y: trackIndex,
-      };
 
-      return [...prevArrangement, newClip];
-    });
+        /**
+         * Snapshot the current project grid.
+         */
+        grid: grid.map((track) => [...track]),
+
+        tempo: bpm,
+      },
+    ]);
   };
 
-  const moveClip = (id, delta) => {
-    setArrangement((prevArrangement) =>
-      prevArrangement.map((clip) => {
-        if (clip.id === id) {
-          return {
-            ...clip,
-            x: Math.max(0, clip.x + delta.x),
-            y: Math.max(0, clip.y + delta.y),
-          };
-        }
-        return clip;
-      })
+  const removeSection = (id) => {
+    setArrangement((previous) =>
+      previous.filter((section) => section.id !== id),
     );
   };
 
-  /* RENDER */
+  const renameSection = (id, newName) => {
+    setArrangement((previous) =>
+      previous.map((section) =>
+        section.id === id
+          ? {
+              ...section,
+              name: newName,
+            }
+          : section,
+      ),
+    );
+  };
+
+  const changeSectionBars = (id, newBars) => {
+    const clamped = Math.min(16, Math.max(1, Number(newBars) || 1));
+
+    setArrangement((previous) =>
+      previous.map((section) =>
+        section.id === id
+          ? {
+              ...section,
+              bars: clamped,
+            }
+          : section,
+      ),
+    );
+  };
+
+  /**
+   * -------------------------------------------------------
+   * RENDER
+   * -------------------------------------------------------
+   */
 
   return (
     <main className="sequencer-page">
@@ -529,7 +561,6 @@ export default function SequencerPage() {
             onUpdateSetting={updateTrackSetting}
             onToggleExpand={toggleTrackExpand}
             onPreview={previewTrackInline}
-            onAddToArrangement={addTrackToArrangement}
           />
         ))}
 
@@ -554,26 +585,14 @@ export default function SequencerPage() {
         arrangement={arrangement}
         onAddSection={addSection}
         onRemove={removeSection}
-        onRename={handleClipNameChange}
-        onBarsChange={handleClipBarsChange}
-        onClipResize={handleClipBarsChange} // Using the same handler for resize
-        onMoveClip={moveClip}
+        onRename={renameSection}
+        onBarsChange={changeSectionBars}
         onPlayArrangement={toggleArrangementPlay}
         isPlaying={isArrangementPlaying}
         numTracks={numTracks}
         currentStep={currentStep}
         activeSectionIndex={activeSectionIndex}
-        editingClipId={editingClipId}
-        onEditClip={setEditingClipId}
       />
-
-      {editingClipId && (
-        <ClipEditorModal
-          clip={arrangement.find((c) => c.id === editingClipId)}
-          onUpdate={handleUpdateClipGrid}
-          onClose={() => setEditingClipId(null)}
-        />
-      )}
     </main>
   );
 }

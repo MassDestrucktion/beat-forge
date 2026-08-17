@@ -33,6 +33,7 @@ export default function TrackRow({
   onUpdateSetting,
   onToggleExpand,
   onPreview,
+  onAddToArrangement,
 }) {
   const currentSoundId =
     trackSetting?.sound ||
@@ -112,6 +113,15 @@ export default function TrackRow({
             title="Clear this track's pattern"
           >
             🧹 Clear
+          </button>
+
+          <button
+            type="button"
+            className="add-to-arrangement-button"
+            onClick={() => onAddToArrangement(trackIndex)}
+            title="Add this track as a new section in the arrangement"
+          >
+            ➕ To Arrangement
           </button>
 
           <button

@@ -1,208 +1,161 @@
-/* ===== Arrangement View ===== */
+/* ArrangementView.css */
 
 .arrangement-view {
+  background-color: #282c34;
+  padding: 1rem;
+  border-radius: 8px;
+  color: white;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 32px 20px;
+  min-height: 300px; /* Ensure it has some height */
 }
 
 .arrangement-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #444;
 }
 
 .arrangement-header h2 {
   margin: 0;
-  font-size: 1.7rem;
-  color: #f3f4f6;
+  font-size: 1.5rem;
 }
 
-.arrangement-summary {
-  margin-left: auto;
-  font-size: 0.85rem;
-  color: #9ca3af;
-}
-
-/* ===== Play / Add Buttons ===== */
-
-.play-arrangement-btn,
-.add-section-btn {
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  color: #f9fafb;
-  font-weight: 700;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.15s ease;
-}
-
-.play-arrangement-btn:hover,
-.add-section-btn:hover {
-  background: rgba(139, 92, 246, 0.15);
-  border-color: rgba(139, 92, 246, 0.4);
-}
-
-.play-arrangement-btn.playing {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: #fff;
-  border-color: rgba(239, 68, 68, 0.5);
-  box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
-}
-
-.add-section-btn {
-  background: linear-gradient(135deg, #34d399, #10b981);
-  color: #052e16;
+.arrangement-controls button {
+  margin-left: 0.5rem;
+  padding: 0.5rem 1rem;
   border: none;
-}
-
-.add-section-btn:hover {
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
-}
-
-/* ===== Timeline ===== */
-
-.arrangement-timeline {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  padding: 8px 0;
-}
-
-.arrangement-empty {
-  padding: 40px;
-  text-align: center;
-  color: #6b7280;
-  font-size: 0.95rem;
-}
-
-/* ===== Section Cards ===== */
-
-.arrangement-section {
-  min-width: 220px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 2px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 12px;
-  transition: border-color 0.2s ease;
-}
-
-.arrangement-section.active {
-  border-color: rgba(139, 92, 246, 0.5);
-  background: rgba(139, 92, 246, 0.06);
-}
-
-.arrangement-section.active.playing {
-  border-color: rgba(34, 197, 94, 0.5);
-  box-shadow: 0 0 16px rgba(34, 197, 94, 0.25);
-}
-
-/* ===== Section Header ===== */
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.section-name-input {
-  flex: 1;
-  padding: 4px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #f3f4f6;
-  font-size: 0.9rem;
-  font-weight: 600;
-  outline: none;
-}
-
-.section-name-input:focus {
-  border-color: rgba(139, 92, 246, 0.5);
-}
-
-.section-bars-input {
-  width: 44px;
-  padding: 4px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #f3f4f6;
-  font-size: 0.85rem;
-  text-align: center;
-  outline: none;
-}
-
-.section-bars-input:focus {
-  border-color: rgba(139, 92, 246, 0.5);
-}
-
-.section-bars-label {
-  font-size: 0.75rem;
-  color: #6b7280;
-  white-space: nowrap;
-}
-
-.section-remove-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-  font-size: 14px;
-  font-weight: 700;
+  border-radius: 4px;
+  background-color: #61dafb;
+  color: #282c34;
   cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
+  font-weight: bold;
+}
+
+.arrangement-controls button:hover {
+  background-color: #21a1f1;
+}
+
+.arrangement-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* Small gap between lanes */
+  flex-grow: 1;
+}
+
+.track-lane {
+  display: flex;
+  min-height: 60px; /* Reduced height for a more compact view */
+  background-color: #3a3f4a;
+  border-radius: 4px;
+}
+
+.track-lane-header {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  padding: 0.5rem;
+  background-color: #4a4f5a;
+  border-right: 1px solid #555;
+  text-align: center;
+  font-weight: bold;
+  border-radius: 4px 0 0 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 40px;
 }
 
-.section-remove-btn:hover {
-  background: rgba(239, 68, 68, 0.3);
-  color: #fee2e2;
+.track-lane-clips {
+  position: relative; /* This is crucial for absolute positioning of clips */
+  flex-grow: 1;
+  min-height: 100%;
 }
 
-/* ===== Mini Grid Preview ===== */
-
-.section-grid-preview {
+.arrangement-clip {
+  position: absolute;
+  height: 100%;
+  background-color: #61dafb;
+  border: 1px solid #21a1f1;
+  border-radius: 4px;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  color: #282c34;
+  font-size: 0.9rem;
+  cursor: grab;
+  box-sizing: border-box; /* Ensures padding and border are included in the width */
+  overflow: hidden; /* Prevent content from spilling out */
 }
 
-.section-track-preview {
+.arrangement-clip:active {
+  cursor: grabbing;
+  z-index: 10;
+}
+
+.clip-content {
   display: flex;
-  gap: 1px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
-.section-step-preview {
-  width: 16px;
-  height: 16px;
+.clip-name {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.clip-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clip-single-track-badge {
+  font-size: 0.8rem;
+}
+
+.clip-bars-input {
+  width: 40px;
+  border: 1px solid #282c34;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #fff;
+  text-align: center;
 }
 
-.section-step-preview.active {
-  background: rgba(139, 92, 246, 0.4);
-  border-color: rgba(139, 92, 246, 0.5);
+.clip-bars-label {
+  font-size: 0.8rem;
 }
 
-.section-step-preview.playing {
-  background: rgba(59, 130, 246, 0.5);
-  border-color: rgba(59, 130, 246, 0.7);
-  box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
+.clip-remove-btn {
+  background: none;
+  border: none;
+  color: #282c34;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.clip-remove-btn:hover {
+  color: #ff4d4d;
+}
+
+.clip-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
 }

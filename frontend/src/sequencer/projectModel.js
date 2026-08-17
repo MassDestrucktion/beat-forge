@@ -97,6 +97,8 @@ export function createEmptyGrid(numTracks = MIN_TRACKS) {
   return Array.from({ length: numTracks }, () => Array(NUM_STEPS).fill(false));
 }
 
+
+
 export function createDefaultTrackSettings(numTracks = MIN_TRACKS) {
   return Array.from({ length: numTracks }, (_, i) =>
     createDefaultTrack(DEFAULT_TRACK_SOUNDS[i] || DEFAULT_TRACK_SOUNDS[0]),

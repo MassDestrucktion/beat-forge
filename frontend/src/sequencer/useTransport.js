@@ -44,73 +44,31 @@ export function useTransport({ grid, arrangement, bpm, playTrackSound }) {
   useEffect(() => {
     const repeat = (time) => {
       if (isArrangementPlayingRef.current) {
-        const sections = arrangementRef.current;
+        const transportTimeInSeconds = Tone.Transport.seconds;
+        const beatsPerSecond = Tone.Transport.bpm.value / 60;
+        const beats = transportTimeInSeconds * beatsPerSecond;
+        const bars = beats / Tone.Transport.timeSignature;
+        const sixteenths = (transportTimeInSeconds * Tone.Transport.bpm.value * 4) / 60;
 
-        if (!sections || sections.length === 0) {
-          isArrangementPlayingRef.current = false;
+        const clips = arrangementRef.current;
 
-          setIsArrangementPlaying(false);
-          setActiveSectionIndex(null);
-          setCurrentStep(null);
+        for (const clip of clips) {
+          const clipStartBar = clip.x;
+          const clipEndBar = clip.x + clip.bars;
 
-          return;
-        }
+          if (bars >= clipStartBar && bars < clipEndBar) {
+            const barsIntoClip = bars - clipStartBar;
+            const sixteenthsIntoClip = Math.floor(barsIntoClip * 16);
+            const step = sixteenthsIntoClip % NUM_STEPS;
 
-        const totalSteps = sections.reduce(
-          (sum, section) => sum + (section.bars || 1) * NUM_STEPS,
-          0,
-        );
-
-        const globalStep = arrangementStepRef.current;
-
-        if (globalStep >= totalSteps) {
-          Tone.Transport.stop();
-          Tone.Transport.position = 0;
-
-          arrangementStepRef.current = 0;
-          stepCountRef.current = 0;
-
-          isArrangementPlayingRef.current = false;
-
-          setIsArrangementPlaying(false);
-          setActiveSectionIndex(null);
-          setCurrentStep(null);
-
-          return;
-        }
-
-        let remaining = globalStep;
-        let sectionIndex = 0;
-
-        for (let i = 0; i < sections.length; i++) {
-          const sectionSteps = (sections[i].bars || 1) * NUM_STEPS;
-
-          if (remaining < sectionSteps) {
-            sectionIndex = i;
-            break;
-          }
-
-          remaining -= sectionSteps;
-        }
-
-        const step = remaining % NUM_STEPS;
-
-        setCurrentStep(step);
-        setActiveSectionIndex(sectionIndex);
-
-        const sectionGrid = sections[sectionIndex]?.grid;
-
-        const trackCount = sectionGrid?.length || 0;
-
-        for (let trackIndex = 0; trackIndex < trackCount; trackIndex++) {
-          if (sectionGrid?.[trackIndex]?.[step]) {
-            playTrackSoundRef.current(trackIndex, time);
+            const clipGrid = clip.grid;
+            if (clipGrid && clipGrid[0] && clipGrid[0][step]) {
+              const timeOffset = (sixteenths - Math.floor(sixteenths)) * (60 / (Tone.Transport.bpm.value * 4));
+              playTrackSoundRef.current(clip.sourceTrackIndex, time + timeOffset);
+            }
           }
         }
-
-        arrangementStepRef.current++;
-        stepCountRef.current++;
-
+        setCurrentStep(Math.floor(sixteenths % 16));
         return;
       }
 
