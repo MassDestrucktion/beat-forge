@@ -109,3 +109,17 @@ export async function getUser(id) {
 
     return user;
 }
+
+//Followers
+
+export async function getFollowing (id) {
+    const SQL = `
+        SELECT u.id, u.username
+        FROM follows f
+        JOIN users u ON u.id = f.followee_id
+        WHERE f.follower_id = $1 
+    `;
+    const response = await db.query(SQL, [id])
+
+    return response.rows
+};

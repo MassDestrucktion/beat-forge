@@ -9,7 +9,39 @@ import SequencerPage from "./SequencerPage";
 import GettingStarted from "./getingStarted";
 import FeaturedProjects from "./featuredprojects";
 
+import {useEffect} from "react";
+import socket from "./socket";
+import cors from "cors"
+
 export default function App() {
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if(!token) {
+      console.log("No token found - socket.io not connecting");
+      return;
+    }
+
+    
+    socket.connect();
+
+    socket.on("connect", () => {
+      console.log("Connected on: ", socket.id);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Disconnected from: ", socket.id);
+    });
+
+    return () => {
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.disconnect();
+    };
+
+
+  }, []);
+
   return (
     <>
       <Navbar />

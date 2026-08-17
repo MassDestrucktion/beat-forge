@@ -63,6 +63,7 @@ export default function userPage() {
                 );
 
                 if (!response.ok) {
+                    console.log(response)
                     const text = await response.text();
 
                     throw new Error(
@@ -126,7 +127,7 @@ export default function userPage() {
 
                 const followingUsers =
                     await response.json();
-
+                console.log(followingUsers)
                 setFollowing(
                     Array.isArray(followingUsers)
                         ? followingUsers
@@ -264,10 +265,10 @@ export default function userPage() {
 
                 {!followingLoading &&
                     following.length > 0 && (
-                        <ul>
+                        <div className="followingList">
                             {following.map(
                                 (followedUser) => (
-                                    <li
+                                    <div
                                         key={
                                             followedUser.id
                                         }
@@ -277,10 +278,10 @@ export default function userPage() {
                                                 followedUser
                                             }
                                         />
-                                    </li>
+                                    </div>
                                 )
                             )}
-                        </ul>
+                        </div>
                     )}
             </section>
 

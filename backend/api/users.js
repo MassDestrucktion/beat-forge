@@ -7,6 +7,7 @@ import {
   createUser,
   userLogin,
   getUser,
+  getFollowing,
 } from "../db/queries/users.js";
 
 import {
@@ -271,6 +272,29 @@ usersRouter.post(
         }
     }
 );
+
+// Get follow
+
+usersRouter.get("/:id/following", async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        
+        const following = await getFollowing(id);
+
+        if (!following) {
+            return res.status(404).json({
+                message: "Followers not found"
+            });
+        }
+        console.log(following)
+        res.json(following);
+
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+});
+
 
 
 export default usersRouter;

@@ -6,6 +6,10 @@ export default function LandingPage() {
   return (
     <>
       {/* ===== HERO ===== */}
+      <div className="searchBar">
+      <button className="searchButton" type="submit">Search</button>
+      <input type="search" placeholder="Find Creators"/>
+      </div>
       <section
         className="landing-hero"
         style={{

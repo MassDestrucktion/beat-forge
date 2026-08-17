@@ -349,6 +349,32 @@
   grid-row: 2 / 3;
 }
 
+.followingList {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  padding-bottom: 40px;
+  margin: 0;
+}
+.searchBar{
+  display: flex;
+    justify-content: flex-end;
+    margin-right: 75px;
+    height: 30px;
+    border: none;
+   
+}
+
+
+.searchButton{
+ background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #111827;
+  font-weight: 700;
+  border-radius: 999px;
+  border: none;
+
+}
+
 /*Landing Page*/
 
 .landing-hero {

@@ -1,9 +1,11 @@
+import glasses from "../media/glasses.jpg";
+
 export function FollowingItem({ following }) {
     return(
-        <li className="following-item">
-            <span className="following-username">{following.username}</span>
-            <h4>Test following item</h4>
-            {/* <img className="following-avatar" src={following.avatar_url} alt={`${following.username}'s avatar`} /> */}
-        </li>
+        <div className="following-item">
+            <h4 className="following-username">{following.username}</h4>
+            
+            <img className="following-avatar" src={glasses} alt={`${following.username}'s avatar`} height="200" width="200" /> 
+        </div>
     )
 }
