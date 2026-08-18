@@ -1,13 +1,12 @@
-
 import pg from "pg";
 
-const db = new pg.Client({
-  connectionString: process.env.DATABASE_CONNECTION,
-    ssl: {
-    rejectUnauthorized: false
-  }
-});
+const { Pool } = pg;
 
-await db.connect();
+const db = new Pool({
+  connectionString: process.env.DATABASE_CONNECTION,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
 
 export default db;
