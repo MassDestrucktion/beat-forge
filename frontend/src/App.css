@@ -358,21 +358,40 @@
 }
 .searchBar{
   display: flex;
+  flex-direction: row;
     justify-content: flex-end;
     margin-right: 75px;
     height: 30px;
     border: none;
-   
+    padding-top: 20px;
+    align-items: center;
+  justify-content: center;
 }
 
 
 .searchButton{
  background: linear-gradient(135deg, #f59e0b, #f97316);
   color: #111827;
+  font-size: 12pt;
   font-weight: 700;
   border-radius: 999px;
   border: none;
+  margin-right: 10px;
 
+}
+
+.follow{
+  font-size: 12pt;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #111827;
+  font-weight: 700;
+  border-radius: 999px;
+  border: none;
+  padding: 10px 20px;
+  line-height: 1.2;
+  margin-right: 500px;
+  
+ 
 }
 
 /*Landing Page*/

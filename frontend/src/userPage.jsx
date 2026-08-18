@@ -226,6 +226,14 @@ export default function userPage() {
     }
 
     return (
+            <div>
+                <div className="searchBar">
+                    <button className="follow">Follow Artist!</button>
+                
+            
+      <button className="searchButton" type="submit">Search</button>
+      <input type="search" placeholder="Find Creators"/>
+            </div>
         <main className="dashboard">
             <section className="welcomeCard">
                 <h1>
@@ -407,5 +415,6 @@ export default function userPage() {
                 )}
             </section>
         </main>
+        </div>
     );
 }
