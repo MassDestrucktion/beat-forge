@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router";
-import Navbar from "./components/Navbar";
+import Navbar from "./components/Navbar.jsx";
 
 import LandingPage from "./landingPage";
 import RegisterPage from "./register";
