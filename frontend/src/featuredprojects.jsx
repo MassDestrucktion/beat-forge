@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useEffect } from "react";
 import listItem from "./components/projectList";
-import djPic from './media/Dj-pic.jpg';
+import djPic from "./media/Dj-pic.jpg";
 
 export default function FeaturedProjects() {
     
