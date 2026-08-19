@@ -18,10 +18,10 @@ export default function LoginPage() {
       username: formData.get("username")?.toString().trim(),
       password: formData.get("password")?.toString(),
     });
-
+    console.log("LOGIN RESULT:", result);
     setMessage(result.message);
     if (result.status === "success") {
-      navigate("/userPage");
+      navigate(`/userPage/${result.user.id}`);
     }
     setPending(false);
   }

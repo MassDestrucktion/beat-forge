@@ -112,14 +112,88 @@ export async function getUser(id) {
 
 //Followers
 
-export async function getFollowing (id) {
+// Followers
+
+export async function getFollowing(id) {
     const SQL = `
         SELECT u.id, u.username
         FROM follows f
         JOIN users u ON u.id = f.followee_id
-        WHERE f.follower_id = $1 
+        WHERE f.follower_id = $1
     `;
-    const response = await db.query(SQL, [id])
 
-    return response.rows
-};
+    const response = await db.query(SQL, [id]);
+
+    return response.rows;
+}
+
+
+export async function followUser(followerId, followeeId) {
+    const SQL = `
+        INSERT INTO follows (follower_id, followee_id)
+        VALUES ($1, $2)
+        RETURNING *;
+    `;
+
+    const result = await db.query(SQL, [
+        followerId,
+        followeeId
+    ]);
+
+    return result.rows[0];
+}
+
+
+export async function unfollowUser(followerId, followeeId) {
+    const SQL = `
+        DELETE FROM follows
+        WHERE follower_id = $1
+          AND followee_id = $2
+        RETURNING *;
+    `;
+
+    const { rows } = await db.query(SQL, [
+        followerId,
+        followeeId
+    ]);
+
+    return rows[0];
+}
+
+
+export async function checkFollowing(
+    followerId,
+    followeeId
+) {
+    const SQL = `
+        SELECT 1
+        FROM follows
+        WHERE follower_id = $1
+          AND followee_id = $2
+    `;
+
+    const result = await db.query(SQL, [
+        followerId,
+        followeeId
+    ]);
+
+    return result.rows.length > 0;
+}
+
+
+export async function searchUsers(searchTerm) {
+    const SQL = `
+        SELECT id, username
+        FROM users
+        WHERE username ILIKE $1
+        LIMIT 20;
+    `;
+
+    const result = await db.query(SQL, [
+        `%${searchTerm}%`
+    ]);
+
+    console.log("SEARCH RESULTS:", result.rows);
+
+    return result.rows;
+}

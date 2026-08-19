@@ -8,6 +8,10 @@ import {
   userLogin,
   getUser,
   getFollowing,
+  unfollowUser,
+  followUser,
+  searchUsers,
+  checkFollowing
 } from "../db/queries/users.js";
 
 import {
@@ -17,8 +21,21 @@ import {
   update_project_by_id,
   delete_project,
 } from "../db/queries/projects.js";
+import { requireAuth } from "../middleware/auth.js";
 const usersRouter = Router();
 
+
+usersRouter.get("/search", async (req, res, next) => {
+  try {
+    const { q } = req.query;
+
+    const users = await searchUsers(q);
+
+    res.send(users);
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Get user by id
 usersRouter.get("/:id", async (req, res, next) => {
@@ -40,6 +57,8 @@ usersRouter.get("/:id", async (req, res, next) => {
         next(error);
     }
 });
+
+
 
 
 // Get user's projects
@@ -295,6 +314,85 @@ usersRouter.get("/:id/following", async (req, res, next) => {
     }
 });
 
+usersRouter.post("/:id/follow", requireAuth, async (req, res, next) => {
+    try {
+        const followerId = req.user.id;
+        const followeeId = req.params.id;
+
+        if (followerId === followeeId) {
+            return res.status(400).json({
+                message: "You cannot follow yourself",
+            });
+        }
+
+        const follow = await followUser(
+            followerId,
+            followeeId
+        );
+
+        res.status(201).json(follow);
+
+    } catch (error) {
+        console.error("FOLLOW ERROR:", error);
+        next(error);
+    }
+});
+
+usersRouter.delete("/:id/follow", requireAuth, async (req, res, next) => {
+  try {
+    const followerId = req.user.id;
+    const followeeId = req.params.id;
+
+    const result = await unfollowUser(followerId, followeeId);
+
+    res.send(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+usersRouter.get("/:id/follow-status", requireAuth, async (req, res, next) => {
+  try {
+    const followerId = req.user.id;
+    const followeeId = req.params.id;
+
+    const isFollowing = await checkFollowing(
+      followerId,
+      followeeId
+    );
+
+    res.json({ isFollowing });
+  } catch (error) {
+    console.error("FOLLOW STATUS ERROR:", error);
+    next(error);
+  }
+});
+
+usersRouter.get(
+    "/:id/follow-status",
+    requireAuth,
+    async (req, res, next) => {
+        try {
+            const followerId = req.user.id;
+            const followeeId = req.params.id;
+
+            const isFollowing = await checkFollowing(
+                followerId,
+                followeeId
+            );
+
+            res.json({ isFollowing });
+
+        } catch (error) {
+            console.error(
+                "FOLLOW STATUS ERROR:",
+                error
+            );
+
+            next(error);
+        }
+    }
+);
 
 
 export default usersRouter;

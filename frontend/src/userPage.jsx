@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
+import { useParams } from "react-router-dom";
 import { FollowingItem } from "./components/followingItem";
 import { useAuth } from "./AuthContext/AuthContext";
+import UserSearch from "./components/UserSearch";
 import "./styles/userPage.css";
 
 function timeAgo(dateStr) {
@@ -28,8 +30,15 @@ function timeAgo(dateStr) {
 }
 
 export default function userPage() {
-    const { user, isAuthenticated, token } = useAuth();
+const { id } = useParams();
+const { user, isAuthenticated, token } = useAuth();
     const navigate = useNavigate();
+  console.log("PROFILE USER ID:", id);
+
+  const loggedInUserId = user.id;
+  const profileUserId = id;
+
+
 
     const [userProjects, setUserProjects] = useState([]);
     const [following, setFollowing] = useState([]);
@@ -37,6 +46,8 @@ export default function userPage() {
     const [followingLoading, setFollowingLoading] = useState(true);
     const [error, setError] = useState("");
     const [followingError, setFollowingError] = useState("");
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [profileUser, setProfileUser] = useState(null);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -52,7 +63,7 @@ export default function userPage() {
                 setError("");
 
                 const response = await fetch(
-                    `/api/users/${user.id}/projects`,
+                    `/api/users/${profileUserId.id}/projects`,
                     {
                         headers: {
                             Authorization: token
@@ -89,10 +100,51 @@ export default function userPage() {
         fetchProjects();
     }, [
         isAuthenticated,
-        user?.id,
+        profileUserId,
         token,
         navigate,
     ]);
+
+    //show different page
+    useEffect(() => {
+    if (!profileUserId || !token) {
+        return;
+    }
+
+    async function fetchProfileUser() {
+        try {
+            const response = await fetch(
+                `/api/users/${profileUserId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    "Failed to fetch profile"
+                );
+            }
+
+            const data = await response.json();
+
+            console.log("PROFILE USER:", data);
+
+            setProfileUser(data);
+        } catch (error) {
+            console.error(
+                "PROFILE ERROR:",
+                error
+            );
+        }
+    }
+
+    fetchProfileUser();
+
+}, [profileUserId, token]);
+
 
     useEffect(() => {
         if (!isAuthenticated || !user?.id) {
@@ -153,6 +205,128 @@ export default function userPage() {
         user?.id,
         token,
     ]);
+
+useEffect(() => {
+    if (
+        !isAuthenticated ||
+        !user?.id ||
+        !profileUserId ||
+        !token
+    ) {
+        return;
+    }
+
+    async function fetchFollowStatus() {
+        try {
+            const response = await fetch(
+                `/api/users/${profileUserId}/follow-status`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                console.log(
+                    "FOLLOW STATUS:",
+                    response.status
+                );
+                return;
+            }
+
+            const data = await response.json();
+
+            setIsFollowing(data.isFollowing);
+
+        } catch (error) {
+            console.error(
+                "Failed to get follow status:",
+                error
+            );
+        }
+    }
+
+    fetchFollowStatus();
+
+}, [
+    isAuthenticated,
+    user?.id,
+    profileUserId,
+    token
+]);
+
+async function handleFollow() {
+  const method = isFollowing ? "DELETE" : "POST";
+
+  const response = await fetch(
+    `/api/users/${profileUserId}/follow`,
+    {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    console.log("FOLLOW STATUS:", response.status);
+    return;
+  }
+
+  setIsFollowing(!isFollowing);
+}
+
+useEffect(() => {
+  if (
+    !isAuthenticated ||
+    !user?.id ||
+    !profileUserId
+  ) {
+    return;
+  }
+
+  async function fetchFollowStatus() {
+    try {
+      const response = await fetch(
+        `/api/users/${profileUserId}/follow-status`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.log(
+          "FOLLOW STATUS:",
+          response.status,
+          text
+        );
+        return;
+      }
+
+      const data = await response.json();
+
+      setIsFollowing(data.isFollowing);
+    } catch (error) {
+      console.error(
+        "Failed to get follow status:",
+        error
+      );
+    }
+  }
+
+  fetchFollowStatus();
+}, [
+  isAuthenticated,
+  user?.id,
+  profileUserId,
+  token,
+]);
+
+//Projects
 
     const handleDelete = async (projectId) => {
         if (
@@ -227,18 +401,27 @@ export default function userPage() {
 
     return (
             <div>
-                <div className="searchBar">
-                    <button className="follow">Follow Artist!</button>
-                
-            
-      <button className="searchButton" type="submit">Search</button>
-      <input type="search" placeholder="Find Creators"/>
-            </div>
+               <div>
+  <div className="searchBar">
+    {loggedInUserId !== profileUserId && (
+  <button
+    className="follow"
+    onClick={handleFollow}
+  >
+    {isFollowing
+      ? "Unfollow Artist"
+      : "Follow Artist"}
+  </button>
+)}
+
+    <UserSearch />
+  </div>
+</div>
         <main className="dashboard">
             <section className="welcomeCard">
                 <h1>
                     Welcome,{" "}
-                    {user?.username || "User"}
+                    {profileUser?.username || "User"}
                 </h1>
 
                 <p>

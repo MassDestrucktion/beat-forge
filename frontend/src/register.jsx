@@ -21,7 +21,7 @@ export default function RegisterPage() {
 
     setMessage(result.message);
     if (result.status === "success") {
-      navigate("/userPage");
+      navigate(`/userPage/${result.user.id}`);
     }
     setPending(false);
   }

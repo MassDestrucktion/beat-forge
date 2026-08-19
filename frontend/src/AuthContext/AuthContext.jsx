@@ -71,6 +71,7 @@ export function AuthProvider({ children }) {
             return {
                 status: "success",
                 message: `Registered ${data.user.username}`,
+                user: data.user,
             };
 
 
@@ -142,9 +143,11 @@ export function AuthProvider({ children }) {
 
 
             return {
-                status: "success",
-                message: `Welcome, ${data.user.username}`,
-            };
+    status: "success",
+    message: `Welcome, ${data.user.username}`,
+    user: data.user,
+};
+
 
 
         } catch (error) {

@@ -22,7 +22,7 @@ export default function App() {
       return;
     }
 
-    
+
     socket.connect();
 
     socket.on("connect", () => {
@@ -54,7 +54,7 @@ export default function App() {
           <Route path="/FeaturedProjects" element={<FeaturedProjects />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/userPage" element={<UserPage />} />
+          <Route path="/userPage/:id" element={<UserPage />} />
           <Route path="*" element={<div>404 - Page Not Found</div>} />
         </Routes>
       </main>
