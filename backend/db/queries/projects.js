@@ -2,50 +2,49 @@ import db from "../client.js";
 
 // Create a project
 export async function createProject(
-    id,
-    user_id,
-    name,
-    tempo = 120,
-    grid,
-    track_settings
+  id,
+  user_id,
+  name,
+  tempo = 120,
+  grid,
+  track_settings,
+  arrangement,
+  track_order,
 ) {
-    console.log('Creating project with params:', { id, user_id, name, tempo, grid, track_settings });
-    const SQL = `
+  const SQL = `
         INSERT INTO  projects (
             id,
             user_id,
             name,
             tempo,
             grid,
-            track_settings
+            track_settings,
+            arrangement,
+            track_order
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
     `;
 
-    const {
-        rows: [project],
-    } = await db.query(SQL, [
-        id,
-        user_id,
-        name,
-        tempo,
-        JSON.stringify(grid),
-        JSON.stringify(track_settings),
-    ]);
+  const {
+    rows: [project],
+  } = await db.query(SQL, [
+    id,
+    user_id,
+    name,
+    tempo,
+    JSON.stringify(grid),
+    JSON.stringify(track_settings),
+    JSON.stringify(arrangement ?? []),
+    track_order ? JSON.stringify(track_order) : null,
+  ]);
 
-    return project;
+  return project;
 }
 
-
 // Update a project
-export async function updateProject(
-    projectId,
-    userId,
-    name,
-    tempo
-) {
-    const SQL = `
+export async function updateProject(projectId, userId, name, tempo) {
+  const SQL = `
         UPDATE projects
         SET
             name = $1,
@@ -56,51 +55,41 @@ export async function updateProject(
         RETURNING *
     `;
 
-    const {
-        rows: [project],
-    } = await db.query(SQL, [
-        name,
-        tempo,
-        projectId,
-        userId,
-    ]);
+  const {
+    rows: [project],
+  } = await db.query(SQL, [name, tempo, projectId, userId]);
 
-    return project;
+  return project;
 }
-
 
 // Get all projects belonging to a user
 export async function get_user_projects(user_id) {
-    const SQL = `
+  const SQL = `
         SELECT *
         FROM projects
         WHERE user_id = $1
         ORDER BY updated_at DESC
     `;
 
-    const { rows } = await db.query(SQL, [user_id]);
+  const { rows } = await db.query(SQL, [user_id]);
 
-    return rows;
+  return rows;
 }
-
 
 // Get a single project belonging to a user
 export async function get_project_by_id(projectId, userId) {
-    const SQL = `
+  const SQL = `
         SELECT *
         FROM projects
         WHERE id = $1
           AND user_id = $2
     `;
 
-    const {
-        rows: [project],
-    } = await db.query(SQL, [
-        projectId,
-        userId,
-    ]);
+  const {
+    rows: [project],
+  } = await db.query(SQL, [projectId, userId]);
 
-    return project;
+  return project;
 }
 
 export async function update_project_by_id(
@@ -109,7 +98,9 @@ export async function update_project_by_id(
   name,
   tempo,
   grid,
-  track_settings
+  track_settings,
+  arrangement,
+  track_order,
 ) {
   const SQL = `
     UPDATE projects
@@ -118,9 +109,11 @@ export async function update_project_by_id(
       tempo = $2,
       grid = $3,
       track_settings = $4,
+      arrangement = $5,
+      track_order = $6,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $5
-      AND user_id = $6
+    WHERE id = $7
+      AND user_id = $8
     RETURNING *
   `;
 
@@ -131,6 +124,8 @@ export async function update_project_by_id(
     tempo,
     JSON.stringify(grid),
     JSON.stringify(track_settings),
+    JSON.stringify(arrangement ?? []),
+    track_order ? JSON.stringify(track_order) : null,
     project_id,
     user_id,
   ]);
@@ -138,22 +133,18 @@ export async function update_project_by_id(
   return project;
 }
 
-
 // Delete a project belonging to a user
 export async function delete_project(projectId, userId) {
-    const SQL = `
+  const SQL = `
         DELETE FROM projects
         WHERE id = $1
           AND user_id = $2
         RETURNING *
     `;
 
-    const {
-        rows: [project],
-    } = await db.query(SQL, [
-        projectId,
-        userId,
-    ]);
+  const {
+    rows: [project],
+  } = await db.query(SQL, [projectId, userId]);
 
-    return project;
+  return project;
 }

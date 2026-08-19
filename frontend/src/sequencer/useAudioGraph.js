@@ -180,7 +180,7 @@ export function useAudioGraph({ numTracks, trackSettings }) {
         return;
       }
 
-      gain.gain.value = settings?.muted ? 0 : 1;
+      gain.gain.value = settings?.muted ? 0 : settings.volume;
 
       if (delay) {
         const delayEnabled = settings?.delay?.enabled ?? false;
@@ -254,8 +254,10 @@ export function useAudioGraph({ numTracks, trackSettings }) {
    * -------------------------------------------------------
    */
 
-  const playTrackSound = (trackIndex, time, overrides = {}) => {
-    const settings = settingsRef.current[trackIndex];
+  const playTrackSound = (trackIndex, time, settingsOverrides = {}) => {
+    const baseSettings = settingsRef.current[trackIndex];
+
+    const settings = { ...baseSettings, ...settingsOverrides };
 
     if (!settings) {
       return;
@@ -280,8 +282,8 @@ export function useAudioGraph({ numTracks, trackSettings }) {
     }
 
     const playOverrides = {
-      note: overrides.note ?? settings.note,
-      duration: overrides.duration ?? settings.duration,
+      note: settingsOverrides.note ?? settings.note,
+      duration: settingsOverrides.duration ?? settings.duration,
     };
 
     try {
@@ -291,5 +293,39 @@ export function useAudioGraph({ numTracks, trackSettings }) {
     }
   };
 
-  return { playTrackSound };
+  const previewEngineRef = useRef(null);
+
+  const previewSound = async (soundId) => {
+    if (previewEngineRef.current) {
+      previewEngineRef.current.dispose();
+      previewEngineRef.current = null;
+    }
+
+    const sound = getSoundById(soundId);
+    if (!sound) {
+      console.warn(`Sound not found for preview: ${soundId}`);
+      return;
+    }
+
+    await Tone.start();
+    if (Tone.getContext().state !== "running") {
+      await Tone.getContext().resume();
+    }
+
+    const engine = createSoundEngine(sound);
+    // createSoundEngine already connects to destination via resolveDestination
+    previewEngineRef.current = engine;
+
+    engine.play(Tone.now());
+
+    // Dispose after a short time
+    setTimeout(() => {
+      if (previewEngineRef.current === engine) {
+        engine.dispose();
+        previewEngineRef.current = null;
+      }
+    }, 2000); // 2 seconds
+  };
+
+  return { playTrackSound, previewSound };
 }

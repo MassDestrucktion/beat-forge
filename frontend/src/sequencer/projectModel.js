@@ -24,14 +24,14 @@ export const TRACK_LABELS = [
 ];
 
 export const DEFAULT_TRACK_SOUNDS = [
-  "drums.kicks.cr78",
-  "drums.snares.cr78",
-  "drums.hihats.cr78",
-  "synths.stabs.classic",
-  "drums.claps.synth",
-  "bass.sub.sine",
-  "synths.leads.basic",
-  "synths.bells.digital",
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
 ];
 
 export const NOTE_OPTIONS = [
@@ -97,8 +97,6 @@ export function createEmptyGrid(numTracks = MIN_TRACKS) {
   return Array.from({ length: numTracks }, () => Array(NUM_STEPS).fill(false));
 }
 
-
-
 export function createDefaultTrackSettings(numTracks = MIN_TRACKS) {
   return Array.from({ length: numTracks }, (_, i) =>
     createDefaultTrack(DEFAULT_TRACK_SOUNDS[i] || DEFAULT_TRACK_SOUNDS[0]),
@@ -106,12 +104,13 @@ export function createDefaultTrackSettings(numTracks = MIN_TRACKS) {
 }
 
 export function createDefaultTrack(soundId) {
-  const sound = getSoundById(soundId);
+  const sound = soundId ? getSoundById(soundId) : null;
 
   const track = {
-    sound: sound ? sound.id : soundId,
+    sound: sound ? sound.id : null,
     muted: false,
     soloed: false,
+    volume: 1,
 
     reverb: {
       enabled: false,
@@ -143,6 +142,108 @@ export function createDefaultTrack(soundId) {
 
 export function getAvailableSounds() {
   return SOUND_LIBRARY;
+}
+
+/**
+ * ---------------------------------------------------------
+ * SMART RANDOM PATTERN GENERATOR
+ * ---------------------------------------------------------
+ */
+
+/**
+ * Euclidean rhythm: distributes `pulses` evenly across `steps`.
+ * Returns an array of booleans.
+ *
+ * Example: euclidean(5, 16) → classic "money beat" pattern
+ */
+function euclidean(pulses, steps) {
+  if (pulses <= 0) return Array(steps).fill(false);
+  if (pulses >= steps) return Array(steps).fill(true);
+
+  // Build the Euclidean pattern using Bjorklund's algorithm
+  const pattern = [];
+  const divisor = steps - pulses;
+  let remainder = pulses;
+
+  for (let i = 0; i < steps; i++) {
+    pattern.push(false);
+  }
+
+  let index = 0;
+  for (let i = 0; i < steps; i++) {
+    remainder += pulses;
+    if (remainder >= steps) {
+      remainder -= steps;
+      pattern[i] = true;
+    }
+  }
+
+  return pattern;
+}
+
+/**
+ * Rotate an array by `offset` positions (wrapping).
+ */
+function rotate(arr, offset) {
+  const n = arr.length;
+  const shift = ((offset % n) + n) % n;
+  return [...arr.slice(shift), ...arr.slice(0, shift)];
+}
+
+/**
+ * Generate a smart random pattern for 16 steps.
+ *
+ * Randomly picks one of these strategies:
+ *   - Euclidean: 2-13 pulses, randomly rotated
+ *   - Sparse random: 2-5 random steps
+ *   - Medium random: 6-10 random steps
+ *   - Dense random: 11-14 random steps
+ *
+ * Every call produces a different pattern.
+ */
+export function generateSmartPattern() {
+  const STEPS = 16;
+  const strategy = Math.random();
+
+  if (strategy < 0.5) {
+    // Euclidean (50% chance) — most musical
+    const pulses = 2 + Math.floor(Math.random() * 12); // 2-13
+    const pattern = euclidean(pulses, STEPS);
+    const rotation = Math.floor(Math.random() * STEPS);
+    return rotate(pattern, rotation);
+  } else if (strategy < 0.7) {
+    // Sparse random (20% chance) — 2-5 hits
+    const count = 2 + Math.floor(Math.random() * 4);
+    return randomDensity(count, STEPS);
+  } else if (strategy < 0.9) {
+    // Medium random (20% chance) — 6-10 hits
+    const count = 6 + Math.floor(Math.random() * 5);
+    return randomDensity(count, STEPS);
+  } else {
+    // Dense random (10% chance) — 11-14 hits
+    const count = 11 + Math.floor(Math.random() * 4);
+    return randomDensity(count, STEPS);
+  }
+}
+
+/**
+ * Place exactly `count` random true values in an array of `steps` falses.
+ */
+function randomDensity(count, steps) {
+  const pattern = Array(steps).fill(false);
+  const indices = Array.from({ length: steps }, (_, i) => i);
+
+  // Fisher-Yates shuffle, take first `count`
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+
+  for (let i = 0; i < Math.min(count, steps); i++) {
+    pattern[indices[i]] = true;
+  }
+
+  return pattern;
 }
 
 /**
@@ -213,6 +314,23 @@ export function normalizeProject(project) {
     };
   });
 
+  /**
+   * track_order is the display order of arrangement lanes. It must be a
+   * permutation of [0..trackCount-1]; anything else falls back to the
+   * default order.
+   */
+  const defaultOrder = Array.from({ length: trackCount }, (_, i) => i);
+
+  const rawOrder = project?.track_order;
+
+  const track_order =
+    Array.isArray(rawOrder) &&
+    rawOrder.length === trackCount &&
+    new Set(rawOrder).size === trackCount &&
+    rawOrder.every((i) => Number.isInteger(i) && i >= 0 && i < trackCount)
+      ? rawOrder
+      : defaultOrder;
+
   return {
     ...project,
     name: project?.name || "",
@@ -221,6 +339,7 @@ export function normalizeProject(project) {
     grid,
     track_settings: trackSettings,
     arrangement: Array.isArray(project?.arrangement) ? project.arrangement : [],
+    track_order,
     shared_id: project?.shared_id || null,
   };
 }

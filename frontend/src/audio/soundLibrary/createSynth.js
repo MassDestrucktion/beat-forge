@@ -134,6 +134,62 @@ export function createSynthForSound(sound, destination) {
         release: 0.1,
       },
     });
+  } else if (config.engine === "metal") {
+    /**
+     * -------------------------------------------------------
+     * METAL
+     * -------------------------------------------------------
+     */
+    const metalSynth = new Tone.MetalSynth({
+      harmonicity: config.harmonicity ?? 5.1,
+      modulationIndex: config.modulationIndex ?? 32,
+      resonance: config.resonance ?? 4000,
+      envelope: config.envelope || {
+        attack: 0.001,
+        decay: 1.4,
+        sustain: 0,
+        release: 0.4,
+      },
+    });
+
+    metalSynth.connect(output);
+
+    return {
+      connect() {},
+      triggerAttackRelease(note, duration, time) {
+        metalSynth.triggerAttackRelease(duration, time);
+      },
+      dispose() {
+        metalSynth.dispose();
+      },
+    };
+  } else if (config.engine === "am") {
+    /**
+     * -------------------------------------------------------
+     * AM
+     * -------------------------------------------------------
+     */
+    synth = new Tone.AMSynth({
+      harmonicity: config.harmonicity ?? 3,
+      oscillator: config.oscillator || {
+        type: "sine",
+      },
+      modulation: config.modulation || {
+        type: "square",
+      },
+      envelope: config.envelope || {
+        attack: 0.01,
+        decay: 0.1,
+        sustain: 0.5,
+        release: 0.2,
+      },
+      modulationEnvelope: config.modulationEnvelope || {
+        attack: 0.5,
+        decay: 0.2,
+        sustain: 0.2,
+        release: 0.1,
+      },
+    });
   } else if (config.engine === "noise") {
     /**
      * -------------------------------------------------------

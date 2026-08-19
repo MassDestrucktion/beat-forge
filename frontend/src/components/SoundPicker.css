@@ -1,0 +1,154 @@
+/* src/components/SoundPicker.css */
+.sound-picker {
+  position: relative;
+  display: inline-block;
+}
+
+.sound-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 8px;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #f9fafb;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  min-width: 170px;
+}
+
+.sound-picker-trigger:hover,
+.sound-picker-trigger.open {
+  border-color: #8b5cf6;
+}
+
+.sound-picker-value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sound-picker-caret {
+  margin-left: 8px;
+  font-size: 0.7em;
+  transition: transform 0.2s ease;
+}
+
+.sound-picker-trigger.open .sound-picker-caret {
+  transform: rotate(180deg);
+}
+
+.sound-picker-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 260px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: #1f2937;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  margin-top: 4px;
+  z-index: 100;
+  padding: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.sound-picker-group {
+  margin-bottom: 2px;
+}
+
+.sound-picker-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  color: #d1d5db;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  transition: background 0.15s ease;
+}
+
+.sound-picker-item:hover {
+  background: #374151;
+  color: #fff;
+}
+
+.sound-picker-item.selected-sound {
+  background: #4f46e5;
+  color: #fff;
+}
+
+.sound-picker-item-icon {
+  margin-right: 8px;
+  font-size: 1rem;
+}
+
+.sound-picker-item-label {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sound-picker-count {
+  margin-left: 8px;
+  font-size: 0.8em;
+  color: #9ca3af;
+}
+
+.sound-picker-item-caret {
+  margin-left: auto;
+  font-size: 0.7em;
+  transition: transform 0.2s ease;
+}
+
+.sound-picker-item.expanded .sound-picker-item-caret {
+  transform: rotate(90deg);
+}
+
+.sound-picker-children {
+  padding-left: 12px;
+}
+
+.sound-picker-subcategory {
+  padding-left: 20px;
+}
+
+.sound-picker-sound {
+  padding-left: 32px;
+}
+
+.sound-picker-sound-type {
+  width: 1em;
+  margin-right: 8px;
+  font-family: monospace;
+}
+
+.sound-picker-check {
+  margin-left: auto;
+  color: #a7f3d0;
+}
+
+.sound-picker-preview-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.sound-picker-preview-btn:hover {
+  background-color: #4b5563;
+  color: white;
+}

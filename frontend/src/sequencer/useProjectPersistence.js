@@ -29,12 +29,14 @@ export function useProjectPersistence({
   grid,
   trackSettings,
   arrangement,
+  trackOrder,
 
   setBpm,
   setGrid,
   setTrackSettings,
   setNumTracks,
   setArrangement,
+  setTrackOrder,
 }) {
   const { isAuthenticated, token, user } = useAuth();
 
@@ -107,6 +109,8 @@ export function useProjectPersistence({
     setNumTracks(project.grid.length);
 
     setArrangement(project.arrangement);
+
+    setTrackOrder(project.track_order);
 
     setSharedId(project.shared_id || null);
   };
@@ -271,6 +275,8 @@ export function useProjectPersistence({
       track_settings: trackSettings,
 
       arrangement,
+
+      track_order: trackOrder,
     };
 
     const isUpdate = Boolean(projectId);
