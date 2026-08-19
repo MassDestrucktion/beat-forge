@@ -35,6 +35,7 @@ export function useProjectPersistence({
   setTrackSettings,
   setNumTracks,
   setArrangement,
+  projectUserId,
 }) {
   const { isAuthenticated, token, user } = useAuth();
 
@@ -185,7 +186,7 @@ export function useProjectPersistence({
 
       try {
         const response = await fetch(
-          `/api/users/${user.id}/projects/${projectIdFromUrl}`,
+          `/api/users/${projectUserId}/projects/${projectIdFromUrl}`,
           {
             headers: {
               Authorization: token ? `Bearer ${token}` : "",
@@ -215,7 +216,7 @@ export function useProjectPersistence({
 
     loadProjectFromUrl();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, token, initialLoadDone, location.state]);
+  }, [searchParams, token, initialLoadDone, location.state, projectUserId]);
 
   /**
    * -------------------------------------------------------

@@ -376,7 +376,7 @@ useEffect(() => {
 
     const handleOpen = (projectId) => {
         navigate(
-            `/sequencer?projectId=${projectId}`
+            `/sequencer?projectId=${projectId}&userID=${profileUserId}`
         );
     };
 

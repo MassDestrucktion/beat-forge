@@ -11,6 +11,8 @@ import TrackRow from "./components/TrackRow.jsx";
 import SequencerToolbar from "./components/SequencerToolbar.jsx";
 import SaveLoadPanel from "./components/SaveLoadPanel.jsx";
 
+import { useSearchParams } from "react-router-dom";
+
 import {
   MIN_TRACKS,
   MAX_TRACKS,
@@ -35,6 +37,12 @@ export default function SequencerPage() {
   const navigate = useNavigate();
 
   const location = useLocation();
+
+  //for followers to see you project
+  const [searchParams] = useSearchParams();
+
+  
+  const projectUserId = searchParams.get("userID");
 
   /* MUSICAL STATE */
 
@@ -128,6 +136,8 @@ export default function SequencerPage() {
     setNumTracks,
 
     setArrangement,
+
+    projectUserId,
   });
 
   /* RETURN FROM CUSTOMIZE TRACK */
