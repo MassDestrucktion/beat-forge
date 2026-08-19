@@ -368,31 +368,6 @@ usersRouter.get("/:id/follow-status", requireAuth, async (req, res, next) => {
   }
 });
 
-usersRouter.get(
-    "/:id/follow-status",
-    requireAuth,
-    async (req, res, next) => {
-        try {
-            const followerId = req.user.id;
-            const followeeId = req.params.id;
-
-            const isFollowing = await checkFollowing(
-                followerId,
-                followeeId
-            );
-
-            res.json({ isFollowing });
-
-        } catch (error) {
-            console.error(
-                "FOLLOW STATUS ERROR:",
-                error
-            );
-
-            next(error);
-        }
-    }
-);
 
 
 export default usersRouter;

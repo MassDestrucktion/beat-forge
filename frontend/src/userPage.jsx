@@ -48,6 +48,7 @@ const { user, isAuthenticated, token } = useAuth();
     const [followingError, setFollowingError] = useState("");
     const [isFollowing, setIsFollowing] = useState(false);
     const [profileUser, setProfileUser] = useState(null);
+    const [selectedUserProjects, setSelectedUserProjects] = useState([])
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -55,7 +56,7 @@ const { user, isAuthenticated, token } = useAuth();
             return;
         }
 
-        if (!user?.id) return;
+        if (!profileUserId) return;
 
         async function fetchProjects() {
             try {
@@ -63,7 +64,7 @@ const { user, isAuthenticated, token } = useAuth();
                 setError("");
 
                 const response = await fetch(
-                    `/api/users/${profileUserId.id}/projects`,
+                    `/api/users/${profileUserId}/projects`,
                     {
                         headers: {
                             Authorization: token
@@ -479,13 +480,14 @@ useEffect(() => {
             <section className="projectsSection">
                 <div className="projectsHeader">
                     <div>
-                        <h2>Your Projects</h2>
+                        <h2>
+                            {profileUser?.username || "User"}'s Projects
+                        </h2>
 
                         <p className="user-name">
                             👤{" "}
-                            {user?.username ||
-                                "User"}
-                        </p>
+                                 {profileUser?.username || "User"}
+                            </p>
                     </div>
 
                     <button
