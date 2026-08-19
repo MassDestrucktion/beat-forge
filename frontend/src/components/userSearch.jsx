@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function UserSearch() {
   const [formData, setFormData] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+    const navigate = useNavigate();
 
   useEffect(() => {
     if (!formData.trim()) {
@@ -11,6 +13,7 @@ export default function UserSearch() {
     }
 
     async function searchUsers() {
+      
       try {
         const response = await fetch(
           `/api/users/search?q=${encodeURIComponent(formData)}`
@@ -44,7 +47,9 @@ export default function UserSearch() {
       {searchResults.length > 0 && (
   <div className="searchResults">
     {searchResults.map((user) => (
-      <div key={user.id} className="searchResult">
+      <div key={user.id}
+      onClick={() => navigate(`/userPage/${user.id}` )}
+      className="searchResult">
         {user.username}
       </div>
     ))}

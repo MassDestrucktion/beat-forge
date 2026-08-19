@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { useParams } from "react-router-dom";
 import { FollowingItem } from "./components/followingItem";
 import { useAuth } from "./AuthContext/AuthContext";
-import UserSearch from "./components/UserSearch";
+import UserSearch from "./components/userSearch";
 import "./styles/userPage.css";
 
 function timeAgo(dateStr) {
