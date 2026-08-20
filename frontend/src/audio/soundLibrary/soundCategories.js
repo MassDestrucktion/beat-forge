@@ -36,6 +36,10 @@ export const SOUND_CATEGORIES = [
         name: "Cymbals",
       },
       {
+        id: "openhats",
+        name: "Open Hats",
+      },
+      {
         id: "percussion",
         name: "Percussion",
       },
@@ -178,6 +182,14 @@ export const SOUND_CATEGORIES = [
       {
         id: "transitions",
         name: "Transitions",
+      },
+      {
+        id: "zaps",
+        name: "Zaps",
+      },
+      {
+        id: "fallers",
+        name: "Fallers",
       },
     ],
   },

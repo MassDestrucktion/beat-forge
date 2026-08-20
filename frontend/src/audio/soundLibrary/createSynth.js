@@ -30,7 +30,49 @@ export function createSynthForSound(sound, destination) {
    * -------------------------------------------------------
    */
 
-  if (config.engine === "membrane") {
+  if (config.engine === "synth") {
+    /**
+     * -------------------------------------------------------
+     * PLAIN SYNTH (monophonic oscillator)
+     * -------------------------------------------------------
+     */
+    synth = new Tone.Synth({
+      oscillator: config.oscillator || {
+        type: "triangle",
+      },
+
+      envelope: config.envelope || {
+        attack: 0.01,
+        decay: 0.1,
+        sustain: 0.7,
+        release: 0.2,
+      },
+    });
+  } else if (config.engine === "duosynth") {
+    /**
+     * -------------------------------------------------------
+     * DUOSYNTH (dual-oscillator lead)
+     * -------------------------------------------------------
+     */
+    synth = new Tone.DuoSynth({
+      harmonicity: config.harmonicity ?? 1.5,
+
+      vibratoAmount: config.vibratoAmount ?? 0.5,
+
+      vibratoRate: config.vibratoRate ?? 5,
+
+      oscillator: config.oscillator || {
+        type: "sawtooth",
+      },
+
+      envelope: config.envelope || {
+        attack: 0.01,
+        decay: 0.1,
+        sustain: 0.7,
+        release: 0.3,
+      },
+    });
+  } else if (config.engine === "membrane") {
     synth = new Tone.MembraneSynth({
       pitchDecay: config.pitchDecay ?? 0.05,
 
@@ -127,6 +169,62 @@ export function createSynthForSound(sound, destination) {
         type: "square",
       },
 
+      modulationEnvelope: config.modulationEnvelope || {
+        attack: 0.5,
+        decay: 0.2,
+        sustain: 0.2,
+        release: 0.1,
+      },
+    });
+  } else if (config.engine === "metal") {
+    /**
+     * -------------------------------------------------------
+     * METAL
+     * -------------------------------------------------------
+     */
+    const metalSynth = new Tone.MetalSynth({
+      harmonicity: config.harmonicity ?? 5.1,
+      modulationIndex: config.modulationIndex ?? 32,
+      resonance: config.resonance ?? 4000,
+      envelope: config.envelope || {
+        attack: 0.001,
+        decay: 1.4,
+        sustain: 0,
+        release: 0.4,
+      },
+    });
+
+    metalSynth.connect(output);
+
+    return {
+      connect() {},
+      triggerAttackRelease(note, duration, time) {
+        metalSynth.triggerAttackRelease(duration, time);
+      },
+      dispose() {
+        metalSynth.dispose();
+      },
+    };
+  } else if (config.engine === "am") {
+    /**
+     * -------------------------------------------------------
+     * AM
+     * -------------------------------------------------------
+     */
+    synth = new Tone.AMSynth({
+      harmonicity: config.harmonicity ?? 3,
+      oscillator: config.oscillator || {
+        type: "sine",
+      },
+      modulation: config.modulation || {
+        type: "square",
+      },
+      envelope: config.envelope || {
+        attack: 0.01,
+        decay: 0.1,
+        sustain: 0.5,
+        release: 0.2,
+      },
       modulationEnvelope: config.modulationEnvelope || {
         attack: 0.5,
         decay: 0.2,
