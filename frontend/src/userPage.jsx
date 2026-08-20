@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+
 import { FollowingItem } from "./components/followingItem";
 import { useAuth } from "./AuthContext/AuthContext";
 import UserSearch from "./components/userSearch";
+
 import "./styles/userPage.css";
 
 import cool from "./media/cool.jpg";
@@ -12,15 +14,32 @@ import gorilla from "./media/Gorilla.jpg";
 import AVDreds from "./media/AVDreds.png";
 
 const profilePictures = [
-  { id: "cool", src: cool },
-  { id: "glasses", src: glasses },
-  { id: "headphones", src: headphones },
-  { id: "gorilla", src: gorilla },
-  { id: "AVDreds", src: AVDreds },
+  {
+    id: "cool",
+    src: cool,
+  },
+  {
+    id: "glasses",
+    src: glasses,
+  },
+  {
+    id: "headphones",
+    src: headphones,
+  },
+  {
+    id: "gorilla",
+    src: gorilla,
+  },
+  {
+    id: "AVDreds",
+    src: AVDreds,
+  },
 ];
 
 function timeAgo(dateStr) {
-  if (!dateStr) return "";
+  if (!dateStr) {
+    return "";
+  }
 
   const now = Date.now();
   const then = new Date(dateStr).getTime();
@@ -28,16 +47,25 @@ function timeAgo(dateStr) {
 
   const diffMin = Math.floor(diffMs / 60000);
 
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 1) {
+    return "just now";
+  }
+
+  if (diffMin < 60) {
+    return `${diffMin}m ago`;
+  }
 
   const diffHr = Math.floor(diffMin / 60);
 
-  if (diffHr < 24) return `${diffHr}h ago`;
+  if (diffHr < 24) {
+    return `${diffHr}h ago`;
+  }
 
   const diffDay = Math.floor(diffHr / 24);
 
-  if (diffDay < 30) return `${diffDay}d ago`;
+  if (diffDay < 30) {
+    return `${diffDay}d ago`;
+  }
 
   return new Date(dateStr).toLocaleDateString();
 }
@@ -51,27 +79,46 @@ export default function UserPage() {
   const profileUserId = id || loggedInUserId;
   const isOwnProfile = loggedInUserId === profileUserId;
 
+  // Profile / project state
   const [profileUser, setProfileUser] = useState(null);
   const [userProjects, setUserProjects] = useState([]);
+
+  // Following state
   const [following, setFollowing] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [followingLoading, setFollowingLoading] = useState(true);
-  const [error, setError] = useState("");
   const [followingError, setFollowingError] = useState("");
   const [isFollowing, setIsFollowing] = useState(false);
+
+  // General loading/error state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Profile picture state
   const [myPicUrl, setMyPicUrl] = useState(null);
   const [selectedPicture, setSelectedPicture] = useState(null);
-    const [showPictureChooser, setShowPictureChooser] = useState(false);
+  const [showPictureChooser, setShowPictureChooser] = useState(false);
 
   const myProfilePicture = profilePictures.find(
-    (picture) => picture.id === myPicUrl
+    (picture) => picture.id === myPicUrl,
   );
+
+  /*
+   * ---------------------------------------------------------
+   * AUTH
+   * ---------------------------------------------------------
+   */
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/login");
     }
   }, [isAuthenticated, navigate]);
+
+  /*
+   * ---------------------------------------------------------
+   * FETCH PROFILE USER
+   * ---------------------------------------------------------
+   */
 
   useEffect(() => {
     if (!isAuthenticated || !profileUserId || !token) {
@@ -91,6 +138,7 @@ export default function UserPage() {
         }
 
         const data = await response.json();
+
         setProfileUser(data);
       } catch (err) {
         console.error("PROFILE ERROR:", err);
@@ -99,6 +147,12 @@ export default function UserPage() {
 
     fetchProfileUser();
   }, [isAuthenticated, profileUserId, token]);
+
+  /*
+   * ---------------------------------------------------------
+   * FETCH PROJECTS
+   * ---------------------------------------------------------
+   */
 
   useEffect(() => {
     if (!isAuthenticated || !profileUserId) {
@@ -116,11 +170,12 @@ export default function UserPage() {
             headers: {
               Authorization: token ? `Bearer ${token}` : "",
             },
-          }
+          },
         );
 
         if (!response.ok) {
           const text = await response.text();
+
           throw new Error(text || "Failed to fetch projects");
         }
 
@@ -129,6 +184,7 @@ export default function UserPage() {
         setUserProjects(Array.isArray(projects) ? projects : []);
       } catch (err) {
         console.error("PROJECT ERROR:", err);
+
         setError(err.message || "Failed to load projects");
         setUserProjects([]);
       } finally {
@@ -138,6 +194,12 @@ export default function UserPage() {
 
     fetchProjects();
   }, [isAuthenticated, profileUserId, token]);
+
+  /*
+   * ---------------------------------------------------------
+   * FETCH FOLLOWING
+   * ---------------------------------------------------------
+   */
 
   useEffect(() => {
     if (!isAuthenticated || !loggedInUserId) {
@@ -155,24 +217,25 @@ export default function UserPage() {
             headers: {
               Authorization: token ? `Bearer ${token}` : "",
             },
-          }
+          },
         );
 
         if (!response.ok) {
           const text = await response.text();
+
           throw new Error(text || "Failed to fetch following");
         }
 
         const followingUsers = await response.json();
 
         setFollowing(
-          Array.isArray(followingUsers) ? followingUsers : []
+          Array.isArray(followingUsers) ? followingUsers : [],
         );
       } catch (err) {
         console.error("FOLLOWING ERROR:", err);
 
         setFollowingError(
-          err.message || "Failed to load following"
+          err.message || "Failed to load following",
         );
 
         setFollowing([]);
@@ -183,6 +246,12 @@ export default function UserPage() {
 
     fetchFollowing();
   }, [isAuthenticated, loggedInUserId, token]);
+
+  /*
+   * ---------------------------------------------------------
+   * FETCH FOLLOW STATUS
+   * ---------------------------------------------------------
+   */
 
   useEffect(() => {
     if (
@@ -203,7 +272,7 @@ export default function UserPage() {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
 
         if (!response.ok) {
@@ -212,7 +281,7 @@ export default function UserPage() {
           console.error(
             "FOLLOW STATUS ERROR:",
             response.status,
-            text
+            text,
           );
 
           return;
@@ -235,6 +304,12 @@ export default function UserPage() {
     isOwnProfile,
   ]);
 
+  /*
+   * ---------------------------------------------------------
+   * FOLLOW / UNFOLLOW
+   * ---------------------------------------------------------
+   */
+
   async function handleFollow() {
     if (!profileUserId || !token || isOwnProfile) {
       return;
@@ -250,22 +325,32 @@ export default function UserPage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
         const text = await response.text();
+
         throw new Error(
-          text || "Failed to update follow status"
+          text || "Failed to update follow status",
         );
       }
 
       setIsFollowing((prev) => !prev);
     } catch (err) {
       console.error("FOLLOW ERROR:", err);
-      alert(err.message || "Failed to update follow status");
+
+      alert(
+        err.message || "Failed to update follow status",
+      );
     }
   }
+
+  /*
+   * ---------------------------------------------------------
+   * FETCH MY PROFILE PICTURE
+   * ---------------------------------------------------------
+   */
 
   useEffect(() => {
     if (!loggedInUserId || !token) {
@@ -280,7 +365,7 @@ export default function UserPage() {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
 
         if (!response.ok) {
@@ -299,34 +384,69 @@ export default function UserPage() {
     fetchMyPic();
   }, [loggedInUserId, token]);
 
-// ProfilePic
-async function saveProfilePicture() {
-  const response = await fetch(`/api/users/${user.id}/profile-picture`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      picurl: selectedPicture,
-    }),
-  });
+  /*
+   * ---------------------------------------------------------
+   * PROFILE PICTURE
+   * ---------------------------------------------------------
+   */
 
-  const data = await response.json();
+  async function saveProfilePicture() {
+    if (!user?.id || !token || !selectedPicture) {
+      return;
+    }
 
-  console.log("UPDATED USER:", data);
-}
+    try {
+      const response = await fetch(
+        `/api/users/${user.id}/profile-picture`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            picurl: selectedPicture,
+          }),
+        },
+      );
 
-//Projects
+      if (!response.ok) {
+        const text = await response.text();
 
-    const handleDelete = async (projectId) => {
-        if (
-            !window.confirm(
-                "Delete this project? This cannot be undone."
-            )
-        ) {
-            return;
-        }
+        throw new Error(
+          text || "Failed to save profile picture",
+        );
+      }
+
+      const data = await response.json();
+
+      console.log("UPDATED USER:", data);
+
+      setMyPicUrl(selectedPicture);
+      setShowPictureChooser(false);
+    } catch (err) {
+      console.error("PROFILE PICTURE ERROR:", err);
+
+      alert(
+        err.message || "Failed to save profile picture",
+      );
+    }
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * PROJECT HANDLERS
+   * ---------------------------------------------------------
+   */
+
+  async function handleDelete(projectId) {
+    if (
+      !window.confirm(
+        "Delete this project? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
 
     try {
       const response = await fetch(
@@ -336,35 +456,42 @@ async function saveProfilePicture() {
           headers: {
             Authorization: token ? `Bearer ${token}` : "",
           },
-        }
+        },
       );
 
       if (!response.ok) {
         const text = await response.text();
 
         throw new Error(
-          text || "Failed to delete project"
+          text || "Failed to delete project",
         );
       }
 
       setUserProjects((prev) =>
-        prev.filter((project) => project.id !== projectId)
+        prev.filter((project) => project.id !== projectId),
       );
     } catch (err) {
       console.error("DELETE PROJECT ERROR:", err);
+
       alert(`Delete failed: ${err.message}`);
     }
   }
 
   function handleOpen(projectId) {
     navigate(
-      `/sequencer?projectId=${projectId}&userID=${profileUserId}`
+      `/sequencer?projectId=${projectId}&userID=${profileUserId}`,
     );
   }
 
   function handleNewProject() {
     navigate("/sequencer");
   }
+
+  /*
+   * ---------------------------------------------------------
+   * LOADING / AUTH GUARDS
+   * ---------------------------------------------------------
+   */
 
   if (!isAuthenticated) {
     return null;
@@ -380,10 +507,22 @@ async function saveProfilePicture() {
     );
   }
 
+  /*
+   * ---------------------------------------------------------
+   * DISPLAY DATA
+   * ---------------------------------------------------------
+   */
+
   const displayName =
     profileUser?.username ||
     (isOwnProfile ? user?.username : "User") ||
     "User";
+
+  /*
+   * ---------------------------------------------------------
+   * RENDER
+   * ---------------------------------------------------------
+   */
 
   return (
     <div>
@@ -399,48 +538,74 @@ async function saveProfilePicture() {
           </button>
         )}
 
-    <UserSearch />
-  </div>
-</div>
-        <main className="dashboard">
-            <section className="welcomeCard">
-                <h1>
-                    Welcome,{" "}
-                    {profileUser?.username || "User"}
-                </h1>
-                <div className="my-profile">
-  <img
-    className="my-profile-avatar"
-    src={myProfilePicture?.src}
-    alt={`${user?.username}'s avatar`}
-  />
+        <UserSearch />
+      </div>
 
-  <h2>{user?.username}</h2>
-</div>
+      <main className="dashboard">
+        <section className="welcomeCard">
+          <h1>
+            Welcome, {profileUser?.username || "User"}
+          </h1>
+
+          {isOwnProfile && (
+            <div className="my-profile">
+              <img
+                className="my-profile-avatar"
+                src={myProfilePicture?.src}
+                alt={`${user?.username || "User"}'s avatar`}
+              />
+
+              <h2>{user?.username}</h2>
+            </div>
+          )}
+
+          {isOwnProfile && (
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  setShowPictureChooser(
+                    (previous) => !previous,
+                  )
+                }
+              >
+                {showPictureChooser
+                  ? "Cancel"
+                  : "Change Profile Picture"}
+              </button>
+
+              {showPictureChooser && (
                 <div className="profile-picture-selection">
-  {profilePictures.map((picture) => (
-    <img
-      key={picture.id}
-      src={picture.src}
-      alt={picture.id}
-      onClick={() => setSelectedPicture(picture.id)}
-      className={
-        selectedPicture === picture.id
-          ? "profile-picture selected"
-          : "profile-picture"
-      }
-    />
-  ))}
-</div>
-    <button onClick={saveProfilePicture}>
-  Save Profile Picture
-</button>
+                  {profilePictures.map((picture) => (
+                    <img
+                      key={picture.id}
+                      src={picture.src}
+                      alt={picture.id}
+                      onClick={() =>
+                        setSelectedPicture(picture.id)
+                      }
+                      className={
+                        selectedPicture === picture.id
+                          ? "profile-picture selected"
+                          : "profile-picture"
+                      }
+                    />
+                  ))}
 
-                <p>
-                    Manage your music projects
-                    below.
-                </p>
-            </section>
+                  <button
+                    type="button"
+                    onClick={saveProfilePicture}
+                    disabled={!selectedPicture}
+                  >
+                    Save Profile Picture
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          <p>Manage your music projects below.</p>
+        </section>
 
         {isOwnProfile && (
           <section className="followingSection">
