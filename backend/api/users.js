@@ -4,7 +4,6 @@ import requireBody from "../middleware/requireBody.js";
 import { createToken } from "../jwt/jwt.js";
 import db from "../db/client.js";
 
-import { createUser, userLogin, getUser } from "../db/queries/users.js";
 import {
   createUser,
   userLogin,
