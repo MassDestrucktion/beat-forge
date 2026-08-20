@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { FollowingItem } from "./components/followingItem";
 import { useAuth } from "./AuthContext/AuthContext";
 import UserSearch from "./components/userSearch";
@@ -17,9 +16,8 @@ const profilePictures = [
   { id: "glasses", src: glasses },
   { id: "headphones", src: headphones },
   { id: "gorilla", src: gorilla },
-  { id: "AVDreds", src: AVDreds }
+  { id: "AVDreds", src: AVDreds },
 ];
-
 
 function timeAgo(dateStr) {
   if (!dateStr) return "";
@@ -44,417 +42,104 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString();
 }
 
-export default function userPage() {
+export default function UserPage() {
+  const { id } = useParams();
   const { user, isAuthenticated, token } = useAuth();
   const navigate = useNavigate();
 
+  const loggedInUserId = user?.id;
+  const profileUserId = id || loggedInUserId;
+  const isOwnProfile = loggedInUserId === profileUserId;
+
+  const [profileUser, setProfileUser] = useState(null);
   const [userProjects, setUserProjects] = useState([]);
   const [following, setFollowing] = useState([]);
   const [loading, setLoading] = useState(true);
   const [followingLoading, setFollowingLoading] = useState(true);
   const [error, setError] = useState("");
   const [followingError, setFollowingError] = useState("");
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [myPicUrl, setMyPicUrl] = useState(null);
+  const [selectedPicture, setSelectedPicture] = useState(null);
+
+  const myProfilePicture = profilePictures.find(
+    (picture) => picture.id === myPicUrl
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/login");
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !profileUserId || !token) {
       return;
     }
 
-    if (!user?.id) return;
+    async function fetchProfileUser() {
+      try {
+        const response = await fetch(`/api/users/${profileUserId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch profile");
+        }
+
+        const data = await response.json();
+        setProfileUser(data);
+      } catch (err) {
+        console.error("PROFILE ERROR:", err);
+      }
+    }
+
+    fetchProfileUser();
+  }, [isAuthenticated, profileUserId, token]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !profileUserId) {
+      return;
+    }
 
     async function fetchProjects() {
       try {
         setLoading(true);
         setError("");
 
-        const response = await fetch(`/api/users/${user.id}/projects`, {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-        });
+        const response = await fetch(
+          `/api/users/${profileUserId}/projects`,
+          {
+            headers: {
+              Authorization: token ? `Bearer ${token}` : "",
+            },
+          }
+        );
 
         if (!response.ok) {
           const text = await response.text();
-
           throw new Error(text || "Failed to fetch projects");
-const { id } = useParams();
-const { user, isAuthenticated, token } = useAuth();
-    const navigate = useNavigate();
-  console.log("PROFILE USER ID:", id);
-
-  const loggedInUserId = user.id;
-  const profileUserId = id;
-
-
-
-    const [userProjects, setUserProjects] = useState([]);
-    const [following, setFollowing] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [followingLoading, setFollowingLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [followingError, setFollowingError] = useState("");
-    const [isFollowing, setIsFollowing] = useState(false);
-    const [profileUser, setProfileUser] = useState(null);
-    const [selectedPicture, setSelectedPicture] = useState(user.picurl);
-    const [myPicUrl, setMyPicUrl] = useState(null);
-
-const myProfilePicture = profilePictures.find(
-    (picture) => picture.id === myPicUrl
-);
-
-useEffect(() => {
-    if (!user?.id || !token) return;
-
-    async function fetchMyPic() {
-        try {
-            const response = await fetch(
-                `/api/users/${user.id}/pic`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error("Failed to fetch profile picture");
-            }
-
-            const data = await response.json();
-
-            console.log("MY PIC DATA:", data);
-
-            setMyPicUrl(data.picurl);
-        } catch (error) {
-            console.error("MY PIC ERROR:", error);
-        }
-    }
-
-    fetchMyPic();
-}, [user?.id, token]);
-
-
-    useEffect(() => {
-        if (!isAuthenticated) {
-            navigate("/login");
-            return;
-        }
-
-        if (!profileUserId) return;
-
-        async function fetchProjects() {
-            try {
-                setLoading(true);
-                setError("");
-
-                const response = await fetch(
-                    `/api/users/${profileUserId}/projects`,
-                    {
-                        headers: {
-                            Authorization: token
-                                ? `Bearer ${token}`
-                                : "",
-                        },
-                    }
-                );
-
-                if (!response.ok) {
-                    console.log(response)
-                    const text = await response.text();
-
-                    throw new Error(
-                        text || "Failed to fetch projects"
-                    );
-                }
-
-                const projects = await response.json();
-
-                setUserProjects(projects);
-            } catch (err) {
-                console.error(err);
-
-                setError(
-                    err.message ||
-                        "Failed to load projects"
-                );
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        fetchProjects();
-    }, [
-        isAuthenticated,
-        profileUserId,
-        token,
-        navigate,
-    ]);
-
-    //show different page
-    useEffect(() => {
-    if (!profileUserId || !token) {
-        return;
-    }
-
-    async function fetchProfileUser() {
-        try {
-            const response = await fetch(
-                `/api/users/${profileUserId}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error(
-                    "Failed to fetch profile"
-                );
-            }
-
-            const data = await response.json();
-
-            console.log("PROFILE USER:", data);
-
-            setProfileUser(data);
-        } catch (error) {
-            console.error(
-                "PROFILE ERROR:",
-                error
-            );
-        }
-    }
-
-    fetchProfileUser();
-
-}, [profileUserId, token]);
-
-
-    useEffect(() => {
-        if (!isAuthenticated || !user?.id) {
-            return;
-        }
-
-        async function fetchFollowing() {
-            try {
-                setFollowingLoading(true);
-                setFollowingError("");
-
-                const response = await fetch(
-                    `/api/users/${user.id}/following`,
-                    {
-                        headers: {
-                            Authorization: token
-                                ? `Bearer ${token}`
-                                : "",
-                        },
-                    }
-                );
-
-                if (!response.ok) {
-                    const text =
-                        await response.text();
-
-                    throw new Error(
-                        text ||
-                            "Failed to fetch following"
-                    );
-                }
-
-                const followingUsers =
-                    await response.json();
-                console.log(followingUsers)
-                setFollowing(followingUsers);
-
-            } catch (err) {
-                console.error(err);
-
-                setFollowingError(
-                    err.message ||
-                        "Failed to load following"
-                );
-
-                setFollowing([]);
-            } finally {
-                setFollowingLoading(false);
-            }
-        }
-
-        fetchFollowing();
-    }, [
-        isAuthenticated,
-        user?.id,
-        token,
-    ]);
-
-useEffect(() => {
-    if (
-        !isAuthenticated ||
-        !user?.id ||
-        !profileUserId ||
-        !token
-    ) {
-        return;
-    }
-
-    async function fetchFollowStatus() {
-        try {
-            const response = await fetch(
-                `/api/users/${profileUserId}/follow-status`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
-
-            if (!response.ok) {
-                console.log(
-                    "FOLLOW STATUS:",
-                    response.status
-                );
-                return;
-            }
-
-            const data = await response.json();
-
-            setIsFollowing(data.isFollowing);
-
-        } catch (error) {
-            console.error(
-                "Failed to get follow status:",
-                error
-            );
-        }
-    }
-
-    fetchFollowStatus();
-
-}, [
-    isAuthenticated,
-    user?.id,
-    profileUserId,
-    token
-]);
-
-async function handleFollow() {
-  const method = isFollowing ? "DELETE" : "POST";
-
-  const response = await fetch(
-    `/api/users/${profileUserId}/follow`,
-    {
-      method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-
-  if (!response.ok) {
-    console.log("FOLLOW STATUS:", response.status);
-    return;
-  }
-
-  setIsFollowing(!isFollowing);
-}
-
-useEffect(() => {
-  if (
-    !isAuthenticated ||
-    !user?.id ||
-    !profileUserId
-  ) {
-    return;
-  }
-
-  async function fetchFollowStatus() {
-    try {
-      const response = await fetch(
-        `/api/users/${profileUserId}/follow-status`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.log(
-          "FOLLOW STATUS:",
-          response.status,
-          text
-        );
-        return;
-      }
-
-      const data = await response.json();
-
-      setIsFollowing(data.isFollowing);
-    } catch (error) {
-      console.error(
-        "Failed to get follow status:",
-        error
-      );
-    }
-  }
-
-  fetchFollowStatus();
-}, [
-  isAuthenticated,
-  user?.id,
-  profileUserId,
-  token,
-]);
-
-// ProfilePic
-async function saveProfilePicture() {
-  const response = await fetch(`/api/users/${user.id}/profile-picture`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      picurl: selectedPicture,
-    }),
-  });
-
-  const data = await response.json();
-
-  console.log("UPDATED USER:", data);
-}
-
-//Projects
-
-    const handleDelete = async (projectId) => {
-        if (
-            !window.confirm(
-                "Delete this project? This cannot be undone."
-            )
-        ) {
-            return;
         }
 
         const projects = await response.json();
 
-        setUserProjects(projects);
+        setUserProjects(Array.isArray(projects) ? projects : []);
       } catch (err) {
-        console.error(err);
-
+        console.error("PROJECT ERROR:", err);
         setError(err.message || "Failed to load projects");
+        setUserProjects([]);
       } finally {
         setLoading(false);
       }
     }
 
     fetchProjects();
-  }, [isAuthenticated, user?.id, token, navigate]);
+  }, [isAuthenticated, profileUserId, token]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) {
+    if (!isAuthenticated || !loggedInUserId) {
       return;
     }
 
@@ -463,30 +148,31 @@ async function saveProfilePicture() {
         setFollowingLoading(true);
         setFollowingError("");
 
-        const response = await fetch(`/api/users/${user.id}/following`, {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-        });
+        const response = await fetch(
+          `/api/users/${loggedInUserId}/following`,
+          {
+            headers: {
+              Authorization: token ? `Bearer ${token}` : "",
+            },
+          }
+        );
 
         if (!response.ok) {
           const text = await response.text();
-
           throw new Error(text || "Failed to fetch following");
         }
 
         const followingUsers = await response.json();
-        const handleOpen = (projectId) => {
-            navigate(
-                `/sequencer?projectId=${projectId}&userID=${profileUserId}`
-            );
-    };
 
-        setFollowing(Array.isArray(followingUsers) ? followingUsers : []);
+        setFollowing(
+          Array.isArray(followingUsers) ? followingUsers : []
+        );
       } catch (err) {
-        console.error(err);
+        console.error("FOLLOWING ERROR:", err);
 
-        setFollowingError(err.message || "Failed to load following");
+        setFollowingError(
+          err.message || "Failed to load following"
+        );
 
         setFollowing([]);
       } finally {
@@ -495,45 +181,209 @@ async function saveProfilePicture() {
     }
 
     fetchFollowing();
-  }, [isAuthenticated, user?.id, token]);
+  }, [isAuthenticated, loggedInUserId, token]);
 
-  const handleDelete = async (projectId) => {
-    if (!window.confirm("Delete this project? This cannot be undone.")) {
+  useEffect(() => {
+    if (
+      !isAuthenticated ||
+      !loggedInUserId ||
+      !profileUserId ||
+      !token ||
+      isOwnProfile
+    ) {
+      return;
+    }
+
+    async function fetchFollowStatus() {
+      try {
+        const response = await fetch(
+          `/api/users/${profileUserId}/follow-status`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const text = await response.text();
+
+          console.error(
+            "FOLLOW STATUS ERROR:",
+            response.status,
+            text
+          );
+
+          return;
+        }
+
+        const data = await response.json();
+
+        setIsFollowing(Boolean(data.isFollowing));
+      } catch (err) {
+        console.error("Failed to get follow status:", err);
+      }
+    }
+
+    fetchFollowStatus();
+  }, [
+    isAuthenticated,
+    loggedInUserId,
+    profileUserId,
+    token,
+    isOwnProfile,
+  ]);
+
+  async function handleFollow() {
+    if (!profileUserId || !token || isOwnProfile) {
+      return;
+    }
+
+    try {
+      const method = isFollowing ? "DELETE" : "POST";
+
+      const response = await fetch(
+        `/api/users/${profileUserId}/follow`,
+        {
+          method,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(
+          text || "Failed to update follow status"
+        );
+      }
+
+      setIsFollowing((prev) => !prev);
+    } catch (err) {
+      console.error("FOLLOW ERROR:", err);
+      alert(err.message || "Failed to update follow status");
+    }
+  }
+
+  useEffect(() => {
+    if (!loggedInUserId || !token) {
+      return;
+    }
+
+    async function fetchMyPic() {
+      try {
+        const response = await fetch(
+          `/api/users/${loggedInUserId}/pic`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch profile picture");
+        }
+
+        const data = await response.json();
+
+        setMyPicUrl(data.picurl);
+        setSelectedPicture(data.picurl);
+      } catch (err) {
+        console.error("MY PIC ERROR:", err);
+      }
+    }
+
+    fetchMyPic();
+  }, [loggedInUserId, token]);
+
+  async function saveProfilePicture() {
+    if (!loggedInUserId || !token || !selectedPicture) {
       return;
     }
 
     try {
       const response = await fetch(
-        `/api/users/${user?.id}/projects/${projectId}`,
+        `/api/users/${loggedInUserId}/profile-picture`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            picurl: selectedPicture,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(
+          text || "Failed to save profile picture"
+        );
+      }
+
+      const data = await response.json();
+
+      setMyPicUrl(data.picurl || selectedPicture);
+    } catch (err) {
+      console.error("PROFILE PICTURE ERROR:", err);
+      alert(err.message || "Failed to save profile picture");
+    }
+  }
+
+  async function handleDelete(projectId) {
+    if (!isOwnProfile || !loggedInUserId) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "Delete this project? This cannot be undone."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/users/${loggedInUserId}/projects/${projectId}`,
         {
           method: "DELETE",
           headers: {
             Authorization: token ? `Bearer ${token}` : "",
           },
-        },
+        }
       );
 
       if (!response.ok) {
         const text = await response.text();
 
-        throw new Error(text || "Failed to delete project");
+        throw new Error(
+          text || "Failed to delete project"
+        );
       }
 
       setUserProjects((prev) =>
-        prev.filter((project) => project.id !== projectId),
+        prev.filter((project) => project.id !== projectId)
       );
     } catch (err) {
+      console.error("DELETE PROJECT ERROR:", err);
       alert(`Delete failed: ${err.message}`);
     }
-  };
+  }
 
-  const handleOpen = (projectId) => {
-    navigate(`/sequencer?projectId=${projectId}`);
-  };
+  function handleOpen(projectId) {
+    navigate(
+      `/sequencer?projectId=${projectId}&userID=${profileUserId}`
+    );
+  }
 
-  const handleNewProject = () => {
+  function handleNewProject() {
     navigate("/sequencer");
-  };
+  }
 
   if (!isAuthenticated) {
     return null;
@@ -549,333 +399,225 @@ async function saveProfilePicture() {
     );
   }
 
+  const displayName =
+    profileUser?.username ||
+    (isOwnProfile ? user?.username : "User") ||
+    "User";
+
   return (
-    <main className="dashboard">
-      <section className="welcomeCard">
-        <h1 className="pixel-title">Welcome, {user?.username || "User"}</h1>
-
-        <p>Manage your music projects below.</p>
-      </section>
-
-      <section className="followingSection">
-        <div className="followingHeader">
-          <h2>People You Follow</h2>
-        </div>
-
-        {followingLoading && <p>Loading following...</p>}
-
-        {followingError && <p className="error-message">{followingError}</p>}
-
-        {!followingLoading && !followingError && following.length === 0 && (
-          <p>You aren't following anyone yet.</p>
-        )}
-
-        {!followingLoading && following.length > 0 && (
-          <ul>
-            {following.map((followedUser) => (
-              <li key={followedUser.id}>
-                <FollowingItem following={followedUser} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="projectsSection">
-        <div className="projectsHeader">
-          <div>
-            <h2>Your Projects</h2>
-
-            <p className="user-name">👤 {user?.username || "User"}</p>
-          </div>
-
-          <button className="newProjectBtn" onClick={handleNewProject}>
-            + New Project
+    <div>
+      <div className="searchBar">
+        {!isOwnProfile && (
+          <button
+            className="follow"
+            onClick={handleFollow}
+          >
+            {isFollowing
+              ? "Unfollow Artist"
+              : "Follow Artist"}
           </button>
-        </div>
-
-        {error && <p className="error-message">{error}</p>}
-
-        {!error && userProjects.length === 0 ? (
-          <div className="emptyProjects">
-            <h3>No projects yet</h3>
-
-            <p>Start creating your first track.</p>
-
-            <button className="link-btn" onClick={handleNewProject}>
-              Start one now!
-            </button>
-          </div>
-        ) : (
-          <div className="projectsGrid">
-            {userProjects.map((project) => (
-              <div key={project.id} className="project-card">
-                <div className="project-card-header">
-                  <h3>{project.name || "Untitled Project"}</h3>
-
-                  <span className="project-date">
-                    {timeAgo(project.created_at)}
-                  </span>
-                </div>
-
-                <div className="project-card-details">
-                  <span>BPM: {project.tempo || 120}</span>
-
-                  <span>
-                    Tracks:{" "}
-                    {Array.isArray(project.grid) ? project.grid.length : "—"}
-                  </span>
-                </div>
-
-                <div className="project-card-actions">
-                  <button
-                    className="nav-btn"
-                    onClick={() => handleOpen(project.id)}
-                  >
-                    Open in Sequencer
-                  </button>
-
-                  <button
-                    className="nav-btn delete-btn"
-                    onClick={() => handleDelete(project.id)}
-                  >
-                    🗑 Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
         )}
-      </section>
-    </main>
-  );
-}
-            <div>
-               <div>
-  <div className="searchBar">
-    {loggedInUserId !== profileUserId && (
-  <button
-    className="follow"
-    onClick={handleFollow}
-  >
-    {isFollowing
-      ? "Unfollow Artist"
-      : "Follow Artist"}
-  </button>
-)}
 
-    <UserSearch />
-  </div>
-</div>
-        <main className="dashboard">
-            <section className="welcomeCard">
-                <h1>
-                    Welcome,{" "}
-                    {profileUser?.username || "User"}
-                </h1>
-                <div className="my-profile">
-  <img
-    className="my-profile-avatar"
-    src={myProfilePicture?.src}
-    alt={`${user?.username}'s avatar`}
-  />
+        <UserSearch />
+      </div>
 
-  <h2>{user?.username}</h2>
-</div>
-                <div className="profile-picture-selection">
-  {profilePictures.map((picture) => (
-    <img
-      key={picture.id}
-      src={picture.src}
-      alt={picture.id}
-      onClick={() => setSelectedPicture(picture.id)}
-      className={
-        selectedPicture === picture.id
-          ? "profile-picture selected"
-          : "profile-picture"
-      }
-    />
-  ))}
-</div>
-    <button onClick={saveProfilePicture}>
-  Save Profile Picture
-</button>
+      <main className="dashboard">
+        <section className="welcomeCard">
+          <h1 className="pixel-title">
+            Welcome, {displayName}
+          </h1>
 
+          {isOwnProfile && (
+            <div className="my-profile">
+              <img
+                className="my-profile-avatar"
+                src={myProfilePicture?.src}
+                alt={`${user?.username || "User"}'s avatar`}
+              />
+
+              <h2>{user?.username || "User"}</h2>
+            </div>
+          )}
+
+          {isOwnProfile && (
+            <>
+              <div className="profile-picture-selection">
+                {profilePictures.map((picture) => (
+                  <img
+                    key={picture.id}
+                    src={picture.src}
+                    alt={picture.id}
+                    onClick={() =>
+                      setSelectedPicture(picture.id)
+                    }
+                    className={
+                      selectedPicture === picture.id
+                        ? "profile-picture selected"
+                        : "profile-picture"
+                    }
+                  />
+                ))}
+              </div>
+
+              <button onClick={saveProfilePicture}>
+                Save Profile Picture
+              </button>
+            </>
+          )}
+
+          <p>
+            {isOwnProfile
+              ? "Manage your music projects below."
+              : `Explore ${displayName}'s music projects.`}
+          </p>
+        </section>
+
+        {isOwnProfile && (
+          <section className="followingSection">
+            <div className="followingHeader">
+              <h2>People You Follow</h2>
+            </div>
+
+            {followingLoading && (
+              <p>Loading following...</p>
+            )}
+
+            {followingError && (
+              <p className="error-message">
+                {followingError}
+              </p>
+            )}
+
+            {!followingLoading &&
+              !followingError &&
+              following.length === 0 && (
                 <p>
-                    Manage your music projects
-                    below.
+                  You aren't following anyone yet.
                 </p>
-            </section>
+              )}
 
-            <section className="followingSection">
-                <div className="followingHeader">
-                    <h2>People You Follow</h2>
-                </div>
-
-                {followingLoading && (
-                    <p>Loading following...</p>
-                )}
-
-                {followingError && (
-                    <p className="error-message">
-                        {followingError}
-                    </p>
-                )}
-
-                {!followingLoading &&
-                    !followingError &&
-                    following.length === 0 && (
-                        <p>
-                            You aren't following
-                            anyone yet.
-                        </p>
-                    )}
-
-                {!followingLoading &&
-                    following.length > 0 && (
-                        <div className="followingList">
-                            {following.map(
-                                (followedUser) => (
-                                    <div
-                                        key={
-                                            followedUser.id
-                                        }
-                                    >
-                                        <FollowingItem
-                                            following={
-                                                followedUser
-                                            }
-                                        />
-                                    </div>
-                                )
-                            )}
-                        </div>
-                    )}
-            </section>
-
-            <section className="projectsSection">
-                <div className="projectsHeader">
-                    <div>
-                        <h2>
-                            {profileUser?.username || "User"}'s Projects
-                        </h2>
-
-                        <p className="user-name">
-                            👤{" "}
-                                 {profileUser?.username || "User"}
-                            </p>
+            {!followingLoading &&
+              following.length > 0 && (
+                <div className="followingList">
+                  {following.map((followedUser) => (
+                    <div key={followedUser.id}>
+                      <FollowingItem
+                        following={followedUser}
+                      />
                     </div>
+                  ))}
+                </div>
+              )}
+          </section>
+        )}
 
+        <section className="projectsSection">
+          <div className="projectsHeader">
+            <div>
+              <h2>
+                {isOwnProfile
+                  ? "Your Projects"
+                  : `${displayName}'s Projects`}
+              </h2>
+
+              <p className="user-name">
+                👤 {displayName}
+              </p>
+            </div>
+
+            {isOwnProfile && (
+              <button
+                className="newProjectBtn"
+                onClick={handleNewProject}
+              >
+                + New Project
+              </button>
+            )}
+          </div>
+
+          {error && (
+            <p className="error-message">
+              {error}
+            </p>
+          )}
+
+          {!error && userProjects.length === 0 ? (
+            <div className="emptyProjects">
+              <h3>No projects yet</h3>
+
+              <p>
+                {isOwnProfile
+                  ? "Start creating your first track."
+                  : `${displayName} hasn't created any projects yet.`}
+              </p>
+
+              {isOwnProfile && (
+                <button
+                  className="link-btn"
+                  onClick={handleNewProject}
+                >
+                  Start one now!
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="projectsGrid">
+              {userProjects.map((project) => (
+                <div
+                  key={project.id}
+                  className="project-card"
+                >
+                  <div className="project-card-header">
+                    <h3>
+                      {project.name ||
+                        "Untitled Project"}
+                    </h3>
+
+                    <span className="project-date">
+                      {timeAgo(project.created_at)}
+                    </span>
+                  </div>
+
+                  <div className="project-card-details">
+                    <span>
+                      BPM: {project.tempo || 120}
+                    </span>
+
+                    <span>
+                      Tracks:{" "}
+                      {Array.isArray(project.grid)
+                        ? project.grid.length
+                        : "—"}
+                    </span>
+                  </div>
+
+                  <div className="project-card-actions">
                     <button
-                        className="newProjectBtn"
-                        onClick={
-                            handleNewProject
-                        }
+                      className="nav-btn"
+                      onClick={() =>
+                        handleOpen(project.id)
+                      }
                     >
-                        + New Project
+                      Open in Sequencer
                     </button>
+
+                    {isOwnProfile && (
+                      <button
+                        className="nav-btn delete-btn"
+                        onClick={() =>
+                          handleDelete(project.id)
+                        }
+                      >
+                        🗑 Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
-
-                {error && (
-                    <p className="error-message">
-                        {error}
-                    </p>
-                )}
-
-                {!error &&
-                userProjects.length === 0 ? (
-                    <div className="emptyProjects">
-                        <h3>
-                            No projects yet
-                        </h3>
-
-                        <p>
-                            Start creating your
-                            first track.
-                        </p>
-
-                        <button
-                            className="link-btn"
-                            onClick={
-                                handleNewProject
-                            }
-                        >
-                            Start one now!
-                        </button>
-                    </div>
-                ) : (
-                    <div className="projectsGrid">
-                        {userProjects.map(
-                            (project) => (
-                                <div
-                                    key={
-                                        project.id
-                                    }
-                                    className="project-card"
-                                >
-                                    <div className="project-card-header">
-                                        <h3>
-                                            {project.name ||
-                                                "Untitled Project"}
-                                        </h3>
-
-                                        <span className="project-date">
-                                            {timeAgo(
-                                                project.created_at
-                                            )}
-                                        </span>
-                                    </div>
-
-                                    <div className="project-card-details">
-                                        <span>
-                                            BPM:{" "}
-                                            {project.tempo ||
-                                                120}
-                                        </span>
-
-                                        <span>
-                                            Tracks:{" "}
-                                            {Array.isArray(
-                                                project.grid
-                                            )
-                                                ? project
-                                                      .grid
-                                                      .length
-                                                : "—"}
-                                        </span>
-                                    </div>
-
-                                    <div className="project-card-actions">
-                                        <button
-                                            className="nav-btn"
-                                            onClick={() =>
-                                                handleOpen(
-                                                    project.id
-                                                )
-                                            }
-                                        >
-                                            Open in
-                                            Sequencer
-                                        </button>
-
-                                        <button
-                                            className="nav-btn delete-btn"
-                                            onClick={() =>
-                                                handleDelete(
-                                                    project.id
-                                                )
-                                            }
-                                        >
-                                            🗑 Delete
-                                        </button>
-                                    </div>
-                                </div>
-                            )
-                        )}
-                    </div>
-                )}
-            </section>
-        </main>
-        </div>
-    );
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
+    </div>
+  );
 }
