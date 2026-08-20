@@ -428,6 +428,22 @@
   background: #444;
 }
 
+// Profilepic
+
+.profile-picture-selection {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.profile-picture {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
 /*Landing Page*/
 
 .landing-hero {

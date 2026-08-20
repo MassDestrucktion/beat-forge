@@ -197,3 +197,20 @@ export async function searchUsers(searchTerm) {
 
     return result.rows;
 }
+
+export async function getUserPic() {
+const SQL = `
+    SELECT
+    users.id,
+    users.username,
+    users.picUrl
+FROM follows
+JOIN users
+    ON follows.followee_id = app.users.id
+WHERE follows.follower_id = $1;
+`;
+
+const result = await db.query(SQL, [])
+
+return result.rows;
+}

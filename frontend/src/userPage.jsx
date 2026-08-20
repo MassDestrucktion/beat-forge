@@ -6,6 +6,21 @@ import { useAuth } from "./AuthContext/AuthContext";
 import UserSearch from "./components/userSearch";
 import "./styles/userPage.css";
 
+import cool from "./media/cool.jpg";
+import glasses from "./media/glasses.jpg";
+import headphones from "./media/DarkHeadphones.jpg";
+import gorilla from "./media/Gorilla.jpg";
+import AVDreds from "./media/AVDreds.png";
+
+const profilePictures = [
+  { id: "cool", src: cool },
+  { id: "glasses", src: glasses },
+  { id: "headphones", src: headphones },
+  { id: "gorilla", src: gorilla },
+  { id: "AVDreds", src: AVDreds }
+];
+
+
 function timeAgo(dateStr) {
     if (!dateStr) return "";
 
@@ -48,7 +63,8 @@ const { user, isAuthenticated, token } = useAuth();
     const [followingError, setFollowingError] = useState("");
     const [isFollowing, setIsFollowing] = useState(false);
     const [profileUser, setProfileUser] = useState(null);
-    const [selectedUserProjects, setSelectedUserProjects] = useState([])
+    const [selectedPicture, setSelectedPicture] = useState(user.picUrl);
+
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -181,11 +197,8 @@ const { user, isAuthenticated, token } = useAuth();
                 const followingUsers =
                     await response.json();
                 console.log(followingUsers)
-                setFollowing(
-                    Array.isArray(followingUsers)
-                        ? followingUsers
-                        : []
-                );
+                setFollowing(followingUsers);
+
             } catch (err) {
                 console.error(err);
 
@@ -327,6 +340,24 @@ useEffect(() => {
   token,
 ]);
 
+// ProfilePic
+async function saveProfilePicture() {
+  const response = await fetch(`/api/users/${user.id}/profile-picture`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      profile_pic: selectedPicture,
+    }),
+  });
+
+  const data = await response.json();
+
+  console.log("UPDATED USER:", data);
+}
+
 //Projects
 
     const handleDelete = async (projectId) => {
@@ -424,6 +455,24 @@ useEffect(() => {
                     Welcome,{" "}
                     {profileUser?.username || "User"}
                 </h1>
+                <div className="profile-picture-selection">
+  {profilePictures.map((picture) => (
+    <img
+      key={picture.id}
+      src={picture.src}
+      alt={picture.id}
+      onClick={() => setSelectedPicture(picture.id)}
+      className={
+        selectedPicture === picture.id
+          ? "profile-picture selected"
+          : "profile-picture"
+      }
+    />
+  ))}
+</div>
+    <button onClick={saveProfilePicture}>
+  Save Profile Picture
+</button>
 
                 <p>
                     Manage your music projects
