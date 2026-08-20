@@ -42,7 +42,7 @@ export default function Navbar() {
         {isAuthenticated ? (
           <>
             <li>
-              <NavLink to="/userPage">
+              <NavLink to={`/userPage/${user.id}`}>
                 <button className="nav-btn">
                   {user?.username || "Profile"}
                 </button>

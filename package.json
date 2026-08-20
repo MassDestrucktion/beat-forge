@@ -1,0 +1,30 @@
+{
+  "name": "beat-forge",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MassDestrucktion/beat-forge.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/MassDestrucktion/beat-forge/issues"
+  },
+  "homepage": "https://github.com/MassDestrucktion/beat-forge#readme",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.0",
+    "sasl": "^0.0.1",
+    "serverless-http": "^4.0.0"
+  }
+}
