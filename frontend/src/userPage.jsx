@@ -63,7 +63,43 @@ const { user, isAuthenticated, token } = useAuth();
     const [followingError, setFollowingError] = useState("");
     const [isFollowing, setIsFollowing] = useState(false);
     const [profileUser, setProfileUser] = useState(null);
-    const [selectedPicture, setSelectedPicture] = useState(user.picUrl);
+    const [selectedPicture, setSelectedPicture] = useState(user.picurl);
+    const [myPicUrl, setMyPicUrl] = useState(null);
+
+const myProfilePicture = profilePictures.find(
+    (picture) => picture.id === myPicUrl
+);
+
+useEffect(() => {
+    if (!user?.id || !token) return;
+
+    async function fetchMyPic() {
+        try {
+            const response = await fetch(
+                `/api/users/${user.id}/pic`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error("Failed to fetch profile picture");
+            }
+
+            const data = await response.json();
+
+            console.log("MY PIC DATA:", data);
+
+            setMyPicUrl(data.picurl);
+        } catch (error) {
+            console.error("MY PIC ERROR:", error);
+        }
+    }
+
+    fetchMyPic();
+}, [user?.id, token]);
 
 
     useEffect(() => {
@@ -349,7 +385,7 @@ async function saveProfilePicture() {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      profile_pic: selectedPicture,
+      picurl: selectedPicture,
     }),
   });
 
@@ -455,6 +491,15 @@ async function saveProfilePicture() {
                     Welcome,{" "}
                     {profileUser?.username || "User"}
                 </h1>
+                <div className="my-profile">
+  <img
+    className="my-profile-avatar"
+    src={myProfilePicture?.src}
+    alt={`${user?.username}'s avatar`}
+  />
+
+  <h2>{user?.username}</h2>
+</div>
                 <div className="profile-picture-selection">
   {profilePictures.map((picture) => (
     <img

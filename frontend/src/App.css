@@ -444,6 +444,20 @@
   cursor: pointer;
 }
 
+.my-profile {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 20px 0 30px 20px;
+}
+
+.my-profile-avatar {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 /*Landing Page*/
 
 .landing-hero {

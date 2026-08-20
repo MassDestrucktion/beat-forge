@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { Router } from "express";
 import requireBody from "../middleware/requireBody.js";
 import { createToken } from "../jwt/jwt.js";
-import db from "../db/index.js";
+import db from "../db/client.js";
 
 import {
   createUser,
@@ -372,16 +372,16 @@ usersRouter.get("/:id/follow-status", requireAuth, async (req, res, next) => {
 //ProfilePic
 usersRouter.put("/:id/profile-picture", requireAuth, async (req, res, next) => {
   try {
-    const { profile_pic } = req.body;
+    const { picurl } = req.body;
 
     const result = await db.query(
       `
-      UPDATE app.users
-      SET profile_pic = $1
+      UPDATE users
+      SET picurl = $1
       WHERE id = $2
-      RETURNING id, username, profile_pic
+      RETURNING id, username, picurl
       `,
-      [profile_pic, req.params.id]
+      [picurl, req.params.id]
     );
 
     res.send(result.rows[0]);

@@ -116,7 +116,7 @@ export async function getUser(id) {
 
 export async function getFollowing(id) {
     const SQL = `
-        SELECT u.id, u.username
+        SELECT u.id, u.username, u.picurl
         FROM follows f
         JOIN users u ON u.id = f.followee_id
         WHERE f.follower_id = $1
@@ -198,19 +198,14 @@ export async function searchUsers(searchTerm) {
     return result.rows;
 }
 
-export async function getUserPic() {
-const SQL = `
-    SELECT
-    users.id,
-    users.username,
-    users.picUrl
-FROM follows
-JOIN users
-    ON follows.followee_id = app.users.id
-WHERE follows.follower_id = $1;
-`;
+export async function getUserPic(id) {
+    const SQL = `
+        SELECT id, username, picurl
+        FROM users
+        WHERE id = $1
+    `;
 
-const result = await db.query(SQL, [])
+    const result = await db.query(SQL, [id]);
 
-return result.rows;
+    return result.rows[0];
 }
