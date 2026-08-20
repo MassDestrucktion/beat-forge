@@ -3,8 +3,10 @@ import glasses from "../media/glasses.jpg";
 import headphones from "../media/DarkHeadphones.jpg";
 import gorilla from "../media/Gorilla.jpg";
 import AVDreds from "../media/AVDreds.png";
+import default_Pic from "../media/default_Pic.jpg";
 
 const profilePictures = [
+  { id: "default_Pic", src: default_Pic},
   { id: "cool", src: cool },
   { id: "glasses", src: glasses },
   { id: "headphones", src: headphones },

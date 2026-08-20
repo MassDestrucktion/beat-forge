@@ -10,8 +10,8 @@ export async function createUser(username, password) {
     }
 
     const SQL = `
-        INSERT INTO  users (id, username, password)
-        VALUES ($1, $2, $3)
+        INSERT INTO  users (id, username, password, piurl)
+        VALUES ($1, $2, $3, 'default_pic' )
         RETURNING *
     `;
 

@@ -9,6 +9,7 @@ import {
   userLogin,
   getUser,
   getFollowing,
+  getUserPic,
   unfollowUser,
   followUser,
   searchUsers,
@@ -388,6 +389,15 @@ usersRouter.put("/:id/profile-picture", requireAuth, async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+usersRouter.get("/:id/pic", requireAuth, async (req, res, next) => {
+    try {
+        const user = await getUserPic(req.params.id);
+        res.send(user);
+    } catch (error) {
+        next(error);
+    }
 });
 
 

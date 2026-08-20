@@ -65,6 +65,7 @@ const { user, isAuthenticated, token } = useAuth();
     const [profileUser, setProfileUser] = useState(null);
     const [selectedPicture, setSelectedPicture] = useState(user.picurl);
     const [myPicUrl, setMyPicUrl] = useState(null);
+    const [showPictureChooser, setShowPictureChooser] = useState(false);
 
 const myProfilePicture = profilePictures.find(
     (picture) => picture.id === myPicUrl
@@ -378,20 +379,27 @@ useEffect(() => {
 
 // ProfilePic
 async function saveProfilePicture() {
-  const response = await fetch(`/api/users/${user.id}/profile-picture`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      picurl: selectedPicture,
-    }),
-  });
+    const response = await fetch(
+        `/api/users/${user.id}/profile-picture`,
+        {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                picurl: selectedPicture,
+            }),
+        }
+    );
 
-  const data = await response.json();
+    const data = await response.json();
 
-  console.log("UPDATED USER:", data);
+    console.log("UPDATED USER:", data);
+
+    if (response.ok) {
+        window.location.reload();
+    }
 }
 
 //Projects
@@ -496,33 +504,34 @@ async function saveProfilePicture() {
     className="my-profile-avatar"
     src={myProfilePicture?.src}
     alt={`${user?.username}'s avatar`}
+    onClick={() => setShowPictureChooser(!showPictureChooser)}
   />
 
   <h2>{user?.username}</h2>
-</div>
-                <div className="profile-picture-selection">
-  {profilePictures.map((picture) => (
-    <img
-      key={picture.id}
-      src={picture.src}
-      alt={picture.id}
-      onClick={() => setSelectedPicture(picture.id)}
-      className={
-        selectedPicture === picture.id
+{showPictureChooser && (  
+<div className="profile-picture-chooser">
+    <div className="profile-picture-selection">
+    {profilePictures.map((picture) => (
+        <img
+         key={picture.id}
+        src={picture.src}
+        alt={picture.id}
+        onClick={() => setSelectedPicture(picture.id)}
+        className={ selectedPicture === picture.id
           ? "profile-picture selected"
           : "profile-picture"
       }
     />
   ))}
 </div>
+
     <button onClick={saveProfilePicture}>
   Save Profile Picture
 </button>
-
-                <p>
-                    Manage your music projects
-                    below.
-                </p>
+</div>
+)}
+</div>
+                
             </section>
 
             <section className="followingSection">
