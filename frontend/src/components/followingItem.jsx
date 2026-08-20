@@ -1,9 +1,11 @@
+import { Link } from "react-router-dom";
 import cool from "../media/cool.jpg";
 import glasses from "../media/glasses.jpg";
 import headphones from "../media/DarkHeadphones.jpg";
 import gorilla from "../media/Gorilla.jpg";
 import AVDreds from "../media/AVDreds.png";
 import default_Pic from "../media/default_Pic.jpg";
+
 
 const profilePictures = [
   { id: "default_Pic", src: default_Pic},
@@ -22,6 +24,7 @@ export function FollowingItem({ following }) {
 
     return (
         <div className="following-item">
+            <Link to={`/userPage/${following.id}`}>
             <h4 className="following-username">
                 {following.username}
             </h4>
@@ -35,6 +38,7 @@ export function FollowingItem({ following }) {
     height="125"
     width="125"
 />
+    </Link>
         </div>
     );
 }
