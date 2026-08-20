@@ -302,12 +302,18 @@
   flex-direction: column;
   justify-content: space-between;
   gap: 8px;
-  min-width: 100px;
+  min-width: 96px;
   padding: 8px 10px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
   flex-shrink: 0;
+}
+
+.track-status {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
 }
 
 .track-side-panel .track-label {
@@ -319,8 +325,10 @@
 }
 
 .side-panel-buttons {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
   gap: 6px;
+  justify-content: center;
 }
 
 .icon-btn {
@@ -597,6 +605,29 @@
   background: linear-gradient(135deg, #4ade80, #22c55e);
   color: #052e16;
   box-shadow: 0 0 18px rgba(74, 222, 128, 0.45);
+}
+
+.step-note-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 10px;
+  color: #e9d5ff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.step-note-panel select {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: #111827;
+  color: #f9fafb;
+  padding: 6px 8px;
+  font-size: 0.85rem;
 }
 
 /*Profile Page Container*/
@@ -1047,30 +1078,45 @@
 }
 
 .auth-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    135deg,
+    rgba(17, 24, 39, 0.95),
+    rgba(31, 41, 55, 0.95)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   padding: 36px;
   width: 100%;
   max-width: 380px;
   text-align: center;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
 }
 
 .auth-logo {
   margin-bottom: 24px;
 }
 
-.auth-logo-icon {
-  font-size: 2.5rem;
+.auth-logo-img {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 10px;
   display: block;
-  margin-bottom: 8px;
+  filter: drop-shadow(0 8px 20px rgba(139, 92, 246, 0.35));
 }
 
 .auth-logo h1 {
-  font-size: 1.8rem;
-  margin: 0;
-  color: var(--text-h, #f3f4f6);
+  font-family: "Press Start 2P", cursive;
+  font-size: 1.2rem;
+  line-height: 1.5;
+  margin: 6px 0 0;
+  background: linear-gradient(135deg, #8b5cf6 0%, #22d3ee 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow:
+    2px 2px 0 rgba(124, 58, 237, 0.3),
+    0 0 16px rgba(139, 92, 246, 0.4);
 }
 
 .auth-form {
@@ -1229,12 +1275,6 @@
 
 .track-row.keyboard-selected {
   border-left: 3px solid #8b5cf6;
-}
-
-.keyboard-indicator {
-  font-size: 0.85rem;
-  text-align: center;
-  padding: 2px 0;
 }
 
 .muted-step {

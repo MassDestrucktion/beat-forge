@@ -6,7 +6,13 @@ import * as Tone from "tone";
 
 import { NUM_STEPS } from "./projectModel";
 
-export function useTransport({ grid, arrangement, bpm, playTrackSound }) {
+export function useTransport({
+  grid,
+  stepNotes,
+  arrangement,
+  bpm,
+  playTrackSound,
+}) {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(null);
@@ -26,6 +32,8 @@ export function useTransport({ grid, arrangement, bpm, playTrackSound }) {
   const [loopEndBar, setLoopEndBar] = useState(null); // null = auto (end of arrangement)
 
   const gridRef = useRef(grid);
+
+  const stepNotesRef = useRef(stepNotes);
 
   const arrangementRef = useRef(arrangement);
 
@@ -51,6 +59,10 @@ export function useTransport({ grid, arrangement, bpm, playTrackSound }) {
   useEffect(() => {
     gridRef.current = grid;
   }, [grid]);
+
+  useEffect(() => {
+    stepNotesRef.current = stepNotes;
+  }, [stepNotes]);
 
   useEffect(() => {
     arrangementRef.current = arrangement;
@@ -136,7 +148,12 @@ export function useTransport({ grid, arrangement, bpm, playTrackSound }) {
 
             const clipGrid = clip.grid;
             if (clipGrid && clipGrid[0] && clipGrid[0][stepInClip]) {
-              playTrackSoundRef.current(clip.sourceTrackIndex, time);
+              const note = clip.stepNotes?.[0]?.[stepInClip] || null;
+              playTrackSoundRef.current(
+                clip.sourceTrackIndex,
+                time,
+                note ? { note } : {},
+              );
             }
           }
         }
@@ -152,11 +169,14 @@ export function useTransport({ grid, arrangement, bpm, playTrackSound }) {
 
       const currentGrid = gridRef.current;
 
+      const currentStepNotes = stepNotesRef.current;
+
       const trackCount = currentGrid?.length || 0;
 
       for (let trackIndex = 0; trackIndex < trackCount; trackIndex++) {
         if (currentGrid?.[trackIndex]?.[step]) {
-          playTrackSoundRef.current(trackIndex, time);
+          const note = currentStepNotes?.[trackIndex]?.[step] || null;
+          playTrackSoundRef.current(trackIndex, time, note ? { note } : {});
         }
       }
 

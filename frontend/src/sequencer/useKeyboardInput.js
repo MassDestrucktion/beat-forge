@@ -82,6 +82,8 @@ export function useKeyboardInput({
 }) {
   const [octave, setOctave] = useState(DEFAULT_OCTAVE);
 
+  const octaveRef = useRef(octave);
+
   const playTrackSoundRef = useRef(playTrackSound);
   const togglePlayRef = useRef(togglePlay);
   const onToggleStepRef = useRef(onToggleStep);
@@ -127,6 +129,10 @@ export function useKeyboardInput({
   useEffect(() => {
     enabledRef.current = enabled;
   }, [enabled]);
+
+  useEffect(() => {
+    octaveRef.current = octave;
+  }, [octave]);
 
   useEffect(() => {
     const handleKeyDown = async (event) => {
@@ -210,7 +216,7 @@ export function useKeyboardInput({
       const noteName = KEY_TO_NOTE[key];
       if (noteName) {
         event.preventDefault();
-        const fullNote = `${noteName}${octave}`;
+        const fullNote = `${noteName}${octaveRef.current}`;
         await Tone.start();
         if (Tone.getContext().state !== "running") {
           await Tone.getContext().resume();

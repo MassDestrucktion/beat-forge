@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router";
 import Navbar from "./components/Navbar";
+import "./App.css";
 
 import LandingPage from "./landingPage";
 import RegisterPage from "./register";

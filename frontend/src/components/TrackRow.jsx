@@ -10,6 +10,8 @@ import {
   DEFAULT_TRACK_SOUNDS,
   NOTE_OPTIONS,
   DURATION_OPTIONS,
+  CHORD_TYPES,
+  buildChord,
 } from "../sequencer/projectModel";
 
 import { KEYBOARD_LEGEND } from "../sequencer/useKeyboardInput";
@@ -28,6 +30,7 @@ import { getSoundById } from "../audio/soundLibrary";
 export default function TrackRow({
   trackIndex,
   track,
+  stepNotes,
   trackSetting,
   expandedTrack,
   currentStep,
@@ -45,6 +48,7 @@ export default function TrackRow({
   onRenameTrack,
   onPreviewSound,
   onRandomPattern,
+  onRandomArp,
   isKeyboardSelected,
   onSelectTrack,
   onToggleKeys,
@@ -52,12 +56,18 @@ export default function TrackRow({
   keysEnabled,
   onNudgePattern,
   onSetStepsRange,
+  onSetStepNote,
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
 
   const [nameDraft, setNameDraft] = useState("");
 
   const [showLegend, setShowLegend] = useState(false);
+
+  // Per-step note editor panel
+  const [noteEditingStep, setNoteEditingStep] = useState(null);
+  const [chordRoot, setChordRoot] = useState("C4");
+  const [chordType, setChordType] = useState("major");
 
   // Drag-to-highlight state
   const dragRef = useRef(null);
@@ -87,6 +97,7 @@ export default function TrackRow({
   const currentSound = getSoundById(currentSoundId);
 
   const isSynth = currentSound?.type === "synth";
+  const isPoly = isSynth && currentSound?.synth?.engine === "poly";
 
   const reverbEnabled = trackSetting?.reverb?.enabled || false;
 
@@ -148,14 +159,16 @@ export default function TrackRow({
             </span>
           )}
 
-          {isKeyboardSelected && (
-            <span
-              className="keyboard-indicator"
-              title="Keyboard active on this track"
-            >
-              🎹
-            </span>
-          )}
+          <div className="track-status" aria-live="polite">
+            {isSynth && isKeyboardSelected && keysEnabled && (
+              <span
+                className="octave-badge"
+                title="Current octave (Z/X to change)"
+              >
+                Oct {keyboardOctave}
+              </span>
+            )}
+          </div>
           <div className="side-panel-buttons">
             <button
               type="button"
@@ -194,15 +207,6 @@ export default function TrackRow({
                 >
                   🎹
                 </button>
-
-                {isKeyboardSelected && keysEnabled && (
-                  <span
-                    className="octave-badge"
-                    title="Current octave (Z/X to change)"
-                  >
-                    Oct {keyboardOctave}
-                  </span>
-                )}
               </>
             )}
 
@@ -277,6 +281,11 @@ export default function TrackRow({
             {track.map((isActive, stepIndex) => (
               <button
                 key={stepIndex}
+                onContextMenu={(e) => {
+                  if (!isSynth) return;
+                  e.preventDefault();
+                  setNoteEditingStep(stepIndex);
+                }}
                 onPointerDown={(e) => {
                   e.preventDefault();
                   const newValue = !isActive;
@@ -319,13 +328,97 @@ export default function TrackRow({
                 title={isSynth && isActive ? selectedNote : undefined}
               >
                 {isSynth && isActive ? (
-                  <span className="step-note-label">{selectedNote}</span>
+                  <span className="step-note-label">
+                    {Array.isArray(stepNotes?.[stepIndex])
+                      ? stepNotes[stepIndex]
+                          .map((n) => n.replace(/\d+$/, ""))
+                          .join("·")
+                      : stepNotes?.[stepIndex] || selectedNote}
+                  </span>
                 ) : (
                   stepIndex + 1
                 )}
               </button>
             ))}
           </div>
+
+          {isSynth && noteEditingStep != null && (
+            <div className="step-note-panel">
+              <span>Step {noteEditingStep + 1}</span>
+              <select
+                value={
+                  typeof stepNotes?.[noteEditingStep] === "string"
+                    ? stepNotes[noteEditingStep]
+                    : ""
+                }
+                onChange={(e) =>
+                  onSetStepNote?.(
+                    trackIndex,
+                    noteEditingStep,
+                    e.target.value || null,
+                  )
+                }
+                title="Set a single note or use the track default"
+              >
+                <option value="">Track default</option>
+                {NOTE_OPTIONS.map((note) => (
+                  <option key={note} value={note}>
+                    {note}
+                  </option>
+                ))}
+              </select>
+
+              {isPoly && (
+                <>
+                  <select
+                    value={chordRoot}
+                    onChange={(e) => setChordRoot(e.target.value)}
+                    title="Chord root note"
+                  >
+                    {NOTE_OPTIONS.map((note) => (
+                      <option key={note} value={note}>
+                        {note}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={chordType}
+                    onChange={(e) => setChordType(e.target.value)}
+                    title="Chord type"
+                  >
+                    {Object.keys(CHORD_TYPES).map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() =>
+                      onSetStepNote?.(
+                        trackIndex,
+                        noteEditingStep,
+                        buildChord(chordRoot, chordType),
+                      )
+                    }
+                    title="Apply chord"
+                  >
+                    🎹
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => setNoteEditingStep(null)}
+                title="Close note editor"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           <div className="track-control-row">
             <label className="control-field">
@@ -397,6 +490,18 @@ export default function TrackRow({
                 🎲
                 <span className="icon-btn-label">Rand</span>
               </button>
+
+              {isSynth && (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => onRandomArp?.(trackIndex)}
+                  title="Generate a random arpeggio (scale-based notes)"
+                >
+                  🎵
+                  <span className="icon-btn-label">Arp</span>
+                </button>
+              )}
 
               <button
                 type="button"

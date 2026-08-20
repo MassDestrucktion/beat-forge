@@ -97,6 +97,11 @@ const FEATURES = {
       title: "Volume",
       text: "Vertical slider on each track controls its level.",
     },
+    {
+      icon: "✏️",
+      title: "Rename",
+      text: "Double-click a track name to rename it.",
+    },
   ],
   toolbar: [
     { icon: "▶️", title: "Play / Stop", text: "Start and stop the transport." },
@@ -174,6 +179,11 @@ const FEATURES = {
       icon: "🔁",
       title: "Loop",
       text: "Loop the arrangement and drag the loop handles.",
+    },
+    {
+      icon: "⠿",
+      title: "Reorder Tracks",
+      text: "Drag a lane's handle up or down to change track order.",
     },
   ],
 };

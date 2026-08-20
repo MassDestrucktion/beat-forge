@@ -65,8 +65,15 @@ usersRouter.post(
         });
       }
 
-      const { name, tempo, grid, track_settings, arrangement, track_order } =
-        req.body;
+      const {
+        name,
+        tempo,
+        grid,
+        track_settings,
+        arrangement,
+        track_order,
+        step_notes,
+      } = req.body;
 
       const project = await createProject(
         crypto.randomUUID(),
@@ -77,6 +84,7 @@ usersRouter.post(
         track_settings,
         arrangement,
         track_order,
+        step_notes,
       );
 
       res.status(201).json(project);
@@ -156,8 +164,15 @@ usersRouter.put(
         });
       }
 
-      const { name, tempo, grid, track_settings, arrangement, track_order } =
-        req.body;
+      const {
+        name,
+        tempo,
+        grid,
+        track_settings,
+        arrangement,
+        track_order,
+        step_notes,
+      } = req.body;
 
       const project = await update_project_by_id(
         project_id,
@@ -168,6 +183,7 @@ usersRouter.put(
         track_settings,
         arrangement,
         track_order,
+        step_notes,
       );
 
       res.json(project);

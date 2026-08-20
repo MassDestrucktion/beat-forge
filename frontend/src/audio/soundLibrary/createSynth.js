@@ -30,7 +30,49 @@ export function createSynthForSound(sound, destination) {
    * -------------------------------------------------------
    */
 
-  if (config.engine === "membrane") {
+  if (config.engine === "synth") {
+    /**
+     * -------------------------------------------------------
+     * PLAIN SYNTH (monophonic oscillator)
+     * -------------------------------------------------------
+     */
+    synth = new Tone.Synth({
+      oscillator: config.oscillator || {
+        type: "triangle",
+      },
+
+      envelope: config.envelope || {
+        attack: 0.01,
+        decay: 0.1,
+        sustain: 0.7,
+        release: 0.2,
+      },
+    });
+  } else if (config.engine === "duosynth") {
+    /**
+     * -------------------------------------------------------
+     * DUOSYNTH (dual-oscillator lead)
+     * -------------------------------------------------------
+     */
+    synth = new Tone.DuoSynth({
+      harmonicity: config.harmonicity ?? 1.5,
+
+      vibratoAmount: config.vibratoAmount ?? 0.5,
+
+      vibratoRate: config.vibratoRate ?? 5,
+
+      oscillator: config.oscillator || {
+        type: "sawtooth",
+      },
+
+      envelope: config.envelope || {
+        attack: 0.01,
+        decay: 0.1,
+        sustain: 0.7,
+        release: 0.3,
+      },
+    });
+  } else if (config.engine === "membrane") {
     synth = new Tone.MembraneSynth({
       pitchDecay: config.pitchDecay ?? 0.05,
 

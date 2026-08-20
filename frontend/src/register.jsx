@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 import { useAuth } from "./AuthContext/AuthContext";
+import heroImg from "./assets/sequencer-hero.svg";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -30,7 +31,7 @@ export default function RegisterPage() {
     <div className="auth-wrapper">
       <div className="auth-card">
         <div className="auth-logo">
-          <span className="auth-logo-icon">🎵</span>
+          <img src={heroImg} alt="Sequencer" className="auth-logo-img" />
           <h1>Register</h1>
         </div>
 

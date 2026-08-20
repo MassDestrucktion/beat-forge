@@ -10,6 +10,7 @@ export async function createProject(
   track_settings,
   arrangement,
   track_order,
+  step_notes,
 ) {
   const SQL = `
         INSERT INTO  projects (
@@ -20,9 +21,10 @@ export async function createProject(
             grid,
             track_settings,
             arrangement,
-            track_order
+            track_order,
+            step_notes
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
     `;
 
@@ -37,6 +39,7 @@ export async function createProject(
     JSON.stringify(track_settings),
     JSON.stringify(arrangement ?? []),
     track_order ? JSON.stringify(track_order) : null,
+    step_notes ? JSON.stringify(step_notes) : null,
   ]);
 
   return project;
@@ -101,6 +104,7 @@ export async function update_project_by_id(
   track_settings,
   arrangement,
   track_order,
+  step_notes,
 ) {
   const SQL = `
     UPDATE projects
@@ -111,9 +115,10 @@ export async function update_project_by_id(
       track_settings = $4,
       arrangement = $5,
       track_order = $6,
+      step_notes = $7,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $7
-      AND user_id = $8
+    WHERE id = $8
+      AND user_id = $9
     RETURNING *
   `;
 
@@ -126,6 +131,7 @@ export async function update_project_by_id(
     JSON.stringify(track_settings),
     JSON.stringify(arrangement ?? []),
     track_order ? JSON.stringify(track_order) : null,
+    step_notes ? JSON.stringify(step_notes) : null,
     project_id,
     user_id,
   ]);

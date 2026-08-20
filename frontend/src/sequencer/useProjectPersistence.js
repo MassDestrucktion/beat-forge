@@ -27,12 +27,14 @@ import { normalizeProject } from "./projectModel";
 export function useProjectPersistence({
   bpm,
   grid,
+  stepNotes,
   trackSettings,
   arrangement,
   trackOrder,
 
   setBpm,
   setGrid,
+  setStepNotes,
   setTrackSettings,
   setNumTracks,
   setArrangement,
@@ -103,6 +105,8 @@ export function useProjectPersistence({
     Tone.Transport.bpm.value = project.tempo;
 
     setGrid(project.grid);
+
+    setStepNotes(project.step_notes ?? []);
 
     setTrackSettings(project.track_settings);
 
@@ -271,6 +275,8 @@ export function useProjectPersistence({
       tempo: bpm,
 
       grid,
+
+      step_notes: stepNotes,
 
       track_settings: trackSettings,
 

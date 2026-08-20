@@ -19,9 +19,11 @@ import {
   TRACK_LABELS,
   DEFAULT_TRACK_SOUNDS,
   createEmptyGrid,
+  createEmptyStepNotes,
   createDefaultTrackSettings,
   createDefaultTrack,
   generateSmartPattern,
+  generateArpNotes,
 } from "./sequencer/projectModel";
 
 import { useAudioGraph } from "./sequencer/useAudioGraph";
@@ -47,6 +49,8 @@ export default function SequencerPage() {
   const [numTracks, setNumTracks] = useState(MIN_TRACKS);
 
   const [grid, setGrid] = useState(createEmptyGrid);
+
+  const [stepNotes, setStepNotes] = useState(createEmptyStepNotes);
 
   const [bpm, setBpm] = useState(120);
 
@@ -100,6 +104,8 @@ export default function SequencerPage() {
   } = useTransport({
     grid,
 
+    stepNotes,
+
     arrangement,
 
     bpm,
@@ -143,6 +149,8 @@ export default function SequencerPage() {
 
     grid,
 
+    stepNotes,
+
     trackSettings,
 
     arrangement,
@@ -152,6 +160,8 @@ export default function SequencerPage() {
     setBpm,
 
     setGrid,
+
+    setStepNotes,
 
     setTrackSettings,
 
@@ -241,6 +251,8 @@ export default function SequencerPage() {
 
     setGrid((previous) => [...previous, Array(NUM_STEPS).fill(false)]);
 
+    setStepNotes((previous) => [...previous, Array(NUM_STEPS).fill(null)]);
+
     setTrackSettings((previous) => [...previous, createDefaultTrack(soundId)]);
 
     // The new track's index equals the pre-increment numTracks value
@@ -257,6 +269,8 @@ export default function SequencerPage() {
     setNumTracks(newNumTracks);
 
     setGrid((previous) => previous.slice(0, newNumTracks));
+
+    setStepNotes((previous) => previous.slice(0, newNumTracks));
 
     setTrackSettings((previous) => previous.slice(0, newNumTracks));
 
@@ -324,13 +338,38 @@ export default function SequencerPage() {
         index === trackIndex ? Array(NUM_STEPS).fill(false) : track,
       ),
     );
+
+    setStepNotes((previous) =>
+      previous.map((row, index) =>
+        index === trackIndex ? Array(NUM_STEPS).fill(null) : row,
+      ),
+    );
   };
 
   const randomizePattern = (trackIndex) => {
+    setStepNotes((previous) =>
+      previous.map((row, index) =>
+        index === trackIndex ? Array(NUM_STEPS).fill(null) : row,
+      ),
+    );
+
     setGrid((previous) =>
       previous.map((track, index) =>
         index === trackIndex ? generateSmartPattern() : track,
       ),
+    );
+  };
+
+  const randomizeArp = (trackIndex) => {
+    const pattern = generateSmartPattern();
+    const notes = generateArpNotes(pattern);
+
+    setGrid((previous) =>
+      previous.map((track, index) => (index === trackIndex ? pattern : track)),
+    );
+
+    setStepNotes((previous) =>
+      previous.map((row, index) => (index === trackIndex ? notes : row)),
     );
   };
 
@@ -350,19 +389,28 @@ export default function SequencerPage() {
   };
 
   const nudgePattern = (trackIndex, direction) => {
+    const shiftRow = (row) => {
+      const copy = [...row];
+      if (direction === "right") {
+        const last = copy.pop();
+        copy.unshift(last);
+      } else {
+        const first = copy.shift();
+        copy.push(first);
+      }
+      return copy;
+    };
+
     setGrid((previous) =>
-      previous.map((track, index) => {
-        if (index !== trackIndex) return track;
-        const row = [...track];
-        if (direction === "right") {
-          const last = row.pop();
-          row.unshift(last);
-        } else {
-          const first = row.shift();
-          row.push(first);
-        }
-        return row;
-      }),
+      previous.map((track, index) =>
+        index === trackIndex ? shiftRow(track) : track,
+      ),
+    );
+
+    setStepNotes((previous) =>
+      previous.map((row, index) =>
+        index === trackIndex ? shiftRow(row) : row,
+      ),
     );
   };
 
@@ -430,6 +478,17 @@ export default function SequencerPage() {
     updateTrackSetting(trackIndex, "name", name);
   };
 
+  const setStepNote = (trackIndex, stepIndex, note) => {
+    setStepNotes((previous) =>
+      previous.map((row, index) => {
+        if (index !== trackIndex) return row;
+        const updated = [...row];
+        updated[stepIndex] = note;
+        return updated;
+      }),
+    );
+  };
+
   /**
    * Reorder lanes by track index (not position) so it works even when
    * only a subset of lanes is visible in the arrangement view.
@@ -459,6 +518,7 @@ export default function SequencerPage() {
 
   const clearGrid = () => {
     setGrid(createEmptyGrid(numTracks));
+    setStepNotes(createEmptyStepNotes(numTracks));
   };
 
   const handleNewProject = () => {
@@ -478,6 +538,8 @@ export default function SequencerPage() {
     setTrackOrder(Array.from({ length: MIN_TRACKS }, (_, i) => i));
 
     setGrid(createEmptyGrid(MIN_TRACKS));
+
+    setStepNotes(createEmptyStepNotes(MIN_TRACKS));
 
     setTrackSettings(createDefaultTrackSettings(MIN_TRACKS));
 
@@ -501,6 +563,8 @@ export default function SequencerPage() {
 
       await downloadTrackAsWav({
         grid,
+
+        stepNotes,
 
         trackSettings,
 
@@ -660,6 +724,7 @@ export default function SequencerPage() {
         name: trackSettings[trackIndex]?.name || TRACK_LABELS[trackIndex] || "",
         bars: 1,
         grid: [grid[trackIndex]],
+        stepNotes: [stepNotes[trackIndex] || []],
         settings: { ...trackSettings[trackIndex] }, // Copy track settings
         tempo: bpm,
         sourceTrackIndex: trackIndex,
@@ -698,6 +763,7 @@ export default function SequencerPage() {
         name: trackSettings[trackIndex]?.name || TRACK_LABELS[trackIndex] || "",
         bars: 1,
         grid: [grid[trackIndex]],
+        stepNotes: [stepNotes[trackIndex] || []],
         settings: { ...trackSettings[trackIndex] },
         tempo: bpm,
         sourceTrackIndex: trackIndex,
@@ -759,6 +825,7 @@ export default function SequencerPage() {
             key={trackIndex}
             trackIndex={trackIndex}
             track={track}
+            stepNotes={stepNotes[trackIndex]}
             trackSetting={trackSettings[trackIndex]}
             expandedTrack={expandedTrack}
             currentStep={currentStep}
@@ -775,6 +842,7 @@ export default function SequencerPage() {
             onRenameTrack={renameTrack}
             onPreviewSound={previewSound}
             onRandomPattern={randomizePattern}
+            onRandomArp={randomizeArp}
             isKeyboardSelected={
               keysEnabled && selectedTrackIndex === trackIndex
             }
@@ -791,6 +859,7 @@ export default function SequencerPage() {
             keysEnabled={keysEnabled}
             onNudgePattern={nudgePattern}
             onSetStepsRange={setStepsRange}
+            onSetStepNote={setStepNote}
           />
         ))}
       </div>
