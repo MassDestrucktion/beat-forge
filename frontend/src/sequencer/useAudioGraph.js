@@ -1,331 +1,632 @@
-// src/sequencer/useAudioGraph.js
-
-import { useEffect, useRef } from "react";
-
+import { useCallback, useEffect, useRef } from "react";
 import * as Tone from "tone";
 
-import { getSoundById, createSoundEngine } from "../audio/soundLibrary";
+import { getSoundById } from "../audio/soundLibrary/soundLibrary";
 
-/**
- * Owns the realtime Tone.js audio graph:
- *
- *   engine → gain → delay → lowpass → highpass → reverb → destination
- *
- * Rebuilds the chain when the track count changes, syncs effect
- * parameters when track settings change, and exposes playTrackSound()
- * for the transport loop and UI previews.
- */
-export function useAudioGraph({ numTracks, trackSettings }) {
-  const trackGainsRef = useRef([]);
+function getTrackSoundId(track) {
+  if (!track) {
+    return null;
+  }
 
-  const trackReverbsRef = useRef([]);
+  // Your project model stores the sound as `sound`.
+  if (typeof track.sound === "string") {
+    return track.sound;
+  }
 
-  const trackDelaysRef = useRef([]);
+  // Defensive fallbacks in case older saved projects used another field.
+  if (typeof track.soundId === "string") {
+    return track.soundId;
+  }
 
-  const trackLPFsRef = useRef([]);
+  if (typeof track.sound?.id === "string") {
+    return track.sound.id;
+  }
 
-  const trackHPFsRef = useRef([]);
+  return null;
+}
 
-  const soundEnginesRef = useRef([]);
+function getSynthOptions(sound) {
+  const synth = sound?.synth ?? {};
 
-  /**
-   * Kept in a ref so playTrackSound (called from the transport
-   * loop's stale closure) always reads the latest settings.
-   */
-  const settingsRef = useRef(trackSettings);
+  const options = {};
 
-  useEffect(() => {
-    settingsRef.current = trackSettings;
-  }, [trackSettings]);
+  if (synth.oscillator) {
+    options.oscillator = {
+      ...synth.oscillator,
+    };
+  }
 
-  /**
-   * -------------------------------------------------------
-   * SETUP AUDIO GRAPH
-   * -------------------------------------------------------
-   */
+  if (synth.envelope) {
+    options.envelope = {
+      ...synth.envelope,
+    };
+  }
 
-  useEffect(() => {
-    soundEnginesRef.current.forEach((engine) => {
-      engine?.dispose?.();
-    });
+  if (synth.filter) {
+    options.filter = {
+      ...synth.filter,
+    };
+  }
 
-    soundEnginesRef.current = [];
+  if (synth.harmonicity !== undefined) {
+    options.harmonicity = synth.harmonicity;
+  }
 
-    trackGainsRef.current.forEach((gain) => {
-      gain?.dispose?.();
-    });
+  if (synth.modulationIndex !== undefined) {
+    options.modulationIndex = synth.modulationIndex;
+  }
 
-    trackGainsRef.current = [];
+  if (synth.modulation) {
+    options.modulation = {
+      ...synth.modulation,
+    };
+  }
 
-    trackReverbsRef.current.forEach((reverb) => {
-      reverb?.dispose?.();
-    });
+  if (synth.pitchDecay !== undefined) {
+    options.pitchDecay = synth.pitchDecay;
+  }
 
-    trackReverbsRef.current = [];
+  if (synth.octaves !== undefined) {
+    options.octaves = synth.octaves;
+  }
 
-    trackDelaysRef.current.forEach((delay) => {
-      delay?.dispose?.();
-    });
+  if (synth.resonance !== undefined) {
+    options.resonance = synth.resonance;
+  }
 
-    trackDelaysRef.current = [];
+  if (synth.dampening !== undefined) {
+    options.dampening = synth.dampening;
+  }
 
-    trackLPFsRef.current.forEach((lpf) => {
-      lpf?.dispose?.();
-    });
+  if (synth.vibratoAmount !== undefined) {
+    options.vibratoAmount = synth.vibratoAmount;
+  }
 
-    trackLPFsRef.current = [];
+  if (synth.vibratoRate !== undefined) {
+    options.vibratoRate = synth.vibratoRate;
+  }
 
-    trackHPFsRef.current.forEach((hpf) => {
-      hpf?.dispose?.();
-    });
+  return options;
+}
 
-    trackHPFsRef.current = [];
+function createSynthForSound(sound) {
+  const synth = sound?.synth;
 
-    const gains = [];
-    const delays = [];
-    const lpfilters = [];
-    const hpffilters = [];
-    const reverbs = [];
+  if (!synth) {
+    return null;
+  }
 
-    for (let trackIndex = 0; trackIndex < numTracks; trackIndex++) {
-      const gain = new Tone.Gain(1);
+  const options = getSynthOptions(sound);
 
-      const delay = new Tone.FeedbackDelay({
-        delayTime: "8n",
-        feedback: 0.3,
-        wet: 0,
+  switch (synth.engine) {
+    case "mono":
+      return new Tone.MonoSynth(options);
+
+    case "poly":
+      return new Tone.PolySynth(Tone.Synth, options);
+
+    case "fm":
+      return new Tone.FMSynth(options);
+
+    case "am":
+      return new Tone.AMSynth(options);
+
+    case "duosynth":
+      return new Tone.DuoSynth(options);
+
+    case "pluck":
+      return new Tone.PluckSynth(options);
+
+    case "membrane":
+      return new Tone.MembraneSynth(options);
+
+    case "metal":
+      return new Tone.MetalSynth(options);
+
+    case "noise":
+      return new Tone.NoiseSynth({
+        noise: synth.noise ?? { type: "white" },
+        envelope: synth.envelope ?? {
+          attack: 0.001,
+          decay: 0.1,
+          sustain: 0,
+          release: 0.05,
+        },
       });
 
-      const lpf = new Tone.Filter(20000, "lowpass");
+    default:
+      console.warn(
+        `[useAudioGraph] Unknown synth engine "${synth.engine}" for sound "${sound.id}". Falling back to Synth.`,
+      );
 
-      const hpf = new Tone.Filter(20, "highpass");
+      return new Tone.Synth(options);
+  }
+}
 
-      const reverb = new Tone.Reverb({
-        decay: 1.5,
-        wet: 0,
-      });
+export function useAudioGraph({
+  numTracks,
+  trackSettings,
+}) {
+  const synthsRef = useRef(new Map());
+  const playersRef = useRef(new Map());
+  const loadingPlayersRef = useRef(new Map());
 
-      gain.connect(delay);
-      delay.connect(lpf);
-      lpf.connect(hpf);
-      hpf.connect(reverb);
-      reverb.toDestination();
+  /**
+   * Create/recreate an instrument for a track.
+   */
+  const ensureInstrument = useCallback(
+    async (trackIndex) => {
+      const track = trackSettings?.[trackIndex];
 
-      gains.push(gain);
-      delays.push(delay);
-      lpfilters.push(lpf);
-      hpffilters.push(hpf);
-      reverbs.push(reverb);
-    }
-
-    trackGainsRef.current = gains;
-    trackDelaysRef.current = delays;
-    trackLPFsRef.current = lpfilters;
-    trackHPFsRef.current = hpffilters;
-    trackReverbsRef.current = reverbs;
-
-    for (let trackIndex = 0; trackIndex < numTracks; trackIndex++) {
-      const settings = trackSettings[trackIndex];
-
-      const sound = getSoundById(settings?.sound);
-
-      if (!sound) {
-        console.warn(`Sound not found: ${settings?.sound}`);
-        soundEnginesRef.current[trackIndex] = null;
-        continue;
+      if (!track) {
+        console.warn(
+          `[useAudioGraph] No track settings for track ${trackIndex}`,
+        );
+        return null;
       }
 
-      const engine = createSoundEngine(sound, gains[trackIndex]);
+      const soundId = getTrackSoundId(track);
 
-      soundEnginesRef.current[trackIndex] = engine;
+      if (!soundId) {
+        console.warn(
+          `[useAudioGraph] Track ${trackIndex} has no sound id`,
+          track,
+        );
+        return null;
+      }
+
+      const sound = getSoundById(soundId);
+
+      if (!sound) {
+        console.error(
+          `[useAudioGraph] Sound not found: "${soundId}"`,
+          {
+            trackIndex,
+            track,
+            availableExample: "drums.kicks.cr78",
+          },
+        );
+        return null;
+      }
+
+      /*
+       * SAMPLE
+       */
+      if (sound.type === "sample") {
+        const existing = playersRef.current.get(trackIndex);
+
+        if (existing && existing.url === sound.url) {
+          return existing.player;
+        }
+
+        if (existing) {
+          try {
+            existing.player.dispose();
+          } catch {
+            // Ignore disposal errors.
+          }
+
+          playersRef.current.delete(trackIndex);
+        }
+
+        const existingLoading = loadingPlayersRef.current.get(trackIndex);
+
+        if (
+          existingLoading &&
+          existingLoading.soundId === sound.id
+        ) {
+          return existingLoading.promise;
+        }
+
+        console.log(
+          `[useAudioGraph] Loading sample "${sound.id}" from ${sound.url}`,
+        );
+
+        const promise = new Promise((resolve, reject) => {
+          let player;
+
+          try {
+            player = new Tone.Player({
+              url: sound.url,
+              autostart: false,
+            }).toDestination();
+
+            /*
+             * Tone.Player exposes `loaded` through its buffer.
+             * Wait for the buffer before considering this player usable.
+             */
+            const checkLoaded = () => {
+              if (player.disposed) {
+                reject(
+                  new Error(
+                    `Player for "${sound.id}" was disposed while loading.`,
+                  ),
+                );
+                return;
+              }
+
+              if (player.loaded) {
+                const entry = {
+                  player,
+                  url: sound.url,
+                  soundId: sound.id,
+                };
+
+                playersRef.current.set(trackIndex, entry);
+                loadingPlayersRef.current.delete(trackIndex);
+
+                console.log(
+                  `[useAudioGraph] Sample loaded: ${sound.id}`,
+                );
+
+                resolve(player);
+                return;
+              }
+
+              window.setTimeout(checkLoaded, 50);
+            };
+
+            checkLoaded();
+          } catch (error) {
+            loadingPlayersRef.current.delete(trackIndex);
+            reject(error);
+          }
+        });
+
+        loadingPlayersRef.current.set(trackIndex, {
+          soundId: sound.id,
+          promise,
+        });
+
+        try {
+          return await promise;
+        } catch (error) {
+          loadingPlayersRef.current.delete(trackIndex);
+
+          console.error(
+            `[useAudioGraph] Failed loading sample "${sound.id}"`,
+            error,
+          );
+
+          return null;
+        }
+      }
+
+      /*
+       * SYNTH
+       */
+      const existing = synthsRef.current.get(trackIndex);
+
+      if (
+        existing &&
+        existing.soundId === sound.id &&
+        existing.engine === sound.synth?.engine
+      ) {
+        return existing.synth;
+      }
+
+      if (existing?.synth) {
+        try {
+          existing.synth.dispose();
+        } catch {
+          // Ignore disposal errors.
+        }
+      }
+
+      const instrument = createSynthForSound(sound);
+
+      if (!instrument) {
+        console.error(
+          `[useAudioGraph] Could not create synth for "${sound.id}"`,
+        );
+        return null;
+      }
+
+      instrument.toDestination();
+
+      const entry = {
+        synth: instrument,
+        soundId: sound.id,
+        engine: sound.synth?.engine,
+      };
+
+      synthsRef.current.set(trackIndex, entry);
+
+      console.log(
+        `[useAudioGraph] Created synth "${sound.id}" for track ${trackIndex}`,
+      );
+
+      return instrument;
+    },
+    [trackSettings],
+  );
+
+  /*
+   * Rebuild instruments when the selected sounds change.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    async function rebuild() {
+      for (let trackIndex = 0; trackIndex < numTracks; trackIndex++) {
+        if (cancelled) {
+          return;
+        }
+
+        await ensureInstrument(trackIndex);
+      }
     }
+
+    rebuild();
 
     return () => {
-      soundEnginesRef.current.forEach((engine) => {
-        engine?.dispose?.();
-      });
-
-      soundEnginesRef.current = [];
-
-      gains.forEach((gain) => gain.dispose());
-      delays.forEach((delay) => delay.dispose());
-      lpfilters.forEach((lpf) => lpf.dispose());
-      hpffilters.forEach((hpf) => hpf.dispose());
-      reverbs.forEach((reverb) => reverb.dispose());
-
-      trackGainsRef.current = [];
-      trackDelaysRef.current = [];
-      trackLPFsRef.current = [];
-      trackHPFsRef.current = [];
-      trackReverbsRef.current = [];
+      cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [numTracks]);
+  }, [numTracks, trackSettings, ensureInstrument]);
 
-  /**
-   * -------------------------------------------------------
-   * UPDATE TRACK EFFECTS
-   * -------------------------------------------------------
+  /*
+   * Play one track immediately.
    */
+  const playTrackSound = useCallback(
+    async (trackIndex, noteOverride = null) => {
+      try {
+        await Tone.start();
 
+        const context = Tone.getContext();
+
+        if (context.state !== "running") {
+          await context.resume();
+        }
+
+        const track = trackSettings?.[trackIndex];
+
+        if (!track) {
+          console.warn(
+            `[useAudioGraph] Cannot play track ${trackIndex}: track does not exist.`,
+          );
+          return;
+        }
+
+        if (track.muted) {
+          return;
+        }
+
+        const soundId = getTrackSoundId(track);
+
+        if (!soundId) {
+          console.error(
+            `[useAudioGraph] Cannot play track ${trackIndex}: sound is null.`,
+            track,
+          );
+          return;
+        }
+
+        const sound = getSoundById(soundId);
+
+        if (!sound) {
+          console.error(
+            `[useAudioGraph] Cannot play track ${trackIndex}: sound "${soundId}" does not exist.`,
+          );
+          return;
+        }
+
+        const instrument = await ensureInstrument(trackIndex);
+
+        if (!instrument) {
+          console.error(
+            `[useAudioGraph] No instrument available for "${sound.id}".`,
+          );
+          return;
+        }
+
+        /*
+         * SAMPLE PLAYBACK
+         */
+        if (sound.type === "sample") {
+          if (!instrument.loaded) {
+            console.warn(
+              `[useAudioGraph] Sample "${sound.id}" is not loaded yet.`,
+            );
+            return;
+          }
+
+          instrument.start();
+
+          return;
+        }
+
+        /*
+         * SYNTH PLAYBACK
+         */
+        const note =
+          noteOverride ??
+          track.note ??
+          sound.synth?.note ??
+          "C4";
+
+        const duration =
+          track.duration ??
+          sound.synth?.duration ??
+          "8n";
+
+        if (typeof instrument.triggerAttackRelease !== "function") {
+          console.error(
+            `[useAudioGraph] Instrument for "${sound.id}" does not support triggerAttackRelease.`,
+          );
+          return;
+        }
+
+        instrument.triggerAttackRelease(note, duration);
+      } catch (error) {
+        console.error(
+          `[useAudioGraph] playTrackSound(${trackIndex}) failed:`,
+          error,
+        );
+      }
+    },
+    [ensureInstrument, trackSettings],
+  );
+
+  /*
+   * Preview a specific sound without changing the track.
+   *
+   * This is useful from the sound picker / clip editor.
+   */
+  const previewSound = useCallback(
+    async (soundId, options = {}) => {
+      try {
+        await Tone.start();
+
+        const context = Tone.getContext();
+
+        if (context.state !== "running") {
+          await context.resume();
+        }
+
+        const sound = getSoundById(soundId);
+
+        if (!sound) {
+          console.error(
+            `[useAudioGraph] previewSound: sound "${soundId}" not found.`,
+          );
+          return;
+        }
+
+        if (sound.type === "sample") {
+          const player = new Tone.Player({
+            url: sound.url,
+            autostart: false,
+          }).toDestination();
+
+          /*
+           * Tone.Player needs its AudioBuffer loaded before start().
+           */
+          const waitForLoad = () =>
+            new Promise((resolve, reject) => {
+              const startedAt = performance.now();
+
+              const check = () => {
+                if (player.disposed) {
+                  reject(
+                    new Error(
+                      `Preview player for "${sound.id}" was disposed.`,
+                    ),
+                  );
+                  return;
+                }
+
+                if (player.loaded) {
+                  resolve();
+                  return;
+                }
+
+                /*
+                 * Don't hang forever if a URL is bad.
+                 */
+                if (performance.now() - startedAt > 15000) {
+                  reject(
+                    new Error(
+                      `Timed out loading preview sample "${sound.id}".`,
+                    ),
+                  );
+                  return;
+                }
+
+                window.setTimeout(check, 50);
+              };
+
+              check();
+            });
+
+          await waitForLoad;
+
+          player.start();
+
+          /*
+           * Give the sample time to play, then dispose the temporary player.
+           */
+          window.setTimeout(() => {
+            try {
+              player.dispose();
+            } catch {
+              // Ignore cleanup errors.
+            }
+          }, 5000);
+
+          return;
+        }
+
+        const instrument = createSynthForSound(sound);
+
+        if (!instrument) {
+          return;
+        }
+
+        instrument.toDestination();
+
+        const note =
+          options.note ??
+          sound.synth?.note ??
+          "C4";
+
+        const duration =
+          options.duration ??
+          sound.synth?.duration ??
+          "8n";
+
+        instrument.triggerAttackRelease(note, duration);
+
+        /*
+         * Dispose after the note's expected lifetime.
+         */
+        window.setTimeout(() => {
+          try {
+            instrument.dispose();
+          } catch {
+            // Ignore cleanup errors.
+          }
+        }, 3000);
+      } catch (error) {
+        console.error(
+          `[useAudioGraph] previewSound("${soundId}") failed:`,
+          error,
+        );
+      }
+    },
+    [],
+  );
+
+  /*
+   * Cleanup everything when the sequencer leaves the page.
+   */
   useEffect(() => {
-    trackSettings.forEach((settings, trackIndex) => {
-      const gain = trackGainsRef.current[trackIndex];
-      const delay = trackDelaysRef.current[trackIndex];
-      const lpf = trackLPFsRef.current[trackIndex];
-      const hpf = trackHPFsRef.current[trackIndex];
-      const reverb = trackReverbsRef.current[trackIndex];
-
-      if (!gain || !reverb) {
-        return;
+    return () => {
+      for (const { synth } of synthsRef.current.values()) {
+        try {
+          synth.dispose();
+        } catch {
+          // Ignore cleanup errors.
+        }
       }
 
-      gain.gain.value = settings?.muted ? 0 : settings.volume;
-
-      if (delay) {
-        const delayEnabled = settings?.delay?.enabled ?? false;
-        const delayTime = settings?.delay?.time ?? 0.25;
-        const feedback = settings?.delay?.feedback ?? 0.3;
-        const delayWet = settings?.delay?.wet ?? 0.3;
-
-        delay.delayTime.value = delayTime;
-        delay.feedback.value = feedback;
-        delay.wet.value = delayEnabled ? delayWet : 0;
+      for (const { player } of playersRef.current.values()) {
+        try {
+          player.dispose();
+        } catch {
+          // Ignore cleanup errors.
+        }
       }
 
-      if (lpf) {
-        lpf.frequency.value = settings?.filter?.lowpass ?? 20000;
-      }
-
-      if (hpf) {
-        hpf.frequency.value = settings?.filter?.highpass ?? 20;
-      }
-
-      const reverbEnabled = settings?.reverb?.enabled ?? false;
-
-      const wet = settings?.reverb?.wet ?? 0.35;
-
-      const decay = settings?.reverb?.decay ?? 1.5;
-
-      reverb.decay = decay;
-      reverb.wet.value = reverbEnabled ? wet : 0;
-    });
-  }, [trackSettings]);
-
-  /**
-   * -------------------------------------------------------
-   * RECREATE SOUND ENGINES
-   * -------------------------------------------------------
-   */
-
-  useEffect(() => {
-    for (let trackIndex = 0; trackIndex < trackSettings.length; trackIndex++) {
-      const settings = trackSettings[trackIndex];
-
-      const sound = getSoundById(settings?.sound);
-
-      const oldEngine = soundEnginesRef.current[trackIndex];
-
-      if (oldEngine) {
-        oldEngine.dispose();
-      }
-
-      if (!sound) {
-        soundEnginesRef.current[trackIndex] = null;
-        continue;
-      }
-
-      const gain = trackGainsRef.current[trackIndex];
-
-      if (!gain) {
-        soundEnginesRef.current[trackIndex] = null;
-        continue;
-      }
-
-      const engine = createSoundEngine(sound, gain);
-
-      soundEnginesRef.current[trackIndex] = engine;
-    }
-  }, [trackSettings]);
-
-  /**
-   * -------------------------------------------------------
-   * PLAY TRACK SOUND
-   * -------------------------------------------------------
-   */
-
-  const playTrackSound = (trackIndex, time, settingsOverrides = {}) => {
-    const baseSettings = settingsRef.current[trackIndex];
-
-    const settings = { ...baseSettings, ...settingsOverrides };
-
-    if (!settings) {
-      return;
-    }
-
-    if (settings.muted) {
-      return;
-    }
-
-    const anySolo = settingsRef.current.some((s) => s?.soloed);
-
-    if (anySolo && !settings?.soloed) {
-      return;
-    }
-
-    const engine = soundEnginesRef.current[trackIndex];
-
-    if (!engine) {
-      console.warn(`No sound engine for track ${trackIndex + 1}`);
-
-      return;
-    }
-
-    const playOverrides = {
-      note: settingsOverrides.note ?? settings.note,
-      duration: settingsOverrides.duration ?? settings.duration,
+      synthsRef.current.clear();
+      playersRef.current.clear();
+      loadingPlayersRef.current.clear();
     };
+  }, []);
 
-    try {
-      engine.play(time, playOverrides);
-    } catch (error) {
-      console.error("Failed to play track sound:", error);
-    }
+  return {
+    playTrackSound,
+    previewSound,
   };
-
-  const previewEngineRef = useRef(null);
-
-  const previewSound = async (soundId) => {
-    if (previewEngineRef.current) {
-      previewEngineRef.current.dispose();
-      previewEngineRef.current = null;
-    }
-
-    const sound = getSoundById(soundId);
-    if (!sound) {
-      console.warn(`Sound not found for preview: ${soundId}`);
-      return;
-    }
-
-    await Tone.start();
-    if (Tone.getContext().state !== "running") {
-      await Tone.getContext().resume();
-    }
-
-    const engine = createSoundEngine(sound);
-    // createSoundEngine already connects to destination via resolveDestination
-    previewEngineRef.current = engine;
-
-    engine.play(Tone.now());
-
-    // Dispose after a short time
-    setTimeout(() => {
-      if (previewEngineRef.current === engine) {
-        engine.dispose();
-        previewEngineRef.current = null;
-      }
-    }, 2000); // 2 seconds
-  };
-
-  return { playTrackSound, previewSound };
 }
+
+export default useAudioGraph;
