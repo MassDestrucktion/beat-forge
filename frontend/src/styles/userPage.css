@@ -2,49 +2,71 @@
   max-width: 1100px;
   margin: 0 auto;
   padding: 2rem;
-  color: white;
+  color: #f3f4f6;
 }
 
 /* Top welcome area */
 
 .welcomeCard {
-  background: #181818;
+  background: linear-gradient(
+    135deg,
+    rgba(17, 24, 39, 0.95),
+    rgba(31, 41, 55, 0.95)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
   padding: 2rem;
-  border-radius: 16px;
   margin-bottom: 2rem;
 }
 
 .welcomeCard h1 {
   margin: 0;
-  font-size: 2.2rem;
+}
+
+.welcomeCard h1.pixel-title {
+  font-size: 1.4rem;
+  line-height: 1.5;
 }
 
 .welcomeCard p {
-  color: #aaa;
+  color: #9ca3af;
+  margin: 0.5rem 0 0;
 }
 
 /* Projects */
 
-.projectsSection {
-  background: #111;
+.projectsSection,
+.followingSection {
+  background: linear-gradient(
+    135deg,
+    rgba(17, 24, 39, 0.95),
+    rgba(31, 41, 55, 0.95)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
   padding: 2rem;
-  border-radius: 16px;
+  margin-bottom: 1.5rem;
 }
 
-.projectsHeader {
+.projectsHeader,
+.followingHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
 }
 
-.projectsHeader h2 {
+.projectsHeader h2,
+.followingHeader h2 {
   margin: 0;
+  color: #f3f4f6;
 }
 
 .user-name {
   margin: 0.25rem 0 0;
-  color: #aaa;
+  color: #9ca3af;
   font-size: 0.9rem;
 }
 
@@ -61,16 +83,18 @@
   flex-direction: column;
   gap: 0.9rem;
 
-  background: #1a1a1a;
-  border: 1px solid #262626;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
   padding: 1.25rem;
 
-  transition: border-color 0.15s ease, transform 0.1s ease;
+  transition:
+    border-color 0.15s ease,
+    transform 0.1s ease;
 }
 
 .project-card:hover {
-  border-color: #3a3a3a;
+  border-color: rgba(139, 92, 246, 0.4);
   transform: translateY(-2px);
 }
 
@@ -84,7 +108,7 @@
 .project-card-header h3 {
   margin: 0;
   font-size: 1.1rem;
-  color: white;
+  color: #ffffff;
 
   overflow: hidden;
   text-overflow: ellipsis;
@@ -93,7 +117,7 @@
 
 .project-date {
   flex-shrink: 0;
-  color: #888;
+  color: #9ca3af;
   font-size: 0.8rem;
   white-space: nowrap;
 }
@@ -101,7 +125,7 @@
 .project-card-details {
   display: flex;
   gap: 0.75rem;
-  color: #aaa;
+  color: #cbd5e1;
   font-size: 0.85rem;
 }
 
@@ -110,30 +134,36 @@
   gap: 0.6rem;
   margin-top: auto;
   padding-top: 0.6rem;
-  border-top: 1px solid #262626;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .nav-btn {
   flex: 1;
-  background: #262626;
-  color: white;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  color: #ffffff;
   border: none;
-  padding: 0.55rem 0.9rem;
-  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
   cursor: pointer;
   font-size: 0.85rem;
-  transition: background 0.12s ease;
+  font-weight: 700;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.15s ease;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
 }
 
 .nav-btn:hover {
-  background: #333;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.35);
 }
 
 .nav-btn.delete-btn {
   flex: 0 0 auto;
   background: transparent;
   color: #f87171;
-  border: 1px solid #3a2222;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  box-shadow: none;
 }
 
 .nav-btn.delete-btn:hover {
@@ -142,11 +172,17 @@
 }
 
 .emptyProjects {
-  background: #222;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
   padding: 2rem;
-  border-radius: 12px;
+  border-radius: 14px;
   text-align: center;
-  color: #aaa;
+  color: #9ca3af;
+}
+
+.emptyProjects h3 {
+  color: #f3f4f6;
+  margin: 0 0 0.5rem;
 }
 
 .link-btn {
@@ -165,26 +201,57 @@
 }
 
 .error-message {
-  color: #f87171;
+  color: #fca5a5;
   background: rgba(248, 113, 113, 0.08);
-  border: 1px solid rgba(248, 113, 113, 0.2);
+  border: 1px solid rgba(248, 113, 113, 0.25);
   padding: 0.75rem 1rem;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.9rem;
 }
 
 /* Button */
 
 .newProjectBtn {
-  background: #7c3aed;
-  color: white;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  color: #ffffff;
   border: none;
   padding: 0.8rem 1.4rem;
-  border-radius: 10px;
+  border-radius: 999px;
   cursor: pointer;
   font-size: 1rem;
+  font-weight: 700;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
 }
 
 .newProjectBtn:hover {
-  background: #6d28d9;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.4);
+}
+
+/* Following list */
+
+.followingSection ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.following-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.5rem;
+  color: #f3f4f6;
+}
+
+.following-username {
+  font-weight: 700;
+  color: #a78bfa;
 }

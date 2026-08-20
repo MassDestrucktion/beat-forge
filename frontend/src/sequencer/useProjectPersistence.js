@@ -27,11 +27,14 @@ import { normalizeProject } from "./projectModel";
 export function useProjectPersistence({
   bpm,
   grid,
+  stepNotes,
   trackSettings,
   arrangement,
+  trackOrder,
 
   setBpm,
   setGrid,
+  setStepNotes,
   setTrackSettings,
   setNumTracks,
   setArrangement,
@@ -103,11 +106,15 @@ export function useProjectPersistence({
 
     setGrid(project.grid);
 
+    setStepNotes(project.step_notes ?? []);
+
     setTrackSettings(project.track_settings);
 
     setNumTracks(project.grid.length);
 
     setArrangement(project.arrangement);
+
+    setTrackOrder(project.track_order);
 
     setSharedId(project.shared_id || null);
   };
@@ -269,9 +276,13 @@ export function useProjectPersistence({
 
       grid,
 
+      step_notes: stepNotes,
+
       track_settings: trackSettings,
 
       arrangement,
+
+      track_order: trackOrder,
     };
 
     const isUpdate = Boolean(projectId);

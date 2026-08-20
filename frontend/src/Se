@@ -1,0 +1,598 @@
+// src/SequencerPage.jsx
+
+import * as Tone from "tone";
+
+import { useState, useEffect } from "react";
+
+import { useNavigate, useLocation } from "react-router";
+
+import { getSoundById } from "./audio/soundLibrary";
+
+import ArrangementView from "./components/ArrangementView.jsx";
+import TrackRow from "./components/TrackRow.jsx";
+import SequencerToolbar from "./components/SequencerToolbar.jsx";
+import SaveLoadPanel from "./components/SaveLoadPanel.jsx";
+
+import {
+  MIN_TRACKS,
+  MAX_TRACKS,
+  NUM_STEPS,
+  DEFAULT_TRACK_SOUNDS,
+  createEmptyGrid,
+  createDefaultTrackSettings,
+  createDefaultTrack,
+} from "./sequencer/projectModel";
+
+import { useAudioGraph } from "./sequencer/useAudioGraph";
+
+import { useTransport } from "./sequencer/useTransport";
+
+import { useProjectPersistence } from "./sequencer/useProjectPersistence";
+
+import { downloadTrackAsWav } from "./sequencer/wavExport";
+
+import "./App.css";
+
+/**
+ * ---------------------------------------------------------
+ * SEQUENCER
+ * ---------------------------------------------------------
+ *
+ * This component is the orchestrator. Musical state and UI
+ * handlers live here; everything else is delegated:
+ *
+ *   src/sequencer/projectModel.js        — constants + pure helpers
+ *   src/sequencer/useAudioGraph.js       — Tone.js per-track chains
+ *   src/sequencer/useTransport.js        — playback loop + play/stop
+ *   src/sequencer/useProjectPersistence.js — save/share/load
+ *   src/sequencer/wavExport.js           — offline render + WAV download
+ *   src/components/TrackRow.jsx          — one track's UI
+ *   src/components/SequencerToolbar.jsx  — hero + transport controls
+ *   src/components/SaveLoadPanel.jsx     — save/share UI
+ */
+export default function SequencerPage() {
+  const navigate = useNavigate();
+
+  const location = useLocation();
+
+  /**
+   * -------------------------------------------------------
+   * MUSICAL STATE
+   * -------------------------------------------------------
+   */
+
+  const [numTracks, setNumTracks] = useState(MIN_TRACKS);
+
+  const [grid, setGrid] = useState(createEmptyGrid);
+
+  const [bpm, setBpm] = useState(120);
+
+  const [trackSettings, setTrackSettings] = useState(
+    createDefaultTrackSettings,
+  );
+
+  const [expandedTrack, setExpandedTrack] = useState(null);
+
+  /**
+   * Arrangement is stored directly in projects.arrangement.
+   */
+  const [arrangement, setArrangement] = useState([]);
+
+  /**
+   * -------------------------------------------------------
+   * AUDIO + TRANSPORT + PERSISTENCE
+   * -------------------------------------------------------
+   */
+
+  const { playTrackSound } = useAudioGraph({
+    numTracks,
+
+    trackSettings,
+  });
+
+  const {
+    isPlaying,
+    isArrangementPlaying,
+    currentStep,
+    activeSectionIndex,
+
+    togglePlay,
+    toggleArrangementPlay,
+    resetTransport,
+  } = useTransport({
+    grid,
+
+    arrangement,
+
+    bpm,
+
+    playTrackSound,
+  });
+
+  const {
+    projectName,
+    setProjectName,
+
+    projectDescription,
+    setProjectDescription,
+
+    projectId,
+
+    saveStatus,
+    setSaveStatus,
+
+    sharedId,
+
+    isSharedView,
+
+    sharedBy,
+
+    setSearchParams,
+
+    setProjectId,
+
+    setSharedId,
+
+    setIsSharedView,
+
+    setSharedBy,
+
+    setLoadId,
+
+    setInitialLoadDone,
+  } = useProjectPersistence({
+    bpm,
+
+    grid,
+
+    trackSettings,
+
+    arrangement,
+
+    setBpm,
+
+    setGrid,
+
+    setTrackSettings,
+
+    setNumTracks,
+
+    setArrangement,
+  });
+
+  /**
+   * -------------------------------------------------------
+   * RETURN FROM CUSTOMIZE TRACK
+   * -------------------------------------------------------
+   */
+
+  useEffect(() => {
+    const returnedState = location.state;
+
+    if (!returnedState?.fromCustomize) {
+      return;
+    }
+
+    if (Array.isArray(returnedState.grid)) {
+      setGrid(returnedState.grid);
+
+      setNumTracks(
+        Math.min(Math.max(returnedState.grid.length, MIN_TRACKS), MAX_TRACKS),
+      );
+    }
+
+    if (Array.isArray(returnedState.trackSettings)) {
+      setTrackSettings(
+        returnedState.trackSettings.map((track) => ({
+          ...track,
+          muted: track?.muted ?? false,
+          soloed: track?.soloed ?? false,
+        })),
+      );
+    }
+
+    if (returnedState.bpm !== undefined) {
+      setBpm(returnedState.bpm);
+      Tone.Transport.bpm.value = returnedState.bpm;
+    }
+
+    if (returnedState.projectName !== undefined) {
+      setProjectName(returnedState.projectName);
+    }
+
+    if (returnedState.projectDescription !== undefined) {
+      setProjectDescription(returnedState.projectDescription);
+    }
+
+    if (returnedState.projectId !== undefined) {
+      setProjectId(returnedState.projectId);
+    }
+
+    setInitialLoadDone(true);
+
+    navigate("/sequencer", {
+      replace: true,
+      state: null,
+    });
+  }, [location.state, navigate]);
+
+  /**
+   * -------------------------------------------------------
+   * TRACK HANDLERS
+   * -------------------------------------------------------
+   */
+
+  const toggleTrackExpand = (trackIndex) => {
+    setExpandedTrack(expandedTrack === trackIndex ? null : trackIndex);
+  };
+
+  const previewTrackInline = async (trackIndex) => {
+    await Tone.start();
+
+    if (Tone.getContext().state !== "running") {
+      await Tone.getContext().resume();
+    }
+
+    playTrackSound(trackIndex);
+  };
+
+  const addTrack = () => {
+    if (numTracks >= MAX_TRACKS) {
+      return;
+    }
+
+    const soundId = DEFAULT_TRACK_SOUNDS[numTracks] || DEFAULT_TRACK_SOUNDS[0];
+
+    setNumTracks((previous) => previous + 1);
+
+    setGrid((previous) => [...previous, Array(NUM_STEPS).fill(false)]);
+
+    setTrackSettings((previous) => [...previous, createDefaultTrack(soundId)]);
+  };
+
+  const removeTrack = () => {
+    if (numTracks <= MIN_TRACKS) {
+      return;
+    }
+
+    const newNumTracks = numTracks - 1;
+
+    setNumTracks(newNumTracks);
+
+    setGrid((previous) => previous.slice(0, newNumTracks));
+
+    setTrackSettings((previous) => previous.slice(0, newNumTracks));
+  };
+
+  const toggleStep = async (trackIndex, stepIndex) => {
+    await Tone.start();
+
+    if (Tone.getContext().state !== "running") {
+      await Tone.getContext().resume();
+    }
+
+    setGrid((previous) => {
+      const updatedGrid = previous.map((track) => [...track]);
+
+      const isTurningOn = !updatedGrid[trackIndex][stepIndex];
+
+      updatedGrid[trackIndex][stepIndex] = isTurningOn;
+
+      if (isTurningOn) {
+        playTrackSound(trackIndex);
+      }
+
+      return updatedGrid;
+    });
+  };
+
+  const toggleTrackMute = (trackIndex) => {
+    setTrackSettings((previous) =>
+      previous.map((track, index) => {
+        if (index !== trackIndex) {
+          return track;
+        }
+
+        return {
+          ...track,
+          muted: !track?.muted,
+        };
+      }),
+    );
+  };
+
+  const toggleTrackSolo = (trackIndex) => {
+    setTrackSettings((previous) =>
+      previous.map((track, index) => {
+        if (index !== trackIndex) {
+          return track;
+        }
+
+        return {
+          ...track,
+          soloed: !track?.soloed,
+        };
+      }),
+    );
+  };
+
+  const clearTrackPattern = (trackIndex) => {
+    setGrid((previous) =>
+      previous.map((track, index) =>
+        index === trackIndex ? Array(NUM_STEPS).fill(false) : track,
+      ),
+    );
+  };
+
+  const updateTrackSound = (trackIndex, soundId) => {
+    const sound = getSoundById(soundId);
+
+    if (!sound) {
+      console.warn(`Sound not found: ${soundId}`);
+
+      return;
+    }
+
+    setTrackSettings((previous) =>
+      previous.map((track, index) => {
+        if (index !== trackIndex) {
+          return track;
+        }
+
+        return {
+          ...track,
+
+          sound: sound.id,
+
+          note:
+            sound.type === "synth"
+              ? (track.note ?? sound.synth?.note ?? "C4")
+              : undefined,
+
+          duration:
+            sound.type === "synth"
+              ? (track.duration ?? sound.synth?.duration ?? "8n")
+              : undefined,
+        };
+      }),
+    );
+  };
+
+  const updateTrackSetting = (trackIndex, key, value) => {
+    setTrackSettings((previous) =>
+      previous.map((track, index) =>
+        index === trackIndex
+          ? {
+              ...track,
+              [key]: value,
+            }
+          : track,
+      ),
+    );
+  };
+
+  /**
+   * -------------------------------------------------------
+   * TRANSPORT HANDLERS
+   * -------------------------------------------------------
+   */
+
+  const handleBpmChange = (newBpm) => {
+    setBpm(newBpm);
+    Tone.Transport.bpm.value = newBpm;
+  };
+
+  const clearGrid = () => {
+    setGrid(createEmptyGrid(numTracks));
+  };
+
+  const handleNewProject = () => {
+    resetTransport();
+
+    setProjectName("");
+    setProjectDescription("");
+
+    setProjectId(null);
+    setSharedId(null);
+
+    setIsSharedView(false);
+    setSharedBy("");
+
+    setArrangement([]);
+
+    setGrid(createEmptyGrid(MIN_TRACKS));
+
+    setTrackSettings(createDefaultTrackSettings(MIN_TRACKS));
+
+    setNumTracks(MIN_TRACKS);
+
+    setBpm(120);
+
+    Tone.Transport.bpm.value = 120;
+
+    setSaveStatus("");
+    setLoadId("");
+
+    setInitialLoadDone(false);
+
+    setSearchParams({});
+  };
+
+  const handleDownloadWav = async () => {
+    try {
+      setSaveStatus("Rendering track...");
+
+      await downloadTrackAsWav({
+        grid,
+
+        trackSettings,
+
+        bpm,
+      });
+
+      setSaveStatus("Track downloaded successfully.");
+    } catch (error) {
+      console.error(error);
+
+      setSaveStatus(`Download failed: ${error.message}`);
+    }
+  };
+
+  /**
+   * -------------------------------------------------------
+   * ARRANGEMENT HANDLERS
+   * -------------------------------------------------------
+   */
+
+  const addSection = () => {
+    setArrangement((previous) => [
+      ...previous,
+
+      {
+        id: crypto.randomUUID(),
+        name: "",
+        bars: 1,
+
+        /**
+         * Snapshot the current project grid.
+         */
+        grid: grid.map((track) => [...track]),
+
+        tempo: bpm,
+      },
+    ]);
+  };
+
+  const removeSection = (id) => {
+    setArrangement((previous) =>
+      previous.filter((section) => section.id !== id),
+    );
+  };
+
+  const renameSection = (id, newName) => {
+    setArrangement((previous) =>
+      previous.map((section) =>
+        section.id === id
+          ? {
+              ...section,
+              name: newName,
+            }
+          : section,
+      ),
+    );
+  };
+
+  const changeSectionBars = (id, newBars) => {
+    const clamped = Math.min(16, Math.max(1, Number(newBars) || 1));
+
+    setArrangement((previous) =>
+      previous.map((section) =>
+        section.id === id
+          ? {
+              ...section,
+              bars: clamped,
+            }
+          : section,
+      ),
+    );
+  };
+
+  /**
+   * -------------------------------------------------------
+   * RENDER
+   * -------------------------------------------------------
+   */
+
+  return (
+    <main className="sequencer-page">
+      <SequencerToolbar
+        isPlaying={isPlaying}
+        isSharedView={isSharedView}
+        projectName={projectName}
+        sharedBy={sharedBy}
+        numTracks={numTracks}
+        bpm={bpm}
+        onTogglePlay={togglePlay}
+        onClearGrid={clearGrid}
+        onDownloadWav={handleDownloadWav}
+        onNewProject={handleNewProject}
+        onAddTrack={addTrack}
+        onRemoveTrack={removeTrack}
+        onBpmChange={handleBpmChange}
+      />
+
+      <SaveLoadPanel
+        projectName={projectName}
+        onProjectNameChange={setProjectName}
+        projectDescription={projectDescription}
+        onProjectDescriptionChange={setProjectDescription}
+        projectId={projectId}
+        sharedId={sharedId}
+        isSharedView={isSharedView}
+        sharedBy={sharedBy}
+        saveStatus={saveStatus}
+        onSave={saveProject}
+        onShare={shareProject}
+        onAddToLibrary={addToMyLibrary}
+        onCopyShareLink={() => {
+          const link = `${window.location.origin}/sequencer?sharedId=${sharedId}`;
+
+          navigator.clipboard.writeText(link);
+
+          setSaveStatus("Share link copied to clipboard!");
+        }}
+      />
+
+      <div className="tracks">
+        {grid.map((track, trackIndex) => (
+          <TrackRow
+            key={trackIndex}
+            trackIndex={trackIndex}
+            track={track}
+            trackSetting={trackSettings[trackIndex]}
+            expandedTrack={expandedTrack}
+            currentStep={currentStep}
+            isPlaying={isPlaying}
+            onToggleStep={toggleStep}
+            onToggleMute={toggleTrackMute}
+            onToggleSolo={toggleTrackSolo}
+            onClearPattern={clearTrackPattern}
+            onUpdateSound={updateTrackSound}
+            onUpdateSetting={updateTrackSetting}
+            onToggleExpand={toggleTrackExpand}
+            onPreview={previewTrackInline}
+          />
+        ))}
+
+        {!isSharedView && numTracks < MAX_TRACKS && (
+          <div
+            className="add-track-card"
+            onClick={addTrack}
+            title="Add track (up to 8)"
+          >
+            <span className="add-track-icon">+</span>
+
+            <span className="add-track-label">Add Track</span>
+
+            <span className="add-track-sub">
+              {numTracks}/{MAX_TRACKS} tracks
+            </span>
+          </div>
+        )}
+      </div>
+
+      <ArrangementView
+        arrangement={arrangement}
+        onAddSection={addSection}
+        onRemove={removeSection}
+        onRename={renameSection}
+        onBarsChange={changeSectionBars}
+        onPlayArrangement={toggleArrangementPlay}
+        isPlaying={isArrangementPlaying}
+        numTracks={numTracks}
+        currentStep={currentStep}
+        activeSectionIndex={activeSectionIndex}
+      />
+    </main>
+  );
+}

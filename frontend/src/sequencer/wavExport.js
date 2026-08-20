@@ -105,6 +105,7 @@ export function audioBufferToWav(buffer) {
  */
 export async function renderTrackToBuffer({
   grid,
+  stepNotes,
   trackSettings,
   bpm,
   durationInSeconds = 4,
@@ -183,7 +184,7 @@ export async function renderTrackToBuffer({
         }
 
         engine.play(stepTime, {
-          note: settings?.note,
+          note: stepNotes?.[trackIndex]?.[step] ?? settings?.note,
 
           duration: settings?.duration,
         });
@@ -202,6 +203,7 @@ export async function renderTrackToBuffer({
 
 export async function downloadTrackAsWav({
   grid,
+  stepNotes,
   trackSettings,
   bpm,
   durationInSeconds = 4,
@@ -209,6 +211,7 @@ export async function downloadTrackAsWav({
 }) {
   const buffer = await renderTrackToBuffer({
     grid,
+    stepNotes,
     trackSettings,
     bpm,
     durationInSeconds,
