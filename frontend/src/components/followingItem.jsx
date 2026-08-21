@@ -20,7 +20,7 @@ export function FollowingItem({ following }) {
 
     console.log("FOLLOWING OBJECT:", following);
     console.log("PICURL:", following?.picurl);
-
+    //Testing Git
 
     return (
         <div className="following-item">
