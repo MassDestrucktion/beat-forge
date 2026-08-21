@@ -139,6 +139,8 @@ export default function UserPage() {
 
         const data = await response.json();
 
+        console.log("PROFILE USER:", data);
+
         setProfileUser(data);
       } catch (err) {
         console.error("PROFILE ERROR:", err);
