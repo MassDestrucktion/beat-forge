@@ -13,7 +13,7 @@ import {
   unfollowUser,
   followUser,
   searchUsers,
-  checkFollowing
+  checkFollowing,
 } from "../db/queries/users.js";
 
 import {
@@ -22,10 +22,10 @@ import {
   get_project_by_id,
   update_project_by_id,
   delete_project,
+  forkProject,
 } from "../db/queries/projects.js";
 import { requireAuth } from "../middleware/auth.js";
 const usersRouter = Router();
-
 
 usersRouter.get("/search", async (req, res, next) => {
   try {
@@ -58,8 +58,6 @@ usersRouter.get("/:id", async (req, res, next) => {
     next(error);
   }
 });
-
-
 
 // Get user's projects
 usersRouter.get("/:id/projects", async (req, res, next) => {
@@ -117,6 +115,31 @@ usersRouter.post(
       res.status(201).json(project);
     } catch (error) {
       console.log(error);
+      next(error);
+    }
+  },
+);
+
+// Fork a project — copy it to the authenticated user's library
+usersRouter.post(
+  "/:id/projects/:projectId/fork",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const { projectId } = req.params;
+      const newUserId = req.user.id;
+
+      const project = await forkProject(projectId, newUserId);
+
+      if (!project) {
+        return res.status(404).json({
+          message: "Project not found",
+        });
+      }
+
+      res.status(201).json(project);
+    } catch (error) {
+      console.error("FORK ERROR:", error);
       next(error);
     }
   },
@@ -280,47 +303,42 @@ usersRouter.post(
 // Get follow
 
 usersRouter.get("/:id/following", async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        
-        const following = await getFollowing(id);
+  try {
+    const { id } = req.params;
 
-        if (!following) {
-            return res.status(404).json({
-                message: "Followers not found"
-            });
-        }
-        console.log(following)
-        res.json(following);
+    const following = await getFollowing(id);
 
-    } catch (error) {
-        console.log(error);
-        next(error);
+    if (!following) {
+      return res.status(404).json({
+        message: "Followers not found",
+      });
     }
+    console.log(following);
+    res.json(following);
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
 });
 
 usersRouter.post("/:id/follow", requireAuth, async (req, res, next) => {
-    try {
-        const followerId = req.user.id;
-        const followeeId = req.params.id;
+  try {
+    const followerId = req.user.id;
+    const followeeId = req.params.id;
 
-        if (followerId === followeeId) {
-            return res.status(400).json({
-                message: "You cannot follow yourself",
-            });
-        }
-
-        const follow = await followUser(
-            followerId,
-            followeeId
-        );
-
-        res.status(201).json(follow);
-
-    } catch (error) {
-        console.error("FOLLOW ERROR:", error);
-        next(error);
+    if (followerId === followeeId) {
+      return res.status(400).json({
+        message: "You cannot follow yourself",
+      });
     }
+
+    const follow = await followUser(followerId, followeeId);
+
+    res.status(201).json(follow);
+  } catch (error) {
+    console.error("FOLLOW ERROR:", error);
+    next(error);
+  }
 });
 
 usersRouter.delete("/:id/follow", requireAuth, async (req, res, next) => {
@@ -341,10 +359,7 @@ usersRouter.get("/:id/follow-status", requireAuth, async (req, res, next) => {
     const followerId = req.user.id;
     const followeeId = req.params.id;
 
-    const isFollowing = await checkFollowing(
-      followerId,
-      followeeId
-    );
+    const isFollowing = await checkFollowing(followerId, followeeId);
 
     res.json({ isFollowing });
   } catch (error) {
@@ -365,7 +380,7 @@ usersRouter.put("/:id/profile-picture", requireAuth, async (req, res, next) => {
       WHERE id = $2
       RETURNING id, username, picurl
       `,
-      [picurl, req.params.id]
+      [picurl, req.params.id],
     );
 
     res.send(result.rows[0]);
@@ -375,13 +390,12 @@ usersRouter.put("/:id/profile-picture", requireAuth, async (req, res, next) => {
 });
 
 usersRouter.get("/:id/pic", requireAuth, async (req, res, next) => {
-    try {
-        const user = await getUserPic(req.params.id);
-        res.send(user);
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const user = await getUserPic(req.params.id);
+    res.send(user);
+  } catch (error) {
+    next(error);
+  }
 });
-
 
 export default usersRouter;

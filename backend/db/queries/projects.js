@@ -1,4 +1,5 @@
 import db from "../client.js";
+import { randomUUID } from "crypto";
 
 // Create a project
 export async function createProject(
@@ -151,6 +152,47 @@ export async function delete_project(projectId, userId) {
   const {
     rows: [project],
   } = await db.query(SQL, [projectId, userId]);
+
+  return project;
+}
+
+// Fork a project — copy all data to a new project owned by newUserId,
+// linking back to the original via shared_id.
+export async function forkProject(projectId, newUserId) {
+  const newId = randomUUID();
+
+  const SQL = `
+    INSERT INTO projects (
+      id,
+      user_id,
+      name,
+      tempo,
+      grid,
+      track_settings,
+      arrangement,
+      track_order,
+      step_notes,
+      shared_id
+    )
+    SELECT
+      $1,
+      $2,
+      name || ' (fork)',
+      tempo,
+      grid,
+      track_settings,
+      arrangement,
+      track_order,
+      step_notes,
+      id
+    FROM projects
+    WHERE id = $3
+    RETURNING *
+  `;
+
+  const {
+    rows: [project],
+  } = await db.query(SQL, [newId, newUserId, projectId]);
 
   return project;
 }
