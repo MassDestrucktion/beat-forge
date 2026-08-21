@@ -7,11 +7,8 @@ import LoginPage from "./login";
 import UserPage from "./userPage";
 import SequencerPage from "./SequencerPage";
 import GettingStarted from "./getingStarted";
-import FeaturedProjects from "./featuredprojects";
 
 import {useEffect} from "react";
-import socket from "./socket";
-import cors from "cors"
 
 export default function App() {
   useEffect(() => {
@@ -21,25 +18,6 @@ export default function App() {
       console.log("No token found - socket.io not connecting");
       return;
     }
-
-
-    socket.connect();
-
-    socket.on("connect", () => {
-      console.log("Connected on: ", socket.id);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("Disconnected from: ", socket.id);
-    });
-
-    return () => {
-      socket.off("connect");
-      socket.off("disconnect");
-      socket.disconnect();
-    };
-
-
   }, []);
 
   return (
@@ -51,7 +29,6 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/getting-started" element={<GettingStarted />} />
           <Route path="/sequencer" element={<SequencerPage />} />
-          <Route path="/FeaturedProjects" element={<FeaturedProjects />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/userPage/:id" element={<UserPage />} />
