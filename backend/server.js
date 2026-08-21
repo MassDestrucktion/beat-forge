@@ -5,7 +5,6 @@ import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 import { createServer } from "http";
 
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -20,8 +19,9 @@ const PORT = process.env.PORT || 3000;
 //Create http serve with express
 const httpServer = createServer(app);
 
-
-
-
+//start server
+httpServer.listen(PORT, () => {
+console.log(`server running on port ${PORT}`);
+});
 
 
