@@ -12,6 +12,7 @@ import glasses from "./media/glasses.jpg";
 import headphones from "./media/DarkHeadphones.jpg";
 import gorilla from "./media/Gorilla.jpg";
 import AVDreds from "./media/AVDreds.png";
+import default_pic from "./media/default_Pic.jpg";
 
 const profilePictures = [
   {
@@ -78,6 +79,7 @@ export default function UserPage() {
   const loggedInUserId = user?.id;
   const profileUserId = id || loggedInUserId;
   const isOwnProfile = loggedInUserId === profileUserId;
+  const isDiffProfile = loggedInUserId !== profileUserId;
 
   // Profile / project state
   const [profileUser, setProfileUser] = useState(null);
@@ -544,12 +546,18 @@ export default function UserPage() {
       </div>
 
       <main className="dashboard">
+         
         <section className="welcomeCard">
+           {isOwnProfile ? (
           <h1>
             Welcome, {profileUser?.username || "User"}
           </h1>
-
-          {isOwnProfile && (
+           ) : isDiffProfile ? (
+            <h1>
+                Welcome to {profileUser?.username || "User"}'s Profile 
+            </h1>
+           ): null}
+          {isOwnProfile &&  (
             <div className="my-profile">
               <img
                 className="my-profile-avatar"
@@ -603,10 +611,26 @@ export default function UserPage() {
                   </button>
                 </div>
               )}
+            </>)}
+            {isDiffProfile && (
+            <>
+            <div className="my-profile">
+              <img
+                className="my-profile-avatar"
+                src={profilePictures.find(
+                        (picture) =>
+                            picture.id === profileUser?.picurl
+                    )?.src}
+                alt={`${profileUser?.username || "User"}'s avatar`}
+              />
+
+              <h2>{profileUser?.username}</h2>
+            </div>
             </>
           )}
-
+            {isOwnProfile && (
           <p>Manage your music projects below.</p>
+            )}
         </section>
 
         {isOwnProfile && (
