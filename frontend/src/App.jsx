@@ -11,14 +11,7 @@ import GettingStarted from "./getingStarted";
 import {useEffect} from "react";
 
 export default function App() {
-  useEffect(() => {
-    const token = localStorage.getItem("token");
 
-    if(!token) {
-      console.log("No token found - socket.io not connecting");
-      return;
-    }
-  }, []);
 
   return (
     <>

@@ -17,11 +17,15 @@ const { default: app } = await import("./app.js");
 const PORT = process.env.PORT || 3000;
 
 //Create http serve with express
-const httpServer = createServer(app);
+
+app.listen(PORT, () => {
+console.log(`server running on port ${PORT}`);
+})
+/*const httpServer = createServer(app);
 
 //start server
 httpServer.listen(PORT, () => {
-console.log(`server running on port ${PORT}`);
-});
+
+});*/
 
 
