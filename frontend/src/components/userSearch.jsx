@@ -43,7 +43,13 @@ export default function UserSearch() {
         onChange={(event) => setFormData(event.target.value)}
         placeholder="Find Creators"
       />
-
+      {formData.length >0 && searchResults.length === 0 && (
+  <div className="searchResults">
+      < div className="searchResult">
+        {"No Matching Users"}
+          </div>
+      </div>
+      )}
       {searchResults.length > 0 && (
   <div className="searchResults">
     {searchResults.map((user) => (
