@@ -13,8 +13,15 @@ import headphones from "./media/DarkHeadphones.jpg";
 import gorilla from "./media/Gorilla.jpg";
 import AVDreds from "./media/AVDreds.png";
 import default_pic from "./media/default_Pic.jpg";
+import ny from "./media/NY.jpg"; 
+import BlockParty from "./media/BlockParty.jpg"; 
+import fem from "./media/female-dj.webp"; 
 
 const profilePictures = [
+  {
+    id: "default_pic",
+    src: default_pic,
+  },
   {
     id: "cool",
     src: cool,
@@ -34,6 +41,18 @@ const profilePictures = [
   {
     id: "AVDreds",
     src: AVDreds,
+  },
+  {
+    id: "fem",
+    src: fem,
+  },
+  {
+    id: "BlockParty",
+    src: BlockParty,
+  },
+  {
+    id: "NY",
+    src: ny,
   },
 ];
 
