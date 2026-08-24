@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import heroImg from "./assets/sequencer-hero.svg";
-import bgHero from "./media/pacha-wide-LEAD.webp";
+import bgHero from "../public/media/pacha-wide-LEAD.webp";
 
 export default function LandingPage() {
   return (
