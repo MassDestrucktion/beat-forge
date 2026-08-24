@@ -7,7 +7,7 @@ import UserSearch from "./components/userSearch";
 
 import "./styles/userPage.css";
 
-import cool from "./media/cool.jpg";
+import cool from "../public/media/Cool.jpg"
 import glasses from "./media/glasses.jpg";
 import headphones from "./media/DarkHeadphones.jpg";
 import gorilla from "./media/Gorilla.jpg";
