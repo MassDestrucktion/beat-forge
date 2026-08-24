@@ -16,7 +16,7 @@ import default_Pic from "../public/media/default_Pic.jpg";
 import BlockParty from "../public/media/BlockParty.jpg";
 
 const profilePictures = [
-  { id: "default_pic", src: default_Pic },
+  
   { id: "default_Pic", src: default_Pic },
   { id: "BlockParty", src: BlockParty },
   { id: "cool", src: cool },
@@ -356,6 +356,9 @@ export default function UserPage() {
       console.log("UPDATED USER:", data);
 
       setMyPicUrl(selectedPicture);
+      setProfileUser((prev) => 
+        prev ? {...prev, picurl: selectedPicture } : prev
+      );
       setShowPictureChooser(false);
     } catch (err) {
       console.error("PROFILE PICTURE ERROR:", err);
