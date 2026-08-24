@@ -246,28 +246,24 @@ export default function UserPage() {
    * ---------------------------------------------------------
    */
 
-  async function handleFollow() {
-    if (!profileUserId || !token || isOwnProfile) return;
-
-    try {
-      const method = isFollowing ? "DELETE" : "POST";
-
-      const response = await fetch(`/api/users/${profileUserId}/follow`, {
-        method,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Failed to update follow status");
-      }
-
-      setIsFollowing((prev) => !prev);
-    } catch (err) {
-      console.error("FOLLOW ERROR:", err);
-      alert(err.message || "Failed to update follow status");
-    }
+  const handleFollow = () => {
+  if (isFollowing) {
+    // Unfollow: remove profileUser from the following list
+    setFollowing((previous) =>
+      previous.filter(
+        (followingUser) => followingUser.id !== profileUserId
+      )
+    );
+  } else {
+    // Follow: add profileUser to the following list
+    setFollowing((previous) => [
+      ...previous,
+      profileUser, // the full user object being followed
+    ]);
   }
+
+  setIsFollowing((prev) => !prev);
+};
 
   /*
    * ---------------------------------------------------------
