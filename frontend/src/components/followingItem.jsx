@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
-import cool from "../media/cool.jpg";
-import glasses from "../media/glasses.jpg";
-import headphones from "../media/DarkHeadphones.jpg";
-import gorilla from "../media/Gorilla.jpg";
-import AVDreds from "../media/AVDreds.png";
-import default_Pic from "../media/default_Pic.jpg";
-import BlockParty from "../media/BlockParty.jpg";
+import cool from "../public/media/cool.jpg";
+import glasses from "../public/media/glasses.jpg";
+import headphones from "../public/media/DarkHeadphones.jpg";
+import gorilla from "../public/media/Gorilla.jpg";
+import AVDreds from "../public/media/AVDreds.png";
+import default_Pic from "../public/media/default_Pic.jpg";
+import BlockParty from "../public/media/BlockParty.jpg";
 
 const profilePictures = [
   { id: "default_pic", src: default_Pic },
