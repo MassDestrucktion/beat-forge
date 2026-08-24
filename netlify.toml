@@ -15,8 +15,15 @@
     "sasl"
   ]
 
+# API requests go to the Express serverless function
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
+
+# React Router routes go to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
