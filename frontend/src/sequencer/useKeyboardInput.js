@@ -77,6 +77,7 @@ export function useKeyboardInput({
   onSetNote,
   onClearTrack,
   onSelectTrack,
+  onRecordNote,
   selectedTrackIndex = 0,
   numTracks = 4,
 }) {
@@ -90,7 +91,9 @@ export function useKeyboardInput({
   const onSetNoteRef = useRef(onSetNote);
   const onClearTrackRef = useRef(onClearTrack);
   const onSelectTrackRef = useRef(onSelectTrack);
+  const onRecordNoteRef = useRef(onRecordNote);
   const selectedTrackIndexRef = useRef(selectedTrackIndex);
+
   const numTracksRef = useRef(numTracks);
   const enabledRef = useRef(enabled);
 
@@ -117,6 +120,10 @@ export function useKeyboardInput({
   useEffect(() => {
     onSelectTrackRef.current = onSelectTrack;
   }, [onSelectTrack]);
+
+  useEffect(() => {
+    onRecordNoteRef.current = onRecordNote;
+  }, [onRecordNote]);
 
   useEffect(() => {
     selectedTrackIndexRef.current = selectedTrackIndex;
@@ -231,6 +238,9 @@ export function useKeyboardInput({
         setTimeout(() => {
           playTrackSoundRef.current(trackIdx);
         }, 0);
+
+        // Live record: write the note at the current step when armed+playing.
+        onRecordNoteRef.current?.(trackIdx, fullNote);
       }
     };
 

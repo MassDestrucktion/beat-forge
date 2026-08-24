@@ -12,14 +12,27 @@ import glasses from "./media/glasses.jpg";
 import headphones from "./media/DarkHeadphones.jpg";
 import gorilla from "./media/Gorilla.jpg";
 import AVDreds from "./media/AVDreds.png";
+import default_Pic from "./media/default_Pic.jpg";
+import BlockParty from "./media/BlockParty.jpg";
 
 const profilePictures = [
+  { id: "default_pic", src: default_Pic },
+  { id: "default_Pic", src: default_Pic },
+  { id: "BlockParty", src: BlockParty },
   { id: "cool", src: cool },
   { id: "glasses", src: glasses },
   { id: "headphones", src: headphones },
   { id: "gorilla", src: gorilla },
   { id: "AVDreds", src: AVDreds },
 ];
+
+// Resolve any stored picurl id to an image src, falling back to the
+// default avatar so fresh accounts never render a broken image.
+function resolveAvatar(picurl) {
+  return (
+    profilePictures.find((picture) => picture.id === picurl)?.src || default_Pic
+  );
+}
 
 function timeAgo(dateStr) {
   if (!dateStr) return "";
@@ -71,10 +84,6 @@ export default function UserPage() {
 
   // Fork state
   const [forkingId, setForkingId] = useState(null);
-
-  const myProfilePicture = profilePictures.find(
-    (picture) => picture.id === myPicUrl,
-  );
 
   /*
    * ---------------------------------------------------------
@@ -398,6 +407,48 @@ export default function UserPage() {
     navigate("/sequencer");
   }
 
+  /**
+   * Publish / unpublish a project (owner only).
+   *
+   * Flips the project's is_public flag via PATCH and optimistically
+   * updates the local list so the badge + button reflect the new state.
+   */
+  async function handlePublish(project) {
+    if (!token) return;
+
+    const nextIsPublic = !project.is_public;
+
+    try {
+      const response = await fetch(
+        `/api/users/${loggedInUserId}/projects/${project.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ is_public: nextIsPublic }),
+        },
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "Failed to update visibility");
+      }
+
+      const updated = await response.json();
+
+      setUserProjects((prev) =>
+        prev.map((p) =>
+          p.id === project.id ? { ...p, is_public: updated.is_public } : p,
+        ),
+      );
+    } catch (err) {
+      console.error("PUBLISH ERROR:", err);
+      alert(err.message || "Failed to update visibility");
+    }
+  }
+
   /*
    * ---------------------------------------------------------
    * LOADING / AUTH GUARDS
@@ -433,33 +484,25 @@ export default function UserPage() {
 
   return (
     <div>
-      <div className="searchBar">
-        {!isOwnProfile && (
-          <button className="follow-btn" onClick={handleFollow}>
-            {isFollowing ? "Unfollow Artist" : "Follow Artist"}
-          </button>
-        )}
-
-        <UserSearch />
-      </div>
-
       <main className="dashboard">
         {/* ===== WELCOME / PROFILE HEADER ===== */}
         <section className="welcomeCard">
-          <h1 className="pixel-title">
-            {isOwnProfile ? "Welcome, " : ""}
-            {profileUser?.username || "User"}
+          <h1 className="welcome-heading">
+            {isOwnProfile ? "Welcome back" : displayName}
           </h1>
 
-          {isOwnProfile && (
-            <div className="my-profile">
-              <img
-                className="my-profile-avatar"
-                src={myProfilePicture?.src}
-                alt={`${user?.username || "User"}'s avatar`}
-              />
-              <h2>{user?.username}</h2>
-            </div>
+          <div className="my-profile">
+            <img
+              className="my-profile-avatar"
+              src={resolveAvatar(profileUser?.picurl)}
+              alt={`${displayName}'s avatar`}
+            />
+          </div>
+
+          {!isOwnProfile && (
+            <button className="follow-btn" onClick={handleFollow}>
+              {isFollowing ? "Unfollow Artist" : "Follow Artist"}
+            </button>
           )}
 
           {isOwnProfile && (
@@ -513,6 +556,8 @@ export default function UserPage() {
           <section className="followingSection">
             <div className="followingHeader">
               <h2>People You Follow</h2>
+
+              <UserSearch />
             </div>
 
             {followingLoading && (
@@ -547,7 +592,7 @@ export default function UserPage() {
               <h2>
                 {isOwnProfile ? "Your Projects" : `${displayName}'s Projects`}
               </h2>
-              <p className="user-name">👤 {displayName}</p>
+              {!isOwnProfile && <p className="user-name">👤 {displayName}</p>}
             </div>
 
             {isOwnProfile && (
@@ -606,13 +651,27 @@ export default function UserPage() {
                       Open in Sequencer
                     </button>
 
-                    {!isOwnProfile && (
+                    {!isOwnProfile && project.is_public && (
                       <button
                         className="nav-btn fork-btn"
                         onClick={() => handleFork(project.id, profileUserId)}
                         disabled={forkingId === project.id}
                       >
                         {forkingId === project.id ? "Forking..." : "🔀 Fork"}
+                      </button>
+                    )}
+
+                    {isOwnProfile && (
+                      <button
+                        className="nav-btn publish-btn"
+                        onClick={() => handlePublish(project)}
+                        title={
+                          project.is_public
+                            ? "Unpublish this project"
+                            : "Publish this project"
+                        }
+                      >
+                        {project.is_public ? "🌍 Published" : "🔒 Publish"}
                       </button>
                     )}
 

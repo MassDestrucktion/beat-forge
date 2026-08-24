@@ -4,14 +4,16 @@ import { useState, useRef } from "react";
 
 import Dial from "./Dial.jsx";
 import SoundPicker from "./SoundPicker.jsx";
+import NotePicker from "./NotePicker.jsx";
 
 import {
   TRACK_LABELS,
-  DEFAULT_TRACK_SOUNDS,
   NOTE_OPTIONS,
   DURATION_OPTIONS,
   CHORD_TYPES,
   buildChord,
+  SCALE_ROOT_OPTIONS,
+  SCALE_TYPE_OPTIONS,
 } from "../sequencer/projectModel";
 
 import { KEYBOARD_LEGEND } from "../sequencer/useKeyboardInput";
@@ -57,6 +59,9 @@ export default function TrackRow({
   onNudgePattern,
   onSetStepsRange,
   onSetStepNote,
+  recordArm,
+  onRecordNote,
+  onPreviewNote,
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
 
@@ -89,10 +94,8 @@ export default function TrackRow({
     setIsRenaming(false);
   };
 
-  const currentSoundId =
-    trackSetting?.sound ||
-    DEFAULT_TRACK_SOUNDS[trackIndex] ||
-    DEFAULT_TRACK_SOUNDS[0];
+  // Respect an intentionally blank track (sound === null) — no default fill.
+  const currentSoundId = trackSetting?.sound ?? null;
 
   const currentSound = getSoundById(currentSoundId);
 
@@ -128,7 +131,9 @@ export default function TrackRow({
     <div
       className={`track-row ${isMuted ? "track-muted" : ""} ${
         isSoloed ? "track-soloed" : ""
-      } ${isKeyboardSelected ? "keyboard-selected" : ""}`}
+      } ${isKeyboardSelected ? "keyboard-selected" : ""} ${
+        recordArm ? "track-armed" : ""
+      }`}
     >
       <div className="track-row-main">
         {/* LEFT SIDE PANEL: name + mute/solo */}
@@ -170,6 +175,21 @@ export default function TrackRow({
             )}
           </div>
           <div className="side-panel-buttons">
+            {recordArm && (
+              <button
+                type="button"
+                className={`icon-btn record-pad armed`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPreview?.(trackIndex);
+                  onRecordNote?.(trackIndex, isSynth ? selectedNote : null);
+                }}
+                title="Tap to record this sound at the current step"
+              >
+                ⏺
+              </button>
+            )}
+
             <button
               type="button"
               className={`icon-btn ${isMuted ? "active-danger" : ""}`}
@@ -345,28 +365,21 @@ export default function TrackRow({
           {isSynth && noteEditingStep != null && (
             <div className="step-note-panel">
               <span>Step {noteEditingStep + 1}</span>
-              <select
+              <NotePicker
                 value={
                   typeof stepNotes?.[noteEditingStep] === "string"
                     ? stepNotes[noteEditingStep]
                     : ""
                 }
-                onChange={(e) =>
-                  onSetStepNote?.(
-                    trackIndex,
-                    noteEditingStep,
-                    e.target.value || null,
-                  )
+                onChange={(note) =>
+                  onSetStepNote?.(trackIndex, noteEditingStep, note || null)
                 }
-                title="Set a single note or use the track default"
-              >
-                <option value="">Track default</option>
-                {NOTE_OPTIONS.map((note) => (
-                  <option key={note} value={note}>
-                    {note}
-                  </option>
-                ))}
-              </select>
+                onPreview={(note) => onPreviewNote?.(trackIndex, note)}
+                scaleRoot={trackSetting?.scale?.root ?? "C"}
+                scaleType={trackSetting?.scale?.type ?? "major-pentatonic"}
+                allowDefault
+                defaultLabel="Track default"
+              />
 
               {isPoly && (
                 <>
@@ -436,19 +449,15 @@ export default function TrackRow({
                 <label className="control-field">
                   <span>Note</span>
 
-                  <select
+                  <NotePicker
                     value={selectedNote}
-                    onChange={(e) => {
-                      onUpdateSetting(trackIndex, "note", e.target.value);
-                      onPreview?.(trackIndex);
-                    }}
-                  >
-                    {NOTE_OPTIONS.map((note) => (
-                      <option key={note} value={note}>
-                        {note}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(note) =>
+                      onUpdateSetting(trackIndex, "note", note)
+                    }
+                    onPreview={(note) => onPreviewNote?.(trackIndex, note)}
+                    scaleRoot={trackSetting?.scale?.root ?? "C"}
+                    scaleType={trackSetting?.scale?.type ?? "major-pentatonic"}
+                  />
                 </label>
 
                 <label className="control-field">
@@ -463,6 +472,48 @@ export default function TrackRow({
                     {DURATION_OPTIONS.map((duration) => (
                       <option key={duration} value={duration}>
                         {duration}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="control-field">
+                  <span>Scale</span>
+
+                  <select
+                    value={trackSetting?.scale?.root ?? "C"}
+                    onChange={(e) =>
+                      onUpdateSetting(trackIndex, "scale", {
+                        ...(trackSetting?.scale ?? {}),
+                        root: e.target.value,
+                      })
+                    }
+                    title="Scale root — drives the note picker + arp"
+                  >
+                    {SCALE_ROOT_OPTIONS.map((root) => (
+                      <option key={root} value={root}>
+                        {root}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="control-field">
+                  <span>Type</span>
+
+                  <select
+                    value={trackSetting?.scale?.type ?? "major-pentatonic"}
+                    onChange={(e) =>
+                      onUpdateSetting(trackIndex, "scale", {
+                        ...(trackSetting?.scale ?? {}),
+                        type: e.target.value,
+                      })
+                    }
+                    title="Scale type — drives the note picker + arp"
+                  >
+                    {SCALE_TYPE_OPTIONS.map((type) => (
+                      <option key={type} value={type}>
+                        {type.replace(/-/g, " ")}
                       </option>
                     ))}
                   </select>

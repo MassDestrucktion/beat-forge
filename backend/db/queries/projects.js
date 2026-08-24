@@ -12,6 +12,7 @@ export async function createProject(
   arrangement,
   track_order,
   step_notes,
+  is_public = false,
 ) {
   const SQL = `
         INSERT INTO  projects (
@@ -23,9 +24,10 @@ export async function createProject(
             track_settings,
             arrangement,
             track_order,
-            step_notes
+            step_notes,
+            is_public
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
     `;
 
@@ -41,6 +43,7 @@ export async function createProject(
     JSON.stringify(arrangement ?? []),
     track_order ? JSON.stringify(track_order) : null,
     step_notes ? JSON.stringify(step_notes) : null,
+    is_public,
   ]);
 
   return project;
@@ -106,6 +109,7 @@ export async function update_project_by_id(
   arrangement,
   track_order,
   step_notes,
+  is_public = false,
 ) {
   const SQL = `
     UPDATE projects
@@ -117,9 +121,10 @@ export async function update_project_by_id(
       arrangement = $5,
       track_order = $6,
       step_notes = $7,
+      is_public = $8,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $8
-      AND user_id = $9
+    WHERE id = $9
+      AND user_id = $10
     RETURNING *
   `;
 
@@ -133,9 +138,33 @@ export async function update_project_by_id(
     JSON.stringify(arrangement ?? []),
     track_order ? JSON.stringify(track_order) : null,
     step_notes ? JSON.stringify(step_notes) : null,
+    is_public,
     project_id,
     user_id,
   ]);
+
+  return project;
+}
+
+// Update a project's visibility only (publish/unpublish). Only the owner
+// can change visibility, enforced by the user_id in the WHERE clause.
+export async function update_project_visibility(
+  project_id,
+  user_id,
+  is_public,
+) {
+  const SQL = `
+    UPDATE projects
+    SET is_public = $1,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = $2
+      AND user_id = $3
+    RETURNING *
+  `;
+
+  const {
+    rows: [project],
+  } = await db.query(SQL, [is_public, project_id, user_id]);
 
   return project;
 }
@@ -156,8 +185,32 @@ export async function delete_project(projectId, userId) {
   return project;
 }
 
+// Get the most recently created PUBLIC projects with owner info (Discover feed)
+export async function getRecentProjects(limit = 12) {
+  const SQL = `
+        SELECT
+            p.id,
+            p.name,
+            p.tempo,
+            p.created_at,
+            u.id AS user_id,
+            u.username,
+            u.picurl
+        FROM projects p
+        JOIN users u ON u.id = p.user_id
+        WHERE p.is_public = TRUE
+        ORDER BY p.created_at DESC
+        LIMIT $1
+    `;
+
+  const { rows } = await db.query(SQL, [limit]);
+
+  return rows;
+}
+
 // Fork a project — copy all data to a new project owned by newUserId,
-// linking back to the original via shared_id.
+// linking back to the original via shared_id. Only public projects can be
+// forked; the copy inherits the source's public state.
 export async function forkProject(projectId, newUserId) {
   const newId = randomUUID();
 
@@ -172,7 +225,8 @@ export async function forkProject(projectId, newUserId) {
       arrangement,
       track_order,
       step_notes,
-      shared_id
+      shared_id,
+      is_public
     )
     SELECT
       $1,
@@ -184,7 +238,8 @@ export async function forkProject(projectId, newUserId) {
       arrangement,
       track_order,
       step_notes,
-      id
+      id,
+      is_public
     FROM projects
     WHERE id = $3
     RETURNING *

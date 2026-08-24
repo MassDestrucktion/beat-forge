@@ -9,19 +9,17 @@ import SequencerPage from "./SequencerPage";
 import GettingStarted from "./getingStarted";
 import FeaturedProjects from "./featuredprojects";
 
-import {useEffect} from "react";
+import { useEffect } from "react";
 import socket from "./socket";
-import cors from "cors"
 
 export default function App() {
   useEffect(() => {
     const token = localStorage.getItem("token");
 
-    if(!token) {
+    if (!token) {
       console.log("No token found - socket.io not connecting");
       return;
     }
-
 
     socket.connect();
 
@@ -38,8 +36,6 @@ export default function App() {
       socket.off("disconnect");
       socket.disconnect();
     };
-
-
   }, []);
 
   return (

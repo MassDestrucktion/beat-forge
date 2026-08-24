@@ -12,8 +12,24 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check endpoint (used by Azure App Service + deploy workflow)
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // API routes
 app.use("/api", apiRouter);
+
+// Serve the built frontend (Vite build output) in production.
+// The frontend is built into ../frontend/dist during the Docker build.
+import { static as expressStatic, resolve as resolvePath } from "path";
+const frontendDist = resolvePath(__dirname, "../frontend/dist");
+app.use(expressStatic(frontendDist));
+
+// All non-API routes fall back to index.html (client-side routing).
+app.get("*", (req, res) => {
+  res.sendFile(resolvePath(frontendDist, "index.html"));
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -5,8 +5,6 @@ export default function Navbar() {
   const { isAuthenticated, token, user, logout } = useAuth();
   const navigate = useNavigate();
 
-  console.log("Navbar auth:", isAuthenticated, token, user);
-
   function handleLogout() {
     logout();
     navigate("/login");
@@ -36,6 +34,12 @@ export default function Navbar() {
         <li>
           <NavLink to="/sequencer">
             <button className="nav-btn">Sequencer</button>
+          </NavLink>
+        </li>
+
+        <li>
+          <NavLink to="/FeaturedProjects">
+            <button className="nav-btn">Discover</button>
           </NavLink>
         </li>
 

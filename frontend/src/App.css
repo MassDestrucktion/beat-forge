@@ -18,9 +18,10 @@
 /* Navbar Styling */
 .navbar {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: center;
-  gap: 24px;
+  gap: 12px 24px;
   padding: 16px 24px;
   width: 100%;
   background-color: var(--code-bg, #1f2028);
@@ -95,6 +96,7 @@
   max-width: 1400px;
   margin: 0 auto;
   padding: 28px 20px 40px;
+  overflow-x: hidden;
 }
 
 .hero-card,
@@ -275,6 +277,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-x: auto;
 }
 
 .track-row {
@@ -568,6 +571,7 @@
   grid-template-columns: repeat(16, 1fr);
   gap: 8px;
   width: 100%;
+  min-width: 0;
 }
 
 .step-row button {
@@ -630,150 +634,14 @@
   font-size: 0.85rem;
 }
 
-/*Profile Page Container*/
-
-.profileGrid {
-  display: grid;
-  border: 1px solid black;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-.pgrid1 {
-  border: 1px solid blue;
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-}
-
-.pgrid2 {
-  border: 1px solid blue;
-  grid-column: 2 / 3;
-  grid-row: 1 / 2;
-}
-
-.pgrid3 {
-  border: 1px solid blue;
-  grid-column: 1 / 2;
-  grid-row: 2 / 3;
-}
-
-.followingList {
-  display: flex;
-  flex-direction: row;
-  gap: 12px;
-  padding-bottom: 40px;
-  margin: 0;
-}
-.searchBar{
-  display: flex;
-  flex-direction: row;
-    justify-content: flex-end;
-    margin-right: 75px;
-    height: 30px;
-    border: none;
-    padding-top: 20px;
-    align-items: center;
-  justify-content: center;
-}
-
-
-.searchButton{
- background: linear-gradient(135deg, #f59e0b, #f97316);
+.searchButton {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
   color: #111827;
   font-size: 12pt;
   font-weight: 700;
   border-radius: 999px;
   border: none;
   margin-right: 10px;
-
-}
-
-.follow{
-  font-size: 12pt;
-  background: linear-gradient(135deg, #f59e0b, #f97316);
-  color: #111827;
-  font-weight: 700;
-  border-radius: 999px;
-  border: none;
-  padding: 10px 20px;
-  line-height: 1.2;
-  margin-right: 500px;
-  
- 
-}
-
-.userSearch {
-  position: relative;
-  width: 800px;
-  
-  z-index: 1000;
-}
-
-.userSearch input {
-    width: 100%;
-    height: 45px;
-    box-sizing: border-box;
-    font-size: 16px;
-    padding: 0 15px;
-}
-
-.searchResults {
-  position: absolute;
-  top: 100%;
-  left: 0;
-
-  width: 250px;
-  background: #222;
-  border: 2px solid #f59e0b;
-  border-radius: 8px;
-
-  z-index: 99999;
-}
-
-.searchResult {
-  display: block;
-  padding: 12px 16px;
-
-  color: white;
-  background: #222;
-
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.searchResult:hover {
-  background: #444;
-}
-
-// Profilepic
-
-.profile-picture-selection {
-  display: flex;
-  gap: 15px;
-  flex-wrap: wrap;
-}
-
-.profile-picture {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.my-profile {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin: 20px 0 30px 20px;
-}
-
-.my-profile-avatar {
-  width: 200px;
-  height: 200px;
-  object-fit: cover;
-  border-radius: 50%;
-  cursor: pointer;
 }
 
 /*Landing Page*/
@@ -1501,6 +1369,7 @@
   max-width: 1400px;
   margin: 0 auto;
   padding: 32px 20px;
+  overflow-x: hidden;
 }
 
 /*  Shared Project Banner  */
@@ -1971,4 +1840,59 @@
   color: #d1d5db;
   min-width: 50px;
   text-align: right;
+}
+
+/* ===== LIVE RECORD ===== */
+
+/* Toolbar record toggle — armed state */
+.controls button.record-btn.armed {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  animation: record-pulse 1.1s ease-in-out infinite;
+}
+
+/* Armed-record hint (record armed but transport is stopped) */
+.controls .record-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px dashed var(--accent, #8b5cf6);
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.08);
+  color: var(--text-h, #f3f4f6);
+  font-size: 0.75rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+.controls .record-hint::before {
+  content: "⏺";
+  margin-right: 0.35rem;
+}
+
+/* Per-track record tap pad — armed state */
+.icon-btn.record-pad.armed {
+  border-color: #ef4444;
+  color: #ef4444;
+  animation: record-pulse 1.1s ease-in-out infinite;
+}
+
+/* Armed track cue — visible left-border accent so the armed state is
+   obvious even when the track row is scrolled out of view. */
+.track-row.track-armed {
+  border-left: 3px solid #ef4444;
+}
+.track-row.track-armed .track-label {
+  color: #ef4444;
+}
+
+@keyframes record-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
 }

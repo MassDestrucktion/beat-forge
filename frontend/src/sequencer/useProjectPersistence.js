@@ -78,6 +78,12 @@ export function useProjectPersistence({
   const [shareLink, setShareLink] = useState("");
 
   /**
+   * Whether the currently-open project is published (public).
+   * Defaults to false — every new save is private.
+   */
+  const [isPublic, setIsPublic] = useState(false);
+
+  /**
    * -------------------------------------------------------
    * APPLY PROJECT
    * -------------------------------------------------------
@@ -108,6 +114,8 @@ export function useProjectPersistence({
     setTrackOrder(project.track_order);
 
     setSharedId(project.shared_id || null);
+
+    setIsPublic(Boolean(project.is_public));
   };
 
   /**
@@ -119,8 +127,7 @@ export function useProjectPersistence({
   useEffect(() => {
     const projectIdFromUrl = searchParams.get("projectId");
 
-    const projectUserIdFromUrl =
-      searchParams.get("projectUserId");
+    const projectUserIdFromUrl = searchParams.get("projectUserId");
 
     const sharedIdFromUrl = searchParams.get("sharedId");
 
@@ -151,14 +158,10 @@ export function useProjectPersistence({
 
         try {
           const response = await fetch(
-            `/api/projects/shared/${encodeURIComponent(
-              sharedIdFromUrl,
-            )}`,
+            `/api/projects/shared/${encodeURIComponent(sharedIdFromUrl)}`,
             {
               headers: {
-                Authorization: token
-                  ? `Bearer ${token}`
-                  : "",
+                Authorization: token ? `Bearer ${token}` : "",
               },
             },
           );
@@ -166,22 +169,16 @@ export function useProjectPersistence({
           if (!response.ok) {
             const text = await response.text();
 
-            throw new Error(
-              text || "Failed to load shared project",
-            );
+            throw new Error(text || "Failed to load shared project");
           }
 
-          const project = normalizeProject(
-            await response.json(),
-          );
+          const project = normalizeProject(await response.json());
 
           applyProject(project);
 
           setIsSharedView(true);
 
-          setSharedId(
-            project.shared_id || sharedIdFromUrl,
-          );
+          setSharedId(project.shared_id || sharedIdFromUrl);
 
           setSharedBy(project.username || "");
 
@@ -191,13 +188,9 @@ export function useProjectPersistence({
            */
           setProjectId(null);
 
-          setSaveStatus(
-            `Loaded shared project "${project.name}"`,
-          );
+          setSaveStatus(`Loaded shared project "${project.name}"`);
         } catch (error) {
-          setSaveStatus(
-            `Load failed: ${error.message}`,
-          );
+          setSaveStatus(`Load failed: ${error.message}`);
         } finally {
           setInitialLoadDone(true);
         }
@@ -219,15 +212,10 @@ export function useProjectPersistence({
       setSaveStatus("Loading project...");
 
       try {
-        const ownerId =
-          projectUserIdFromUrl ||
-          projectUserId ||
-          user?.id;
+        const ownerId = projectUserIdFromUrl || projectUserId || user?.id;
 
         if (!ownerId) {
-          throw new Error(
-            "Unable to determine project owner",
-          );
+          throw new Error("Unable to determine project owner");
         }
 
         console.log("Loading project:", {
@@ -239,14 +227,10 @@ export function useProjectPersistence({
         const response = await fetch(
           `/api/users/${encodeURIComponent(
             ownerId,
-          )}/projects/${encodeURIComponent(
-            projectIdFromUrl,
-          )}`,
+          )}/projects/${encodeURIComponent(projectIdFromUrl)}`,
           {
             headers: {
-              Authorization: token
-                ? `Bearer ${token}`
-                : "",
+              Authorization: token ? `Bearer ${token}` : "",
             },
           },
         );
@@ -254,39 +238,24 @@ export function useProjectPersistence({
         if (!response.ok) {
           const text = await response.text();
 
-          throw new Error(
-            text || "Failed to load project",
-          );
+          throw new Error(text || "Failed to load project");
         }
 
-        const project = normalizeProject(
-          await response.json(),
-        );
+        const project = normalizeProject(await response.json());
 
         applyProject(project);
 
-        setSharedId(
-          project.shared_id || null,
-        );
+        setSharedId(project.shared_id || null);
 
         setIsSharedView(
-          Boolean(
-            projectUserIdFromUrl &&
-              projectUserIdFromUrl !== user?.id,
-          ),
+          Boolean(projectUserIdFromUrl && projectUserIdFromUrl !== user?.id),
         );
 
-        setSharedBy(
-          project.username || "",
-        );
+        setSharedBy(project.username || "");
 
-        setSaveStatus(
-          `Loaded "${project.name}"`,
-        );
+        setSaveStatus(`Loaded "${project.name}"`);
       } catch (error) {
-        setSaveStatus(
-          `Load failed: ${error.message}`,
-        );
+        setSaveStatus(`Load failed: ${error.message}`);
       } finally {
         setInitialLoadDone(true);
       }
@@ -312,17 +281,13 @@ export function useProjectPersistence({
 
   const saveProject = async () => {
     if (!projectName.trim()) {
-      setSaveStatus(
-        "Please enter a project name.",
-      );
+      setSaveStatus("Please enter a project name.");
 
       return;
     }
 
     if (!isAuthenticated) {
-      setSaveStatus(
-        "Please log in to save your project.",
-      );
+      setSaveStatus("Please log in to save your project.");
 
       return;
     }
@@ -333,13 +298,9 @@ export function useProjectPersistence({
      * If this project was loaded through projectUserIdFromUrl,
      * it should be copied to the current user's library first.
      */
-    const projectOwnerId =
-      searchParams.get("projectUserId");
+    const projectOwnerId = searchParams.get("projectUserId");
 
-    if (
-      projectOwnerId &&
-      projectOwnerId !== user?.id
-    ) {
+    if (projectOwnerId && projectOwnerId !== user?.id) {
       setSaveStatus(
         "This project belongs to another user. Add it to your library before saving.",
       );
@@ -350,8 +311,7 @@ export function useProjectPersistence({
     const payload = {
       name: projectName.trim(),
 
-      description:
-        projectDescription.trim() || null,
+      description: projectDescription.trim() || null,
 
       tempo: bpm,
 
@@ -373,37 +333,27 @@ export function useProjectPersistence({
         ? `/api/users/${user.id}/projects/${projectId}`
         : `/api/users/${user.id}/projects`;
 
-      const method = isUpdate
-        ? "PUT"
-        : "POST";
+      const method = isUpdate ? "PUT" : "POST";
 
       const response = await fetch(url, {
         method,
 
         headers: {
-          "Content-Type":
-            "application/json",
+          "Content-Type": "application/json",
 
-          Authorization: token
-            ? `Bearer ${token}`
-            : "",
+          Authorization: token ? `Bearer ${token}` : "",
         },
 
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const err =
-          await response.text();
+        const err = await response.text();
 
-        throw new Error(
-          err || "Failed to save project",
-        );
+        throw new Error(err || "Failed to save project");
       }
 
-      const project = normalizeProject(
-        await response.json(),
-      );
+      const project = normalizeProject(await response.json());
 
       /**
        * Backend is authoritative after save.
@@ -411,15 +361,11 @@ export function useProjectPersistence({
 
       setProjectId(project.id);
 
-      setSharedId(
-        project.shared_id || null,
-      );
+      setSharedId(project.shared_id || null);
 
       setProjectName(project.name);
 
-      setProjectDescription(
-        project.description,
-      );
+      setProjectDescription(project.description);
 
       setSearchParams({
         projectId: String(project.id),
@@ -428,14 +374,10 @@ export function useProjectPersistence({
       setInitialLoadDone(true);
 
       setSaveStatus(
-        isUpdate
-          ? `Updated "${project.name}"`
-          : `Saved "${project.name}"`,
+        isUpdate ? `Updated "${project.name}"` : `Saved "${project.name}"`,
       );
     } catch (error) {
-      setSaveStatus(
-        `Save failed: ${error.message}`,
-      );
+      setSaveStatus(`Save failed: ${error.message}`);
     }
   };
 
@@ -447,73 +389,49 @@ export function useProjectPersistence({
 
   const shareProject = async () => {
     if (!projectId) {
-      setSaveStatus(
-        "Please save your project first.",
-      );
+      setSaveStatus("Please save your project first.");
 
       return;
     }
 
     if (!isAuthenticated) {
-      setSaveStatus(
-        "Please log in to share your project.",
-      );
+      setSaveStatus("Please log in to share your project.");
 
       return;
     }
 
-    setSaveStatus(
-      "Generating share link...",
-    );
+    setSaveStatus("Generating share link...");
 
     try {
-      const response = await fetch(
-        `/api/projects/${projectId}/share`,
-        {
-          method: "POST",
+      const response = await fetch(`/api/projects/${projectId}/share`, {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
+        headers: {
+          "Content-Type": "application/json",
 
-            Authorization: token
-              ? `Bearer ${token}`
-              : "",
-          },
+          Authorization: token ? `Bearer ${token}` : "",
         },
-      );
+      });
 
       if (!response.ok) {
-        const err =
-          await response.text();
+        const err = await response.text();
 
-        throw new Error(
-          err || "Failed to share project",
-        );
+        throw new Error(err || "Failed to share project");
       }
 
-      const project = normalizeProject(
-        await response.json(),
-      );
+      const project = normalizeProject(await response.json());
 
-      setSharedId(
-        project.shared_id,
-      );
+      setSharedId(project.shared_id);
 
-      const link =
-        `${window.location.origin}/sequencer?sharedId=${project.shared_id}`;
+      const link = `${window.location.origin}/sequencer?sharedId=${project.shared_id}`;
 
       setShareLink(link);
 
-      setSaveStatus(
-        "Project shared! Link copied to clipboard.",
-      );
+      setSaveStatus("Project shared! Link copied to clipboard.");
 
       navigator.clipboard.writeText(link);
     } catch (error) {
-      setSaveStatus(
-        `Share failed: ${error.message}`,
-      );
+      setSaveStatus(`Share failed: ${error.message}`);
     }
   };
 
@@ -532,9 +450,7 @@ export function useProjectPersistence({
 
     setProjectId(null);
 
-    setProjectName(
-      `Copy of ${projectName}`,
-    );
+    setProjectName(`Copy of ${projectName}`);
 
     setSaveStatus(
       "Edit your copy, then click 'Save Project' to add it to your library.",
@@ -551,53 +467,38 @@ export function useProjectPersistence({
 
   const loadProject = async () => {
     if (!loadId.trim()) {
-      setSaveStatus(
-        "Please enter a project ID to load.",
-      );
+      setSaveStatus("Please enter a project ID to load.");
 
       return;
     }
 
     if (!isAuthenticated) {
-      setSaveStatus(
-        "Please log in to load your project.",
-      );
+      setSaveStatus("Please log in to load your project.");
 
       return;
     }
 
     try {
       const response = await fetch(
-        `/api/users/${user.id}/projects/${encodeURIComponent(
-          loadId.trim(),
-        )}`,
+        `/api/users/${user.id}/projects/${encodeURIComponent(loadId.trim())}`,
         {
           headers: {
-            Authorization: token
-              ? `Bearer ${token}`
-              : "",
+            Authorization: token ? `Bearer ${token}` : "",
           },
         },
       );
 
       if (!response.ok) {
-        const err =
-          await response.text();
+        const err = await response.text();
 
-        throw new Error(
-          err || "Failed to load project",
-        );
+        throw new Error(err || "Failed to load project");
       }
 
-      const project = normalizeProject(
-        await response.json(),
-      );
+      const project = normalizeProject(await response.json());
 
       applyProject(project);
 
-      setSharedId(
-        project.shared_id || null,
-      );
+      setSharedId(project.shared_id || null);
 
       setIsSharedView(false);
 
@@ -609,13 +510,121 @@ export function useProjectPersistence({
         projectId: String(project.id),
       });
 
+      setSaveStatus(`Loaded "${project.name}"`);
+    } catch (error) {
+      setSaveStatus(`Load failed: ${error.message}`);
+    }
+  };
+
+  /**
+   * -------------------------------------------------------
+   * PUBLISH / UNPUBLISH
+   * -------------------------------------------------------
+   */
+
+  const publishProject = async (nextIsPublic) => {
+    if (!projectId) {
+      setSaveStatus("Please save your project first.");
+
+      return;
+    }
+
+    if (!isAuthenticated || !user?.id) {
+      setSaveStatus("Please log in to publish your project.");
+
+      return;
+    }
+
+    setSaveStatus(
+      nextIsPublic ? "Publishing project..." : "Unpublishing project...",
+    );
+
+    try {
+      const response = await fetch(
+        `/api/users/${user.id}/projects/${projectId}`,
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type": "application/json",
+
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+
+          body: JSON.stringify({ is_public: nextIsPublic }),
+        },
+      );
+
+      if (!response.ok) {
+        const err = await response.text();
+
+        throw new Error(err || "Failed to update visibility");
+      }
+
+      const project = normalizeProject(await response.json());
+
+      setIsPublic(Boolean(project.is_public));
+
       setSaveStatus(
-        `Loaded "${project.name}"`,
+        project.is_public
+          ? `"${project.name}" is now public — anyone can discover and fork it.`
+          : `"${project.name}" is now private.`,
       );
     } catch (error) {
-      setSaveStatus(
-        `Load failed: ${error.message}`,
+      setSaveStatus(`Publish failed: ${error.message}`);
+    }
+  };
+
+  /**
+   * -------------------------------------------------------
+   * LOAD A PROJECT BY ID (project switcher)
+   * -------------------------------------------------------
+   */
+
+  const loadProjectById = async (projectIdToLoad) => {
+    if (!isAuthenticated || !user?.id) {
+      setSaveStatus("Please log in to load a project.");
+
+      return;
+    }
+
+    setSaveStatus("Loading project...");
+
+    try {
+      const response = await fetch(
+        `/api/users/${user.id}/projects/${encodeURIComponent(projectIdToLoad)}`,
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        },
       );
+
+      if (!response.ok) {
+        const err = await response.text();
+
+        throw new Error(err || "Failed to load project");
+      }
+
+      const project = normalizeProject(await response.json());
+
+      applyProject(project);
+
+      setSharedId(project.shared_id || null);
+
+      setIsSharedView(false);
+
+      setSharedBy("");
+
+      setInitialLoadDone(true);
+
+      setSearchParams({
+        projectId: String(project.id),
+      });
+
+      setSaveStatus(`Loaded "${project.name}"`);
+    } catch (error) {
+      setSaveStatus(`Load failed: ${error.message}`);
     }
   };
 
@@ -656,12 +665,17 @@ export function useProjectPersistence({
     shareLink,
     setShareLink,
 
+    isPublic,
+    setIsPublic,
+
     setSearchParams,
 
     applyProject,
     saveProject,
     shareProject,
     loadProject,
+    loadProjectById,
+    publishProject,
     addToMyLibrary,
   };
 }

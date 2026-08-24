@@ -1,0 +1,211 @@
+/* ===== NOTE PICKER (piano-strip) ===== */
+
+.note-picker {
+  position: relative;
+  display: inline-block;
+}
+
+.note-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 76px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f9fafb;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.note-picker-trigger:hover,
+.note-picker-trigger.open {
+  border-color: #8b5cf6;
+}
+
+.note-picker-caret {
+  font-size: 0.6rem;
+  color: #9ca3af;
+}
+
+/* Popover */
+
+.note-picker-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1000;
+  padding: 12px;
+  background: #1f2937;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Octave shift row */
+
+.note-picker-octave-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.np-octave-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #9ca3af;
+  letter-spacing: 0.04em;
+}
+
+.np-octave-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: #f3f4f6;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.np-octave-btn:hover:not(:disabled) {
+  border-color: #8b5cf6;
+}
+
+.np-octave-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Piano */
+
+.np-piano {
+  display: flex;
+  gap: 6px;
+  user-select: none;
+}
+
+.np-octave {
+  position: relative;
+  display: flex;
+  height: 96px;
+  width: 210px; /* 7 white keys × 30px */
+}
+
+.np-key {
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 0.1s ease,
+    box-shadow 0.1s ease,
+    transform 0.05s ease;
+}
+
+.np-key:active {
+  transform: translateY(1px);
+}
+
+/* White keys */
+
+.np-white {
+  position: relative;
+  width: 30px;
+  height: 100%;
+  background: #f3f4f6;
+  border: 1px solid #9ca3af;
+  border-radius: 0 0 4px 4px;
+  color: #374151;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.np-key-label {
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding-bottom: 3px;
+  pointer-events: none;
+}
+
+/* Black keys (absolutely positioned over the white-key boundaries) */
+
+.np-black {
+  position: absolute;
+  top: 0;
+  height: 58%;
+  background: #111827;
+  border: 1px solid #000;
+  border-radius: 0 0 3px 3px;
+  z-index: 2;
+}
+
+/* Scale highlighting */
+
+.np-white.in-scale {
+  background: #e9d5ff;
+  border-color: #8b5cf6;
+}
+
+.np-black.in-scale {
+  background: #4c1d95;
+  border-color: #8b5cf6;
+}
+
+.np-key.out-scale {
+  opacity: 0.45;
+}
+
+/* Selected key */
+
+.np-key.selected {
+  box-shadow:
+    0 0 0 2px #a78bfa,
+    0 0 14px rgba(139, 92, 246, 0.7);
+}
+
+.np-white.selected {
+  background: #8b5cf6;
+  color: #fff;
+}
+
+.np-black.selected {
+  background: #7c3aed;
+}
+
+/* Footer bits */
+
+.np-scale-hint {
+  margin-top: 8px;
+  font-size: 0.7rem;
+  color: #a78bfa;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+.np-default-btn {
+  margin-top: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #f3f4f6;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.np-default-btn:hover {
+  border-color: #8b5cf6;
+}

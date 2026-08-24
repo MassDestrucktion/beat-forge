@@ -130,10 +130,7 @@ export const DURATION_OPTIONS = ["16n", "8n", "4n", "2n"];
  */
 
 export function createEmptyGrid(numTracks = MIN_TRACKS) {
-  return Array.from(
-    { length: numTracks },
-    () => Array(NUM_STEPS).fill(false),
-  );
+  return Array.from({ length: numTracks }, () => Array(NUM_STEPS).fill(false));
 }
 
 /**
@@ -144,43 +141,34 @@ export function createEmptyGrid(numTracks = MIN_TRACKS) {
  * null means "inherit the track's default note".
  */
 export function createEmptyStepNotes(numTracks = MIN_TRACKS) {
-  return Array.from(
-    { length: numTracks },
-    () => Array(NUM_STEPS).fill(null),
-  );
+  return Array.from({ length: numTracks }, () => Array(NUM_STEPS).fill(null));
 }
 
 /**
  * Create default settings for all tracks.
  */
 export function createDefaultTrackSettings(numTracks = MIN_TRACKS) {
-  return Array.from({ length: numTracks }, (_, index) => {
-    const soundId =
-      DEFAULT_TRACK_SOUNDS[index] ||
-      DEFAULT_TRACK_SOUNDS[0] ||
-      SOUND_IDS[0] ||
-      null;
-
-    return createDefaultTrack(soundId);
-  });
+  /**
+   * New projects start with blank tracks — no instrument is pre-selected,
+   * so the user picks a sound before anything plays.
+   */
+  return Array.from({ length: numTracks }, () => createDefaultTrack(null));
 }
 
 /**
  * Create settings for a single track.
  */
-export function createDefaultTrack(soundId) {
+export function createDefaultTrack(soundId = null) {
+  /**
+   * Resolve a sound only when an id is explicitly provided AND valid.
+   *
+   * A null/undefined (or unknown) id produces an intentionally blank
+   * track — no instrument is selected until the user picks one.
+   */
   const sound = soundId ? getSoundById(soundId) : null;
 
-  /**
-   * If an invalid sound ID somehow gets passed in, fall back to
-   * the first valid sound in the library.
-   */
-  const fallbackSound =
-    sound ||
-    (SOUND_IDS.length > 0 ? getSoundById(SOUND_IDS[0]) : null);
-
   const track = {
-    sound: fallbackSound ? fallbackSound.id : null,
+    sound: sound ? sound.id : null,
 
     muted: false,
     soloed: false,
@@ -205,17 +193,23 @@ export function createDefaultTrack(soundId) {
       highpass: 20,
       enabled: false,
     },
+
+    /**
+     * Per-track scale: drives note-picker highlighting and the arpeggiator.
+     */
+    scale: {
+      root: "C",
+      type: "major-pentatonic",
+    },
   };
 
   /**
    * Synth tracks need a default note and duration.
    */
-  if (fallbackSound?.type === "synth") {
-    track.note = fallbackSound.synth?.note || "C4";
+  if (sound?.type === "synth") {
+    track.note = sound.synth?.note || "C4";
 
-    track.duration =
-      fallbackSound.synth?.duration ||
-      "8n";
+    track.duration = sound.synth?.duration || "8n";
   }
 
   return track;
@@ -280,10 +274,7 @@ function rotate(arr, offset) {
 
   const shift = ((offset % n) + n) % n;
 
-  return [
-    ...arr.slice(shift),
-    ...arr.slice(0, shift),
-  ];
+  return [...arr.slice(shift), ...arr.slice(0, shift)];
 }
 
 /**
@@ -337,19 +328,13 @@ export function generateSmartPattern() {
 function randomDensity(count, steps) {
   const pattern = Array(steps).fill(false);
 
-  const indices = Array.from(
-    { length: steps },
-    (_, index) => index,
-  );
+  const indices = Array.from({ length: steps }, (_, index) => index);
 
   // Fisher-Yates shuffle
   for (let i = indices.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
 
-    [indices[i], indices[j]] = [
-      indices[j],
-      indices[i],
-    ];
+    [indices[i], indices[j]] = [indices[j], indices[i]];
   }
 
   for (let i = 0; i < Math.min(count, steps); i++) {
@@ -397,14 +382,11 @@ const NOTE_NAMES = [
  * Convert MIDI number to note name.
  */
 function midiToNoteName(midi) {
-  const normalizedMidi =
-    ((midi % 128) + 128) % 128;
+  const normalizedMidi = ((midi % 128) + 128) % 128;
 
-  const name =
-    NOTE_NAMES[normalizedMidi % 12];
+  const name = NOTE_NAMES[normalizedMidi % 12];
 
-  const octave =
-    Math.floor(normalizedMidi / 12) - 1;
+  const octave = Math.floor(normalizedMidi / 12) - 1;
 
   return `${name}${octave}`;
 }
@@ -413,22 +395,19 @@ function midiToNoteName(midi) {
  * Convert note name to MIDI number.
  */
 function noteNameToMidi(name) {
-  const match =
-    /^([A-G]#?)(-?\d+)$/.exec(name);
+  const match = /^([A-G]#?)(-?\d+)$/.exec(name);
 
   if (!match) {
     return null;
   }
 
-  const index =
-    NOTE_NAMES.indexOf(match[1]);
+  const index = NOTE_NAMES.indexOf(match[1]);
 
   if (index === -1) {
     return null;
   }
 
-  const octave =
-    parseInt(match[2], 10);
+  const octave = parseInt(match[2], 10);
 
   return (octave + 1) * 12 + index;
 }
@@ -456,25 +435,16 @@ export const CHORD_TYPES = {
 /**
  * Build a chord from a root note and chord type.
  */
-export function buildChord(
-  rootNote,
-  type = "major",
-) {
-  const root =
-    noteNameToMidi(rootNote);
+export function buildChord(rootNote, type = "major") {
+  const root = noteNameToMidi(rootNote);
 
   if (root == null) {
     return [rootNote];
   }
 
-  const intervals =
-    CHORD_TYPES[type] ||
-    CHORD_TYPES.major;
+  const intervals = CHORD_TYPES[type] || CHORD_TYPES.major;
 
-  return intervals.map(
-    (offset) =>
-      midiToNoteName(root + offset),
-  );
+  return intervals.map((offset) => midiToNoteName(root + offset));
 }
 
 /**
@@ -492,24 +462,84 @@ export function buildScaleNotes(
   baseOctave = 3,
   numOctaves = 2,
 ) {
-  const offsets =
-    SCALES[scaleId] ||
-    SCALES["major-pentatonic"];
+  const offsets = SCALES[scaleId] || SCALES["major-pentatonic"];
 
   const notes = [];
 
-  for (
-    let octave = baseOctave;
-    octave < baseOctave + numOctaves;
-    octave++
-  ) {
+  for (let octave = baseOctave; octave < baseOctave + numOctaves; octave++) {
     for (const offset of offsets) {
-      notes.push(
-        midiToNoteName(
-          (octave + 1) * 12 + offset,
-        ),
-      );
+      notes.push(midiToNoteName((octave + 1) * 12 + offset));
     }
+  }
+
+  return notes;
+}
+
+/**
+ * Root options for the per-track scale selector.
+ */
+export const SCALE_ROOT_OPTIONS = NOTE_NAMES;
+
+/**
+ * Scale type options for the per-track scale selector.
+ */
+export const SCALE_TYPE_OPTIONS = Object.keys(SCALES);
+
+/**
+ * The set of pitch classes (0-11) that belong to a scale,
+ * computed from the root note and scale type.
+ */
+export function getScalePitchClasses(root = "C", scaleId = "major-pentatonic") {
+  const rootIndex = NOTE_NAMES.indexOf(root);
+  const offsets = SCALES[scaleId] || SCALES["major-pentatonic"];
+
+  if (rootIndex === -1) {
+    return new Set(offsets.map((offset) => offset % 12));
+  }
+
+  return new Set(offsets.map((offset) => (rootIndex + offset) % 12));
+}
+
+/**
+ * Whether a note name (e.g. "F#4") belongs to the given scale.
+ * Returns true when no root is supplied (no filtering).
+ */
+export function isNoteInScale(noteName, root, scaleId) {
+  if (!root) return true;
+
+  const midi = noteNameToMidi(noteName);
+  if (midi == null) return true;
+
+  return getScalePitchClasses(root, scaleId).has(midi % 12);
+}
+
+/**
+ * Build an ascending list of note names for a scale, starting from the
+ * root note at baseOctave. Used by the arpeggiator so the pattern follows
+ * the track's selected scale + root.
+ */
+export function buildScaleNotesFromRoot(
+  root = "C",
+  scaleId = "major-pentatonic",
+  baseOctave = 3,
+  numOctaves = 2,
+) {
+  const rootIndex = NOTE_NAMES.indexOf(root);
+
+  if (rootIndex === -1) {
+    return buildScaleNotes(scaleId, baseOctave, numOctaves);
+  }
+
+  const offsets = SCALES[scaleId] || SCALES["major-pentatonic"];
+  const rootMidi = (baseOctave + 1) * 12 + rootIndex;
+
+  const notes = [];
+  const total = offsets.length * numOctaves;
+
+  for (let i = 0; i < total; i++) {
+    const octaveOffset = Math.floor(i / offsets.length);
+    const interval = offsets[i % offsets.length];
+    notes.push(midiToNoteName(rootMidi + octaveOffset * 12 + interval));
   }
 
   return notes;
@@ -523,22 +553,17 @@ export function buildScaleNotes(
 export function generateArpNotes(
   pattern,
   {
+    root = "C",
     scaleId = "major-pentatonic",
     direction = "up-down",
     baseOctave = 3,
   } = {},
 ) {
-  const scale = buildScaleNotes(
-    scaleId,
-    baseOctave,
-    2,
-  );
+  const scale = buildScaleNotesFromRoot(root, scaleId, baseOctave, 2);
 
   const len = scale.length;
 
-  const output = Array(
-    pattern.length,
-  ).fill(null);
+  const output = Array(pattern.length).fill(null);
 
   if (len === 0) {
     return output;
@@ -547,10 +572,7 @@ export function generateArpNotes(
   let sequence;
 
   if (direction === "down") {
-    sequence = Array.from(
-      { length: len },
-      (_, i) => len - 1 - i,
-    );
+    sequence = Array.from({ length: len }, (_, i) => len - 1 - i);
   } else if (direction === "up-down") {
     sequence = [];
 
@@ -558,45 +580,24 @@ export function generateArpNotes(
       sequence.push(i);
     }
 
-    for (
-      let i = len - 2;
-      i > 0;
-      i--
-    ) {
+    for (let i = len - 2; i > 0; i--) {
       sequence.push(i);
     }
   } else {
-    sequence = Array.from(
-      { length: len },
-      (_, i) => i,
-    );
+    sequence = Array.from({ length: len }, (_, i) => i);
   }
 
   let cursor = 0;
 
-  for (
-    let step = 0;
-    step < pattern.length;
-    step++
-  ) {
+  for (let step = 0; step < pattern.length; step++) {
     if (!pattern[step]) {
       continue;
     }
 
     if (direction === "random") {
-      output[step] =
-        scale[
-          Math.floor(
-            Math.random() * len,
-          )
-        ];
+      output[step] = scale[Math.floor(Math.random() * len)];
     } else {
-      output[step] =
-        scale[
-          sequence[
-            cursor % sequence.length
-          ]
-        ];
+      output[step] = scale[sequence[cursor % sequence.length]];
 
       cursor++;
     }
@@ -623,32 +624,20 @@ export function generateArpNotes(
  * projects.track_order
  */
 export function normalizeProject(project) {
-  const rawGrid =
-    Array.isArray(project?.grid)
-      ? project.grid
-      : createEmptyGrid(MIN_TRACKS);
+  const rawGrid = Array.isArray(project?.grid)
+    ? project.grid
+    : createEmptyGrid(MIN_TRACKS);
 
-  const rawSettings =
-    Array.isArray(
-      project?.track_settings,
-    )
-      ? project.track_settings
-      : createDefaultTrackSettings(
-          MIN_TRACKS,
-        );
+  const rawSettings = Array.isArray(project?.track_settings)
+    ? project.track_settings
+    : createDefaultTrackSettings(MIN_TRACKS);
 
   /**
    * Make sure we always have between MIN_TRACKS
    * and MAX_TRACKS.
    */
   const trackCount = Math.min(
-    Math.max(
-      Math.max(
-        rawGrid.length,
-        rawSettings.length,
-      ),
-      MIN_TRACKS,
-    ),
+    Math.max(Math.max(rawGrid.length, rawSettings.length), MIN_TRACKS),
     MAX_TRACKS,
   );
 
@@ -658,27 +647,17 @@ export function normalizeProject(project) {
    * -------------------------------------------------------
    */
 
-  const grid = Array.from(
-    { length: trackCount },
-    (_, trackIndex) => {
-      const row =
-        rawGrid[trackIndex];
+  const grid = Array.from({ length: trackCount }, (_, trackIndex) => {
+    const row = rawGrid[trackIndex];
 
-      if (!Array.isArray(row)) {
-        return Array(
-          NUM_STEPS,
-        ).fill(false);
-      }
+    if (!Array.isArray(row)) {
+      return Array(NUM_STEPS).fill(false);
+    }
 
-      return Array.from(
-        { length: NUM_STEPS },
-        (_, stepIndex) =>
-          Boolean(
-            row[stepIndex],
-          ),
-      );
-    },
-  );
+    return Array.from({ length: NUM_STEPS }, (_, stepIndex) =>
+      Boolean(row[stepIndex]),
+    );
+  });
 
   /**
    * -------------------------------------------------------
@@ -686,65 +665,38 @@ export function normalizeProject(project) {
    * -------------------------------------------------------
    */
 
-  const rawStepNotes =
-    Array.isArray(
-      project?.step_notes,
-    )
-      ? project.step_notes
-      : createEmptyStepNotes(
-          trackCount,
-        );
+  const rawStepNotes = Array.isArray(project?.step_notes)
+    ? project.step_notes
+    : createEmptyStepNotes(trackCount);
 
-  const step_notes =
-    Array.from(
-      { length: trackCount },
-      (_, trackIndex) => {
-        const row =
-          rawStepNotes[
-            trackIndex
-          ];
+  const step_notes = Array.from({ length: trackCount }, (_, trackIndex) => {
+    const row = rawStepNotes[trackIndex];
 
-        if (!Array.isArray(row)) {
-          return Array(
-            NUM_STEPS,
-          ).fill(null);
-        }
+    if (!Array.isArray(row)) {
+      return Array(NUM_STEPS).fill(null);
+    }
 
-        return Array.from(
-          { length: NUM_STEPS },
-          (_, stepIndex) => {
-            const cell =
-              row[stepIndex];
+    return Array.from({ length: NUM_STEPS }, (_, stepIndex) => {
+      const cell = row[stepIndex];
 
-            /**
-             * Normal single-note cell.
-             */
-            if (
-              typeof cell ===
-              "string"
-            ) {
-              return cell;
-            }
+      /**
+       * Normal single-note cell.
+       */
+      if (typeof cell === "string") {
+        return cell;
+      }
 
-            /**
-             * Backwards compatibility for
-             * cells that may contain multiple notes.
-             */
-            if (
-              Array.isArray(cell)
-            ) {
-              return cell.filter(
-                (note) =>
-                  typeof note ===
-                  "string",
-              );
-            }
+      /**
+       * Backwards compatibility for
+       * cells that may contain multiple notes.
+       */
+      if (Array.isArray(cell)) {
+        return cell.filter((note) => typeof note === "string");
+      }
 
-            return null;
-          },
-        );
-      },
-    );
+      return null;
+    });
+  });
 
   /**
    * -------------------------------------------------------
@@ -752,148 +704,128 @@ export function normalizeProject(project) {
    * -------------------------------------------------------
    */
 
-  const defaults =
-    createDefaultTrackSettings(
-      trackCount,
-    );
+  const defaults = createDefaultTrackSettings(trackCount);
 
-  const trackSettings =
-    Array.from(
-      {
-        length: trackCount,
-      },
-      (_, trackIndex) => {
-        const existing =
-          rawSettings[
-            trackIndex
-          ];
+  const trackSettings = Array.from(
+    {
+      length: trackCount,
+    },
+    (_, trackIndex) => {
+      const existing = rawSettings[trackIndex];
 
-        /**
-         * Missing track settings:
-         * use a completely valid default track.
-         */
-        if (!existing) {
-          return defaults[
-            trackIndex
-          ];
-        }
+      /**
+       * Missing track settings:
+       * use a completely valid default track.
+       */
+      if (!existing) {
+        return defaults[trackIndex];
+      }
 
-        /**
-         * Validate the sound.
-         *
-         * Old projects may contain:
-         *
-         * sound: null
-         *
-         * or an invalid sound ID.
-         *
-         * In either case, use the default sound.
-         */
-        const requestedSound =
-          existing.sound
-            ? getSoundById(
-                existing.sound,
-              )
-            : null;
+      /**
+       * Validate the sound.
+       *
+       * Old projects may contain:
+       *
+       * sound: null
+       *
+       * or an invalid sound ID.
+       *
+       * In either case, use the default sound.
+       */
+      /**
+       * Preserve an intentionally blank track (sound === null). Only fall
+       * back to a default sound when the saved id is present but invalid.
+       */
+      const isExplicitBlank = existing.sound === null;
 
-        const defaultSound =
-          getSoundById(
-            DEFAULT_TRACK_SOUNDS[
-              trackIndex
-            ] ||
-              DEFAULT_TRACK_SOUNDS[0] ||
-              SOUND_IDS[0],
-          );
+      const requestedSound = existing.sound
+        ? getSoundById(existing.sound)
+        : null;
 
-        const resolvedSound =
-          requestedSound ||
-          defaultSound ||
-          null;
+      const defaultSound = getSoundById(
+        DEFAULT_TRACK_SOUNDS[trackIndex] ||
+          DEFAULT_TRACK_SOUNDS[0] ||
+          SOUND_IDS[0],
+      );
 
-        const defaultTrack =
-          defaults[
-            trackIndex
-          ];
+      const resolvedSound = isExplicitBlank
+        ? null
+        : requestedSound || defaultSound || null;
 
-        const normalizedTrack = {
-          ...defaultTrack,
+      const defaultTrack = defaults[trackIndex];
 
-          ...existing,
+      const normalizedTrack = {
+        ...defaultTrack,
 
-          /**
-           * This is the important part:
-           *
-           * Never allow a missing/invalid sound to
-           * silently overwrite the valid default.
-           */
-          sound:
-            resolvedSound?.id ||
-            defaultTrack.sound ||
-            null,
-
-          reverb: {
-            ...defaultTrack.reverb,
-
-            ...(existing.reverb ||
-              {}),
-          },
-
-          delay: {
-            ...defaultTrack.delay,
-
-            ...(existing.delay ||
-              {}),
-          },
-
-          filter: {
-            ...defaultTrack.filter,
-
-            ...(existing.filter ||
-              {}),
-          },
-
-          muted:
-            existing.muted ??
-            false,
-
-          soloed:
-            existing.soloed ??
-            false,
-        };
+        ...existing,
 
         /**
-         * Synth tracks need valid note/duration
-         * defaults even when loading old projects.
+         * This is the important part:
+         *
+         * Never allow a missing/invalid sound to
+         * silently overwrite the valid default.
          */
-        if (
-          resolvedSound?.type ===
-          "synth"
-        ) {
-          normalizedTrack.note =
-            existing.note ??
-            resolvedSound.synth
-              ?.note ??
-            defaultTrack.note ??
-            "C4";
+        sound: isExplicitBlank
+          ? null
+          : resolvedSound?.id || defaultTrack.sound || null,
 
-          normalizedTrack.duration =
-            existing.duration ??
-            resolvedSound.synth
-              ?.duration ??
-            defaultTrack.duration ??
-            "8n";
-        } else {
-          /**
-           * Don't leave stale synth settings
-           * on sample/non-synth sounds.
-           */
-          delete normalizedTrack.note;
-          delete normalizedTrack.duration;
-        }
+        reverb: {
+          ...defaultTrack.reverb,
 
-        return normalizedTrack;
-      },
-    );
+          ...(existing.reverb || {}),
+        },
+
+        delay: {
+          ...defaultTrack.delay,
+
+          ...(existing.delay || {}),
+        },
+
+        filter: {
+          ...defaultTrack.filter,
+
+          ...(existing.filter || {}),
+        },
+
+        scale: {
+          ...defaultTrack.scale,
+
+          ...(existing.scale || {}),
+        },
+
+        muted: existing.muted ?? false,
+
+        soloed: existing.soloed ?? false,
+      };
+
+      /**
+       * Synth tracks need valid note/duration
+       * defaults even when loading old projects.
+       */
+      if (resolvedSound?.type === "synth") {
+        normalizedTrack.note =
+          existing.note ??
+          resolvedSound.synth?.note ??
+          defaultTrack.note ??
+          "C4";
+
+        normalizedTrack.duration =
+          existing.duration ??
+          resolvedSound.synth?.duration ??
+          defaultTrack.duration ??
+          "8n";
+      } else {
+        /**
+         * Don't leave stale synth settings
+         * on sample/non-synth sounds.
+         */
+        delete normalizedTrack.note;
+        delete normalizedTrack.duration;
+      }
+
+      return normalizedTrack;
+    },
+  );
 
   /**
    * -------------------------------------------------------
@@ -907,28 +839,21 @@ export function normalizeProject(project) {
    * [0, 1, 2, ... trackCount - 1]
    */
 
-  const defaultOrder =
-    Array.from(
-      {
-        length: trackCount,
-      },
-      (_, index) => index,
-    );
+  const defaultOrder = Array.from(
+    {
+      length: trackCount,
+    },
+    (_, index) => index,
+  );
 
-  const rawOrder =
-    project?.track_order;
+  const rawOrder = project?.track_order;
 
   const track_order =
     Array.isArray(rawOrder) &&
-    rawOrder.length ===
-      trackCount &&
-    new Set(rawOrder).size ===
-      trackCount &&
+    rawOrder.length === trackCount &&
+    new Set(rawOrder).size === trackCount &&
     rawOrder.every(
-      (index) =>
-        Number.isInteger(index) &&
-        index >= 0 &&
-        index < trackCount,
+      (index) => Number.isInteger(index) && index >= 0 && index < trackCount,
     )
       ? rawOrder
       : defaultOrder;
@@ -942,33 +867,22 @@ export function normalizeProject(project) {
   return {
     ...project,
 
-    name:
-      project?.name || "",
+    name: project?.name || "",
 
-    description:
-      project?.description || "",
+    description: project?.description || "",
 
-    tempo:
-      Number(project?.tempo) ||
-      120,
+    tempo: Number(project?.tempo) || 120,
 
     grid,
 
     step_notes,
 
-    track_settings:
-      trackSettings,
+    track_settings: trackSettings,
 
-    arrangement:
-      Array.isArray(
-        project?.arrangement,
-      )
-        ? project.arrangement
-        : [],
+    arrangement: Array.isArray(project?.arrangement) ? project.arrangement : [],
 
     track_order,
 
-    shared_id:
-      project?.shared_id || null,
+    shared_id: project?.shared_id || null,
   };
 }

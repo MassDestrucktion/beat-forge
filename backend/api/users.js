@@ -21,6 +21,7 @@ import {
   get_user_projects,
   get_project_by_id,
   update_project_by_id,
+  update_project_visibility,
   delete_project,
   forkProject,
 } from "../db/queries/projects.js";
@@ -98,6 +99,7 @@ usersRouter.post(
         arrangement,
         track_order,
         step_notes,
+        is_public,
       } = req.body;
 
       const project = await createProject(
@@ -110,6 +112,7 @@ usersRouter.post(
         arrangement,
         track_order,
         step_notes,
+        is_public,
       );
 
       res.status(201).json(project);
@@ -140,6 +143,48 @@ usersRouter.post(
       res.status(201).json(project);
     } catch (error) {
       console.error("FORK ERROR:", error);
+      next(error);
+    }
+  },
+);
+
+// Publish / unpublish a project (owner only)
+usersRouter.patch(
+  "/:id/projects/:projectId",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const { id: user_id, projectId: project_id } = req.params;
+      const { is_public } = req.body;
+
+      if (typeof is_public !== "boolean") {
+        return res.status(400).json({
+          message: "is_public must be a boolean",
+        });
+      }
+
+      // Only the authenticated owner of this project can change visibility.
+      if (req.user.id !== user_id) {
+        return res.status(403).json({
+          message: "You can only publish your own projects",
+        });
+      }
+
+      const project = await update_project_visibility(
+        project_id,
+        user_id,
+        is_public,
+      );
+
+      if (!project) {
+        return res.status(404).json({
+          message: "Project not found",
+        });
+      }
+
+      res.json(project);
+    } catch (error) {
+      console.error("PUBLISH ERROR:", error);
       next(error);
     }
   },
@@ -222,7 +267,18 @@ usersRouter.put(
         arrangement,
         track_order,
         step_notes,
+        is_public,
       } = req.body;
+
+      /**
+       * Preserve the existing visibility when the save payload doesn't
+       * include is_public — otherwise a normal "Update Project" save would
+       * silently unpublish a published project (defaults to false).
+       */
+      const shouldBePublic =
+        typeof is_public === "boolean"
+          ? is_public
+          : (existingProject?.is_public ?? false);
 
       const project = await update_project_by_id(
         project_id,
@@ -234,6 +290,7 @@ usersRouter.put(
         arrangement,
         track_order,
         step_notes,
+        shouldBePublic,
       );
 
       res.json(project);

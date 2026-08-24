@@ -18,6 +18,7 @@ CREATE TABLE projects (
     grid JSONB,
     track_settings JSONB,
     shared_id UUID UNIQUE,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -57,7 +57,30 @@
 }
 
 .welcomeCard h1 {
-  margin: 0 0 0.5rem;
+  margin: 0 0 1rem;
+}
+
+/* Plain-font page heading (no pixel typeface) */
+
+.welcome-heading {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  /* Unitless line-height scales with this element's own font-size, so the
+     36px glyphs fit inside the line box instead of overflowing it (the
+     inherited 26.1px from index.css was clipping the underscore and letting
+     the text collide with the avatar). */
+  line-height: 1.2;
+  background: linear-gradient(135deg, #a78bfa, #60a5fa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Follow button inside the welcome card (other users' profiles) */
+
+.welcomeCard .follow-btn {
+  margin-top: 10px;
 }
 
 .welcomeCard h1.pixel-title {
@@ -165,6 +188,12 @@
   font-size: 1.3rem;
 }
 
+/* Compact search inside the "People You Follow" header */
+
+.followingHeader .userSearch {
+  max-width: 280px;
+}
+
 .user-name {
   margin: 0.25rem 0 0;
   color: #9ca3af;
@@ -249,6 +278,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 1.25rem;
+  overflow: hidden;
   transition:
     border-color 0.15s ease,
     transform 0.1s ease,
@@ -269,6 +299,8 @@
 }
 
 .project-card-header h3 {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: 1.05rem;
   color: #ffffff;
@@ -299,6 +331,91 @@
   width: fit-content;
 }
 
+/* Public / private visibility chip */
+
+.public-chip {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+/* Publish / unpublish button (profile cards + sequencer) */
+
+.nav-btn.publish-btn {
+  flex: 0 0 auto;
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.25);
+}
+
+.nav-btn.publish-btn:hover {
+  box-shadow: 0 10px 24px rgba(2, 132, 199, 0.35);
+}
+
+.nav-btn.publish-btn.published {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.25);
+}
+
+.nav-btn.publish-btn.published:hover {
+  box-shadow: 0 10px 24px rgba(16, 185, 129, 0.35);
+}
+
+/* Project switcher (sequencer SaveLoadPanel) */
+
+.project-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+}
+
+.project-switcher select {
+  flex: 1;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #111827;
+  color: #f3f4f6;
+  outline: none;
+  cursor: pointer;
+}
+
+.project-switcher select:focus {
+  border-color: #8b5cf6;
+}
+
+/* Owner link (Discover cards) */
+
+.discover-owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: #a78bfa;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.discover-owner:hover {
+  text-decoration: underline;
+}
+
+.discover-owner-avatar {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 .project-card-details {
   display: flex;
   gap: 0.75rem;
@@ -308,6 +425,7 @@
 
 .project-card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: auto;
   padding-top: 0.6rem;
@@ -317,14 +435,14 @@
 /* ===== BUTTONS ===== */
 
 .nav-btn {
-  flex: 1;
+  flex: 0 0 auto;
   background: linear-gradient(135deg, #7c3aed, #2563eb);
   color: #ffffff;
   border: none;
-  padding: 0.6rem 0.8rem;
+  padding: 0.35rem 0.6rem;
   border-radius: 999px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 700;
   transition:
     transform 0.12s ease,
@@ -518,8 +636,10 @@
 }
 
 .searchResult {
-  display: block;
-  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
   color: #f3f4f6;
   background: #1f2937;
   font-size: 0.95rem;
@@ -530,4 +650,13 @@
 
 .searchResult:hover {
   background: rgba(139, 92, 246, 0.15);
+}
+
+.search-result-avatar {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
 }

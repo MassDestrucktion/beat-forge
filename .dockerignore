@@ -1,0 +1,31 @@
+node_modules
+backend/node_modules
+frontend/node_modules
+frontend/dist
+.git
+.gitignore
+*.log
+.env
+.env.local
+.env.template
+.github
+Dockerfile
+docker-compose*.yml
+*.md
+changes_tonight.diff
+samples.json
+transcript.en.vtt
+block*
+Careeer-Sim-1
+Career-Sim-2
+Career-Sim-3
+Career-Sim-4
+New folder
+solar-system
+B
+c
+hello.txt
+package-lock.json
+</arg_value>
+<task_progress>- [x] Rewrite .dockerignore cleanly (fix glob corruption)</arg_value>
+</write_to_file></tool_call>
