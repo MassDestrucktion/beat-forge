@@ -21,13 +21,7 @@ import { KEYBOARD_LEGEND } from "../sequencer/useKeyboardInput";
 import { getSoundById } from "../audio/soundLibrary";
 
 /**
- * A single sequencer track card:
- *
- *   [ side panel ]  [ steps + compact control row ]  [ volume rail ]
- *
- * The side panel holds the (renameable) track name and mute/solo.
- * The 7 effect dials, effect toggles, and preview live behind the
- * FX toggle to keep the default view clean.
+ * A single sequencer track card.
  */
 export default function TrackRow({
   trackIndex,
@@ -63,21 +57,29 @@ export default function TrackRow({
   onRecordNote,
   onPreviewNote,
 }) {
-  const [isRenaming, setIsRenaming] = useState(false);
+  const [isRenaming, setIsRenaming] =
+    useState(false);
 
-  const [nameDraft, setNameDraft] = useState("");
+  const [nameDraft, setNameDraft] =
+    useState("");
 
-  const [showLegend, setShowLegend] = useState(false);
+  const [showLegend, setShowLegend] =
+    useState(false);
 
-  // Per-step note editor panel
-  const [noteEditingStep, setNoteEditingStep] = useState(null);
-  const [chordRoot, setChordRoot] = useState("C4");
-  const [chordType, setChordType] = useState("major");
+  const [noteEditingStep, setNoteEditingStep] =
+    useState(null);
 
-  // Drag-to-highlight state
+  const [chordRoot, setChordRoot] =
+    useState("C4");
+
+  const [chordType, setChordType] =
+    useState("major");
+
   const dragRef = useRef(null);
 
-  const trackName = trackSetting?.name || TRACK_LABELS[trackIndex];
+  const trackName =
+    trackSetting?.name ||
+    TRACK_LABELS[trackIndex];
 
   const startRename = () => {
     setNameDraft(trackName);
@@ -87,59 +89,127 @@ export default function TrackRow({
   const commitRename = () => {
     const trimmed = nameDraft.trim();
 
-    if (trimmed && trimmed !== trackName) {
-      onRenameTrack(trackIndex, trimmed);
+    if (
+      trimmed &&
+      trimmed !== trackName
+    ) {
+      onRenameTrack(
+        trackIndex,
+        trimmed,
+      );
     }
 
     setIsRenaming(false);
   };
 
-  // Respect an intentionally blank track (sound === null) — no default fill.
-  const currentSoundId = trackSetting?.sound ?? null;
+  /**
+   * Respect intentionally blank tracks.
+   */
+  const currentSoundId =
+    trackSetting?.sound ?? null;
 
-  const currentSound = getSoundById(currentSoundId);
+  const currentSound =
+    getSoundById(currentSoundId);
 
-  const isSynth = currentSound?.type === "synth";
-  const isPoly = isSynth && currentSound?.synth?.engine === "poly";
+  const isSynth =
+    currentSound?.type === "synth";
 
-  const reverbEnabled = trackSetting?.reverb?.enabled || false;
+  const isPoly =
+    isSynth &&
+    currentSound?.synth?.engine ===
+      "poly";
 
-  const delayEnabled = trackSetting?.delay?.enabled || false;
+  /**
+   * -------------------------------------------------------
+   * FX STATE
+   * -------------------------------------------------------
+   */
 
-  const filterLowpass = trackSetting?.filter?.lowpass ?? 20000;
+  const reverbEnabled =
+    trackSetting?.reverb?.enabled ??
+    false;
 
-  const filterHighpass = trackSetting?.filter?.highpass ?? 20;
+  const delayEnabled =
+    trackSetting?.delay?.enabled ??
+    false;
 
-  const filterActive = filterLowpass < 15000 || filterHighpass > 40;
+  const filterEnabled =
+    trackSetting?.filter?.enabled ??
+    false;
 
-  const anyFxActive = reverbEnabled || delayEnabled || filterActive;
+  const filterLowpass =
+    trackSetting?.filter?.lowpass ??
+    20000;
 
-  const isMuted = trackSetting?.muted || false;
+  const filterHighpass =
+    trackSetting?.filter?.highpass ??
+    20;
 
-  const selectedNote = trackSetting?.note || currentSound?.synth?.note || "C4";
+  /**
+   * IMPORTANT:
+   *
+   * FX activity is based on enabled flags, not whether a
+   * stored parameter happens to differ from its default.
+   *
+   * This prevents the FX button from remaining highlighted
+   * after an effect is turned off.
+   */
+  const anyFxActive =
+    reverbEnabled ||
+    delayEnabled ||
+    filterEnabled;
+
+  const isMuted =
+    trackSetting?.muted || false;
+
+  const selectedNote =
+    trackSetting?.note ||
+    currentSound?.synth?.note ||
+    "C4";
 
   const selectedDuration =
-    trackSetting?.duration || currentSound?.synth?.duration || "8n";
+    trackSetting?.duration ||
+    currentSound?.synth?.duration ||
+    "8n";
 
-  const isSoloed = trackSetting?.soloed || false;
+  const isSoloed =
+    trackSetting?.soloed || false;
 
-  const isExpanded = expandedTrack === trackIndex;
+  const isExpanded =
+    expandedTrack === trackIndex;
 
-  const volume = trackSetting?.volume ?? 1;
+  const volume =
+    trackSetting?.volume ?? 1;
 
   return (
     <div
-      className={`track-row ${isMuted ? "track-muted" : ""} ${
-        isSoloed ? "track-soloed" : ""
-      } ${isKeyboardSelected ? "keyboard-selected" : ""} ${
-        recordArm ? "track-armed" : ""
+      className={`track-row ${
+        isMuted
+          ? "track-muted"
+          : ""
+      } ${
+        isSoloed
+          ? "track-soloed"
+          : ""
+      } ${
+        isKeyboardSelected
+          ? "keyboard-selected"
+          : ""
+      } ${
+        recordArm
+          ? "track-armed"
+          : ""
       }`}
     >
       <div className="track-row-main">
-        {/* LEFT SIDE PANEL: name + mute/solo */}
+        {/* LEFT SIDE PANEL */}
         <div
           className="track-side-panel"
-          onClick={() => onSelectTrack?.(trackIndex)}
+          onClick={() =>
+            onSelectTrack?.(
+              trackIndex,
+            )
+          }
           title="Click to select for keyboard input"
         >
           {isRenaming ? (
@@ -147,42 +217,75 @@ export default function TrackRow({
               className="track-label-input"
               value={nameDraft}
               autoFocus
-              onChange={(e) => setNameDraft(e.target.value)}
+              onChange={(e) =>
+                setNameDraft(
+                  e.target.value,
+                )
+              }
               onBlur={commitRename}
               onKeyDown={(e) => {
-                if (e.key === "Enter") commitRename();
-                if (e.key === "Escape") setIsRenaming(false);
+                if (
+                  e.key === "Enter"
+                ) {
+                  commitRename();
+                }
+
+                if (
+                  e.key === "Escape"
+                ) {
+                  setIsRenaming(
+                    false,
+                  );
+                }
               }}
             />
           ) : (
             <span
               className="track-label"
               title={`${trackName} (double-click to rename)`}
-              onDoubleClick={startRename}
+              onDoubleClick={
+                startRename
+              }
             >
               {trackName}
             </span>
           )}
 
-          <div className="track-status" aria-live="polite">
-            {isSynth && isKeyboardSelected && keysEnabled && (
-              <span
-                className="octave-badge"
-                title="Current octave (Z/X to change)"
-              >
-                Oct {keyboardOctave}
-              </span>
-            )}
+          <div
+            className="track-status"
+            aria-live="polite"
+          >
+            {isSynth &&
+              isKeyboardSelected &&
+              keysEnabled && (
+                <span
+                  className="octave-badge"
+                  title="Current octave (Z/X to change)"
+                >
+                  Oct{" "}
+                  {keyboardOctave}
+                </span>
+              )}
           </div>
+
           <div className="side-panel-buttons">
             {recordArm && (
               <button
                 type="button"
-                className={`icon-btn record-pad armed`}
+                className="icon-btn record-pad armed"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onPreview?.(trackIndex);
-                  onRecordNote?.(trackIndex, isSynth ? selectedNote : null);
+
+                  onPreview?.(
+                    trackIndex,
+                  );
+
+                  onRecordNote?.(
+                    trackIndex,
+                    isSynth
+                      ? selectedNote
+                      : null,
+                  );
                 }}
                 title="Tap to record this sound at the current step"
               >
@@ -192,42 +295,73 @@ export default function TrackRow({
 
             <button
               type="button"
-              className={`icon-btn ${isMuted ? "active-danger" : ""}`}
-              onClick={() => onToggleMute(trackIndex)}
+              className={`icon-btn ${
+                isMuted
+                  ? "active-danger"
+                  : ""
+              }`}
+              onClick={() =>
+                onToggleMute(
+                  trackIndex,
+                )
+              }
               aria-pressed={isMuted}
-              title={isMuted ? "Unmute track" : "Mute track"}
+              title={
+                isMuted
+                  ? "Unmute track"
+                  : "Mute track"
+              }
             >
-              {isMuted ? "🔇" : "🔊"}
+              {isMuted
+                ? "🔇"
+                : "🔊"}
             </button>
 
             <button
               type="button"
-              className={`icon-btn ${isSoloed ? "active-warn" : ""}`}
-              onClick={() => onToggleSolo(trackIndex)}
+              className={`icon-btn ${
+                isSoloed
+                  ? "active-warn"
+                  : ""
+              }`}
+              onClick={() =>
+                onToggleSolo(
+                  trackIndex,
+                )
+              }
               aria-pressed={isSoloed}
-              title={isSoloed ? "Unsolo track" : "Solo track"}
+              title={
+                isSoloed
+                  ? "Unsolo track"
+                  : "Solo track"
+              }
             >
               🎧
             </button>
 
             {isSynth && (
-              <>
-                <button
-                  type="button"
-                  className={`icon-btn ${isKeyboardSelected ? "active-keys" : ""}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleKeys?.(trackIndex);
-                  }}
-                  title={
-                    isKeyboardSelected
-                      ? "Disable keyboard for this track"
-                      : "Enable keyboard for this track"
-                  }
-                >
-                  🎹
-                </button>
-              </>
+              <button
+                type="button"
+                className={`icon-btn ${
+                  isKeyboardSelected
+                    ? "active-keys"
+                    : ""
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+
+                  onToggleKeys?.(
+                    trackIndex,
+                  );
+                }}
+                title={
+                  isKeyboardSelected
+                    ? "Disable keyboard for this track"
+                    : "Enable keyboard for this track"
+                }
+              >
+                🎹
+              </button>
             )}
 
             <button
@@ -235,7 +369,10 @@ export default function TrackRow({
               className="icon-btn legend-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                setShowLegend(!showLegend);
+
+                setShowLegend(
+                  !showLegend,
+                );
               }}
               title="Keyboard shortcuts"
             >
@@ -246,48 +383,106 @@ export default function TrackRow({
           {showLegend && (
             <div
               className="keyboard-legend-overlay"
-              onClick={() => setShowLegend(false)}
+              onClick={() =>
+                setShowLegend(
+                  false,
+                )
+              }
             >
               <div
                 className="keyboard-legend-modal"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) =>
+                  e.stopPropagation()
+                }
               >
                 <button
                   className="legend-close-btn"
-                  onClick={() => setShowLegend(false)}
+                  onClick={() =>
+                    setShowLegend(
+                      false,
+                    )
+                  }
                   title="Close"
                 >
                   ✕
                 </button>
-                <h3>Keyboard Shortcuts</h3>
+
+                <h3>
+                  Keyboard Shortcuts
+                </h3>
+
                 <div className="legend-section">
-                  <strong>White Keys</strong>
+                  <strong>
+                    White Keys
+                  </strong>
+
                   <div className="legend-keys">
-                    {KEYBOARD_LEGEND.whiteKeys.map(({ key, note }) => (
-                      <span key={key} className="legend-key">
-                        <kbd>{key}</kbd> → {note}
-                      </span>
-                    ))}
+                    {KEYBOARD_LEGEND.whiteKeys.map(
+                      ({
+                        key,
+                        note,
+                      }) => (
+                        <span
+                          key={key}
+                          className="legend-key"
+                        >
+                          <kbd>
+                            {key}
+                          </kbd>{" "}
+                          → {note}
+                        </span>
+                      ),
+                    )}
                   </div>
                 </div>
+
                 <div className="legend-section">
-                  <strong>Black Keys</strong>
+                  <strong>
+                    Black Keys
+                  </strong>
+
                   <div className="legend-keys">
-                    {KEYBOARD_LEGEND.blackKeys.map(({ key, note }) => (
-                      <span key={key} className="legend-key">
-                        <kbd>{key}</kbd> → {note}
-                      </span>
-                    ))}
+                    {KEYBOARD_LEGEND.blackKeys.map(
+                      ({
+                        key,
+                        note,
+                      }) => (
+                        <span
+                          key={key}
+                          className="legend-key"
+                        >
+                          <kbd>
+                            {key}
+                          </kbd>{" "}
+                          → {note}
+                        </span>
+                      ),
+                    )}
                   </div>
                 </div>
+
                 <div className="legend-section">
-                  <strong>Controls</strong>
+                  <strong>
+                    Controls
+                  </strong>
+
                   <div className="legend-keys">
-                    {KEYBOARD_LEGEND.controls.map(({ key, action }) => (
-                      <span key={key} className="legend-key">
-                        <kbd>{key}</kbd> → {action}
-                      </span>
-                    ))}
+                    {KEYBOARD_LEGEND.controls.map(
+                      ({
+                        key,
+                        action,
+                      }) => (
+                        <span
+                          key={key}
+                          className="legend-key"
+                        >
+                          <kbd>
+                            {key}
+                          </kbd>{" "}
+                          → {action}
+                        </span>
+                      ),
+                    )}
                   </div>
                 </div>
               </div>
@@ -295,143 +490,275 @@ export default function TrackRow({
           )}
         </div>
 
-        {/* BODY: steps (hero) + compact control row */}
+        {/* BODY */}
         <div className="track-body">
           <div className="step-row">
-            {track.map((isActive, stepIndex) => (
-              <button
-                key={stepIndex}
-                onContextMenu={(e) => {
-                  if (!isSynth) return;
-                  e.preventDefault();
-                  setNoteEditingStep(stepIndex);
-                }}
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  const newValue = !isActive;
-                  onToggleStep(trackIndex, stepIndex);
-                  dragRef.current = {
-                    trackIndex,
-                    startStep: stepIndex,
-                    value: newValue,
-                  };
-                  window.addEventListener(
-                    "pointerup",
-                    () => {
-                      dragRef.current = null;
-                    },
-                    { once: true },
-                  );
-                }}
-                onPointerEnter={() => {
-                  if (
-                    dragRef.current &&
-                    dragRef.current.trackIndex === trackIndex
-                  ) {
-                    const { startStep, value } = dragRef.current;
-                    if (stepIndex !== startStep) {
-                      onSetStepsRange?.(
-                        trackIndex,
-                        startStep,
-                        stepIndex,
-                        value,
-                      );
+            {track.map(
+              (
+                isActive,
+                stepIndex,
+              ) => (
+                <button
+                  key={stepIndex}
+                  onContextMenu={(e) => {
+                    if (!isSynth) {
+                      return;
                     }
+
+                    e.preventDefault();
+
+                    setNoteEditingStep(
+                      stepIndex,
+                    );
+                  }}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+
+                    const newValue =
+                      !isActive;
+
+                    onToggleStep(
+                      trackIndex,
+                      stepIndex,
+                    );
+
+                    dragRef.current = {
+                      trackIndex,
+                      startStep:
+                        stepIndex,
+                      value: newValue,
+                    };
+
+                    window.addEventListener(
+                      "pointerup",
+                      () => {
+                        dragRef.current =
+                          null;
+                      },
+                      {
+                        once: true,
+                      },
+                    );
+                  }}
+                  onPointerEnter={() => {
+                    if (
+                      dragRef.current &&
+                      dragRef.current
+                        .trackIndex ===
+                        trackIndex
+                    ) {
+                      const {
+                        startStep,
+                        value,
+                      } =
+                        dragRef.current;
+
+                      if (
+                        stepIndex !==
+                        startStep
+                      ) {
+                        onSetStepsRange?.(
+                          trackIndex,
+                          startStep,
+                          stepIndex,
+                          value,
+                        );
+                      }
+                    }
+                  }}
+                  className={`
+                    ${
+                      isActive
+                        ? "active"
+                        : ""
+                    }
+                    ${
+                      currentStep ===
+                        stepIndex &&
+                      isPlaying
+                        ? "playing"
+                        : ""
+                    }
+                    ${
+                      isMuted
+                        ? "muted-step"
+                        : ""
+                    }
+                    ${
+                      isSynth
+                        ? "step-synth"
+                        : ""
+                    }
+                  `}
+                  title={
+                    isSynth &&
+                    isActive
+                      ? selectedNote
+                      : undefined
                   }
-                }}
-                className={`
-                  ${isActive ? "active" : ""}
-                  ${currentStep === stepIndex && isPlaying ? "playing" : ""}
-                  ${isMuted ? "muted-step" : ""}
-                  ${isSynth ? "step-synth" : ""}
-                `}
-                title={isSynth && isActive ? selectedNote : undefined}
-              >
-                {isSynth && isActive ? (
-                  <span className="step-note-label">
-                    {Array.isArray(stepNotes?.[stepIndex])
-                      ? stepNotes[stepIndex]
-                          .map((n) => n.replace(/\d+$/, ""))
-                          .join("·")
-                      : stepNotes?.[stepIndex] || selectedNote}
-                  </span>
-                ) : (
-                  stepIndex + 1
-                )}
-              </button>
-            ))}
+                >
+                  {isSynth &&
+                  isActive ? (
+                    <span className="step-note-label">
+                      {Array.isArray(
+                        stepNotes?.[
+                          stepIndex
+                        ],
+                      )
+                        ? stepNotes[
+                            stepIndex
+                          ]
+                            .map(
+                              (
+                                n,
+                              ) =>
+                                n.replace(
+                                  /\d+$/,
+                                  "",
+                                ),
+                            )
+                            .join(
+                              "·",
+                            )
+                        : stepNotes?.[
+                            stepIndex
+                          ] ||
+                          selectedNote}
+                    </span>
+                  ) : (
+                    stepIndex + 1
+                  )}
+                </button>
+              ),
+            )}
           </div>
 
-          {isSynth && noteEditingStep != null && (
-            <div className="step-note-panel">
-              <span>Step {noteEditingStep + 1}</span>
-              <NotePicker
-                value={
-                  typeof stepNotes?.[noteEditingStep] === "string"
-                    ? stepNotes[noteEditingStep]
-                    : ""
-                }
-                onChange={(note) =>
-                  onSetStepNote?.(trackIndex, noteEditingStep, note || null)
-                }
-                onPreview={(note) => onPreviewNote?.(trackIndex, note)}
-                scaleRoot={trackSetting?.scale?.root ?? "C"}
-                scaleType={trackSetting?.scale?.type ?? "major-pentatonic"}
-                allowDefault
-                defaultLabel="Track default"
-              />
+          {isSynth &&
+            noteEditingStep !=
+              null && (
+              <div className="step-note-panel">
+                <span>
+                  Step{" "}
+                  {noteEditingStep +
+                    1}
+                </span>
 
-              {isPoly && (
-                <>
-                  <select
-                    value={chordRoot}
-                    onChange={(e) => setChordRoot(e.target.value)}
-                    title="Chord root note"
-                  >
-                    {NOTE_OPTIONS.map((note) => (
-                      <option key={note} value={note}>
-                        {note}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={chordType}
-                    onChange={(e) => setChordType(e.target.value)}
-                    title="Chord type"
-                  >
-                    {Object.keys(CHORD_TYPES).map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() =>
-                      onSetStepNote?.(
-                        trackIndex,
-                        noteEditingStep,
-                        buildChord(chordRoot, chordType),
-                      )
-                    }
-                    title="Apply chord"
-                  >
-                    🎹
-                  </button>
-                </>
-              )}
+                <NotePicker
+                  value={
+                    typeof stepNotes?.[
+                      noteEditingStep
+                    ] === "string"
+                      ? stepNotes[
+                          noteEditingStep
+                        ]
+                      : ""
+                  }
+                  onChange={(note) =>
+                    onSetStepNote?.(
+                      trackIndex,
+                      noteEditingStep,
+                      note || null,
+                    )
+                  }
+                  onPreview={(note) =>
+                    onPreviewNote?.(
+                      trackIndex,
+                      note,
+                    )
+                  }
+                  scaleRoot={
+                    trackSetting?.scale
+                      ?.root ?? "C"
+                  }
+                  scaleType={
+                    trackSetting?.scale
+                      ?.type ??
+                    "major-pentatonic"
+                  }
+                  allowDefault
+                  defaultLabel="Track default"
+                />
 
-              <button
-                type="button"
-                className="icon-btn"
-                onClick={() => setNoteEditingStep(null)}
-                title="Close note editor"
-              >
-                ✕
-              </button>
-            </div>
-          )}
+                {isPoly && (
+                  <>
+                    <select
+                      value={chordRoot}
+                      onChange={(e) =>
+                        setChordRoot(
+                          e.target.value,
+                        )
+                      }
+                      title="Chord root note"
+                    >
+                      {NOTE_OPTIONS.map(
+                        (note) => (
+                          <option
+                            key={note}
+                            value={note}
+                          >
+                            {note}
+                          </option>
+                        ),
+                      )}
+                    </select>
+
+                    <select
+                      value={chordType}
+                      onChange={(e) =>
+                        setChordType(
+                          e.target.value,
+                        )
+                      }
+                      title="Chord type"
+                    >
+                      {Object.keys(
+                        CHORD_TYPES,
+                      ).map(
+                        (type) => (
+                          <option
+                            key={type}
+                            value={type}
+                          >
+                            {type}
+                          </option>
+                        ),
+                      )}
+                    </select>
+
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      onClick={() =>
+                        onSetStepNote?.(
+                          trackIndex,
+                          noteEditingStep,
+                          buildChord(
+                            chordRoot,
+                            chordType,
+                          ),
+                        )
+                      }
+                      title="Apply chord"
+                    >
+                      🎹
+                    </button>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() =>
+                    setNoteEditingStep(
+                      null,
+                    )
+                  }
+                  title="Close note editor"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
           <div className="track-control-row">
             <label className="control-field">
@@ -439,8 +766,15 @@ export default function TrackRow({
 
               <SoundPicker
                 value={currentSoundId}
-                onChange={(soundId) => onUpdateSound(trackIndex, soundId)}
-                onPreview={onPreviewSound}
+                onChange={(soundId) =>
+                  onUpdateSound(
+                    trackIndex,
+                    soundId,
+                  )
+                }
+                onPreview={
+                  onPreviewSound
+                }
               />
             </label>
 
@@ -452,11 +786,27 @@ export default function TrackRow({
                   <NotePicker
                     value={selectedNote}
                     onChange={(note) =>
-                      onUpdateSetting(trackIndex, "note", note)
+                      onUpdateSetting(
+                        trackIndex,
+                        "note",
+                        note,
+                      )
                     }
-                    onPreview={(note) => onPreviewNote?.(trackIndex, note)}
-                    scaleRoot={trackSetting?.scale?.root ?? "C"}
-                    scaleType={trackSetting?.scale?.type ?? "major-pentatonic"}
+                    onPreview={(note) =>
+                      onPreviewNote?.(
+                        trackIndex,
+                        note,
+                      )
+                    }
+                    scaleRoot={
+                      trackSetting?.scale
+                        ?.root ?? "C"
+                    }
+                    scaleType={
+                      trackSetting?.scale
+                        ?.type ??
+                      "major-pentatonic"
+                    }
                   />
                 </label>
 
@@ -464,16 +814,31 @@ export default function TrackRow({
                   <span>Dur</span>
 
                   <select
-                    value={selectedDuration}
+                    value={
+                      selectedDuration
+                    }
                     onChange={(e) =>
-                      onUpdateSetting(trackIndex, "duration", e.target.value)
+                      onUpdateSetting(
+                        trackIndex,
+                        "duration",
+                        e.target.value,
+                      )
                     }
                   >
-                    {DURATION_OPTIONS.map((duration) => (
-                      <option key={duration} value={duration}>
-                        {duration}
-                      </option>
-                    ))}
+                    {DURATION_OPTIONS.map(
+                      (duration) => (
+                        <option
+                          key={
+                            duration
+                          }
+                          value={
+                            duration
+                          }
+                        >
+                          {duration}
+                        </option>
+                      ),
+                    )}
                   </select>
                 </label>
 
@@ -481,20 +846,35 @@ export default function TrackRow({
                   <span>Scale</span>
 
                   <select
-                    value={trackSetting?.scale?.root ?? "C"}
+                    value={
+                      trackSetting
+                        ?.scale
+                        ?.root ?? "C"
+                    }
                     onChange={(e) =>
-                      onUpdateSetting(trackIndex, "scale", {
-                        ...(trackSetting?.scale ?? {}),
-                        root: e.target.value,
-                      })
+                      onUpdateSetting(
+                        trackIndex,
+                        "scale",
+                        {
+                          ...(trackSetting?.scale ??
+                            {}),
+                          root: e.target
+                            .value,
+                        },
+                      )
                     }
                     title="Scale root — drives the note picker + arp"
                   >
-                    {SCALE_ROOT_OPTIONS.map((root) => (
-                      <option key={root} value={root}>
-                        {root}
-                      </option>
-                    ))}
+                    {SCALE_ROOT_OPTIONS.map(
+                      (root) => (
+                        <option
+                          key={root}
+                          value={root}
+                        >
+                          {root}
+                        </option>
+                      ),
+                    )}
                   </select>
                 </label>
 
@@ -502,20 +882,39 @@ export default function TrackRow({
                   <span>Type</span>
 
                   <select
-                    value={trackSetting?.scale?.type ?? "major-pentatonic"}
+                    value={
+                      trackSetting
+                        ?.scale
+                        ?.type ??
+                      "major-pentatonic"
+                    }
                     onChange={(e) =>
-                      onUpdateSetting(trackIndex, "scale", {
-                        ...(trackSetting?.scale ?? {}),
-                        type: e.target.value,
-                      })
+                      onUpdateSetting(
+                        trackIndex,
+                        "scale",
+                        {
+                          ...(trackSetting?.scale ??
+                            {}),
+                          type: e.target
+                            .value,
+                        },
+                      )
                     }
                     title="Scale type — drives the note picker + arp"
                   >
-                    {SCALE_TYPE_OPTIONS.map((type) => (
-                      <option key={type} value={type}>
-                        {type.replace(/-/g, " ")}
-                      </option>
-                    ))}
+                    {SCALE_TYPE_OPTIONS.map(
+                      (type) => (
+                        <option
+                          key={type}
+                          value={type}
+                        >
+                          {type.replace(
+                            /-/g,
+                            " ",
+                          )}
+                        </option>
+                      ),
+                    )}
                   </select>
                 </label>
               </>
@@ -525,48 +924,78 @@ export default function TrackRow({
               <button
                 type="button"
                 className="icon-btn"
-                onClick={() => onClearPattern(trackIndex)}
+                onClick={() =>
+                  onClearPattern(
+                    trackIndex,
+                  )
+                }
                 title="Clear this track's pattern"
               >
                 🧹
-                <span className="icon-btn-label">Clear</span>
+                <span className="icon-btn-label">
+                  Clear
+                </span>
               </button>
 
               <button
                 type="button"
                 className="icon-btn"
-                onClick={() => onRandomPattern(trackIndex)}
+                onClick={() =>
+                  onRandomPattern(
+                    trackIndex,
+                  )
+                }
                 title="Generate a random pattern"
               >
                 🎲
-                <span className="icon-btn-label">Rand</span>
+                <span className="icon-btn-label">
+                  Rand
+                </span>
               </button>
 
               {isSynth && (
                 <button
                   type="button"
                   className="icon-btn"
-                  onClick={() => onRandomArp?.(trackIndex)}
+                  onClick={() =>
+                    onRandomArp?.(
+                      trackIndex,
+                    )
+                  }
                   title="Generate a random arpeggio (scale-based notes)"
                 >
                   🎵
-                  <span className="icon-btn-label">Arp</span>
+                  <span className="icon-btn-label">
+                    Arp
+                  </span>
                 </button>
               )}
 
               <button
                 type="button"
                 className="icon-btn"
-                onClick={() => onAddToArrangement(trackIndex)}
+                onClick={() =>
+                  onAddToArrangement(
+                    trackIndex,
+                  )
+                }
                 title="Add this track as a clip in the arrangement"
               >
-                ➕<span className="icon-btn-label">Clip</span>
+                ➕
+                <span className="icon-btn-label">
+                  Clip
+                </span>
               </button>
 
               <button
                 type="button"
                 className="icon-btn"
-                onClick={() => onNudgePattern?.(trackIndex, "left")}
+                onClick={() =>
+                  onNudgePattern?.(
+                    trackIndex,
+                    "left",
+                  )
+                }
                 title="Nudge pattern left"
               >
                 ←
@@ -575,7 +1004,12 @@ export default function TrackRow({
               <button
                 type="button"
                 className="icon-btn"
-                onClick={() => onNudgePattern?.(trackIndex, "right")}
+                onClick={() =>
+                  onNudgePattern?.(
+                    trackIndex,
+                    "right",
+                  )
+                }
                 title="Nudge pattern right"
               >
                 →
@@ -583,10 +1017,20 @@ export default function TrackRow({
 
               <button
                 type="button"
-                className={`fx-toggle ${isExpanded ? "expanded" : ""} ${
-                  anyFxActive ? "has-fx" : ""
+                className={`fx-toggle ${
+                  isExpanded
+                    ? "expanded"
+                    : ""
+                } ${
+                  anyFxActive
+                    ? "has-fx"
+                    : ""
                 }`}
-                onClick={() => onToggleExpand(trackIndex)}
+                onClick={() =>
+                  onToggleExpand(
+                    trackIndex,
+                  )
+                }
                 title={
                   isExpanded
                     ? "Hide effects"
@@ -599,12 +1043,17 @@ export default function TrackRow({
           </div>
         </div>
 
-        {/* RIGHT EDGE: vertical volume slider */}
+        {/* VOLUME */}
         <div
           className="track-volume-rail"
-          title={`Volume: ${Math.round(volume * 100)}%`}
+          title={`Volume: ${Math.round(
+            volume * 100,
+          )}%`}
         >
-          <span className="volume-label">Vol</span>
+          <span className="volume-label">
+            Vol
+          </span>
+
           <input
             type="range"
             className="volume-vertical"
@@ -613,7 +1062,13 @@ export default function TrackRow({
             step="0.01"
             value={volume}
             onChange={(e) =>
-              onUpdateSetting(trackIndex, "volume", parseFloat(e.target.value))
+              onUpdateSetting(
+                trackIndex,
+                "volume",
+                parseFloat(
+                  e.target.value,
+                ),
+              )
             }
           />
         </div>
@@ -622,63 +1077,110 @@ export default function TrackRow({
       {isExpanded && (
         <div className="track-controls-expanded">
           <div className="dial-row">
+            {/* DELAY TIME */}
             <Dial
               label="Delay Time"
-              value={trackSetting?.delay?.time ?? 0.25}
+              value={
+                trackSetting?.delay
+                  ?.time ?? 0.25
+              }
               min={0.05}
               max={0.75}
               step={0.01}
               size={64}
-              formatValue={(value) => `${Math.round(value * 1000)}ms`}
+              formatValue={(value) =>
+                `${Math.round(
+                  value * 1000,
+                )}ms`
+              }
               onChange={(e) =>
-                onUpdateSetting(trackIndex, "delay", {
-                  ...trackSetting?.delay,
+                onUpdateSetting(
+                  trackIndex,
+                  "delay",
+                  {
+                    ...trackSetting?.delay,
 
-                  enabled: true,
+                    /**
+                     * Touching a delay dial enables it.
+                     */
+                    enabled: true,
 
-                  time: parseFloat(e.target.value),
-                })
+                    time: parseFloat(
+                      e.target.value,
+                    ),
+                  },
+                )
               }
             />
 
+            {/* DELAY FEEDBACK */}
             <Dial
               label="Delay Feedback"
-              value={trackSetting?.delay?.feedback ?? 0.3}
+              value={
+                trackSetting?.delay
+                  ?.feedback ?? 0.3
+              }
               min={0}
               max={0.8}
               step={0.01}
               size={64}
-              formatValue={(value) => `${Math.round(value * 100)}%`}
+              formatValue={(value) =>
+                `${Math.round(
+                  value * 100,
+                )}%`
+              }
               onChange={(e) =>
-                onUpdateSetting(trackIndex, "delay", {
-                  ...trackSetting?.delay,
+                onUpdateSetting(
+                  trackIndex,
+                  "delay",
+                  {
+                    ...trackSetting?.delay,
 
-                  enabled: true,
+                    enabled: true,
 
-                  feedback: parseFloat(e.target.value),
-                })
+                    feedback:
+                      parseFloat(
+                        e.target.value,
+                      ),
+                  },
+                )
               }
             />
 
+            {/* DELAY WET */}
             <Dial
               label="Delay Wet"
-              value={trackSetting?.delay?.wet ?? 0.3}
+              value={
+                trackSetting?.delay
+                  ?.wet ?? 0.3
+              }
               min={0}
               max={1}
               step={0.01}
               size={64}
-              formatValue={(value) => `${Math.round(value * 100)}%`}
+              formatValue={(value) =>
+                `${Math.round(
+                  value * 100,
+                )}%`
+              }
               onChange={(e) =>
-                onUpdateSetting(trackIndex, "delay", {
-                  ...trackSetting?.delay,
+                onUpdateSetting(
+                  trackIndex,
+                  "delay",
+                  {
+                    ...trackSetting?.delay,
 
-                  enabled: true,
+                    enabled: true,
 
-                  wet: parseFloat(e.target.value),
-                })
+                    wet: parseFloat(
+                      e.target.value,
+                    ),
+                  },
+                )
               }
             />
 
+            {/* LOW PASS */}
             <Dial
               label="Low Pass"
               value={filterLowpass}
@@ -686,20 +1188,36 @@ export default function TrackRow({
               max={20000}
               step={10}
               size={64}
-              formatValue={(value) => `${Math.round(value)} Hz`}
+              formatValue={(value) =>
+                `${Math.round(
+                  value,
+                )} Hz`
+              }
               onChange={(e) => {
-                const freq = parseFloat(e.target.value);
+                const freq =
+                  parseFloat(
+                    e.target.value,
+                  );
 
-                onUpdateSetting(trackIndex, "filter", {
-                  ...trackSetting?.filter,
+                onUpdateSetting(
+                  trackIndex,
+                  "filter",
+                  {
+                    ...trackSetting?.filter,
 
-                  enabled: true,
+                    /**
+                     * Changing the filter dial enables
+                     * the filter.
+                     */
+                    enabled: true,
 
-                  lowpass: freq,
-                });
+                    lowpass: freq,
+                  },
+                );
               }}
             />
 
+            {/* HIGH PASS */}
             <Dial
               label="High Pass"
               value={filterHighpass}
@@ -707,94 +1225,188 @@ export default function TrackRow({
               max={8000}
               step={10}
               size={64}
-              formatValue={(value) => `${Math.round(value)} Hz`}
+              formatValue={(value) =>
+                `${Math.round(
+                  value,
+                )} Hz`
+              }
               onChange={(e) => {
-                const freq = parseFloat(e.target.value);
+                const freq =
+                  parseFloat(
+                    e.target.value,
+                  );
 
-                onUpdateSetting(trackIndex, "filter", {
-                  ...trackSetting?.filter,
+                onUpdateSetting(
+                  trackIndex,
+                  "filter",
+                  {
+                    ...trackSetting?.filter,
 
-                  enabled: true,
+                    enabled: true,
 
-                  highpass: freq,
-                });
+                    highpass: freq,
+                  },
+                );
               }}
             />
 
+            {/* REVERB WET */}
             <Dial
               label="Reverb Wet"
-              value={trackSetting?.reverb?.wet ?? 0.35}
+              value={
+                trackSetting?.reverb
+                  ?.wet ?? 0.35
+              }
               min={0}
               max={1}
               step={0.01}
               size={64}
-              formatValue={(value) => `${Math.round(value * 100)}%`}
+              formatValue={(value) =>
+                `${Math.round(
+                  value * 100,
+                )}%`
+              }
               onChange={(e) =>
-                onUpdateSetting(trackIndex, "reverb", {
-                  ...trackSetting?.reverb,
+                onUpdateSetting(
+                  trackIndex,
+                  "reverb",
+                  {
+                    ...trackSetting?.reverb,
 
-                  enabled: true,
+                    enabled: true,
 
-                  wet: parseFloat(e.target.value),
-                })
+                    wet: parseFloat(
+                      e.target.value,
+                    ),
+                  },
+                )
               }
             />
 
+            {/* REVERB DECAY */}
             <Dial
               label="Reverb Decay"
-              value={trackSetting?.reverb?.decay ?? 1.5}
+              value={
+                trackSetting?.reverb
+                  ?.decay ?? 1.5
+              }
               min={0.1}
               max={10}
               step={0.1}
               size={64}
-              formatValue={(value) => `${value.toFixed(1)}s`}
+              formatValue={(value) =>
+                `${value.toFixed(
+                  1,
+                )}s`
+              }
               onChange={(e) =>
-                onUpdateSetting(trackIndex, "reverb", {
-                  ...trackSetting?.reverb,
+                onUpdateSetting(
+                  trackIndex,
+                  "reverb",
+                  {
+                    ...trackSetting?.reverb,
 
-                  enabled: true,
+                    enabled: true,
 
-                  decay: parseFloat(e.target.value),
-                })
+                    decay: parseFloat(
+                      e.target.value,
+                    ),
+                  },
+                )
               }
             />
           </div>
 
           <div className="fx-panel-footer">
+            {/* DELAY TOGGLE */}
             <label className="fx-enable-toggle">
               <input
                 type="checkbox"
-                checked={delayEnabled}
+                checked={
+                  delayEnabled
+                }
                 onChange={(e) =>
-                  onUpdateSetting(trackIndex, "delay", {
-                    ...trackSetting?.delay,
+                  onUpdateSetting(
+                    trackIndex,
+                    "delay",
+                    {
+                      ...trackSetting?.delay,
 
-                    enabled: e.target.checked,
-                  })
+                      enabled:
+                        e.target
+                          .checked,
+                    },
+                  )
                 }
               />
-              <span>Delay On</span>
+
+              <span>
+                Delay On
+              </span>
             </label>
 
+            {/* REVERB TOGGLE */}
             <label className="fx-enable-toggle">
               <input
                 type="checkbox"
-                checked={reverbEnabled}
+                checked={
+                  reverbEnabled
+                }
                 onChange={(e) =>
-                  onUpdateSetting(trackIndex, "reverb", {
-                    ...trackSetting?.reverb,
+                  onUpdateSetting(
+                    trackIndex,
+                    "reverb",
+                    {
+                      ...trackSetting?.reverb,
 
-                    enabled: e.target.checked,
-                  })
+                      enabled:
+                        e.target
+                          .checked,
+                    },
+                  )
                 }
               />
-              <span>Reverb On</span>
+
+              <span>
+                Reverb On
+              </span>
+            </label>
+
+            {/* FILTER TOGGLE */}
+            <label className="fx-enable-toggle">
+              <input
+                type="checkbox"
+                checked={
+                  filterEnabled
+                }
+                onChange={(e) =>
+                  onUpdateSetting(
+                    trackIndex,
+                    "filter",
+                    {
+                      ...trackSetting?.filter,
+
+                      enabled:
+                        e.target
+                          .checked,
+                    },
+                  )
+                }
+              />
+
+              <span>
+                Filter On
+              </span>
             </label>
 
             <button
               type="button"
               className="preview-btn-inline"
-              onClick={() => onPreview(trackIndex)}
+              onClick={() =>
+                onPreview(
+                  trackIndex,
+                )
+              }
             >
               &#9654; Preview
             </button>
