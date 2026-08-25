@@ -246,59 +246,61 @@ export default function UserPage() {
    * ---------------------------------------------------------
    */
 
-  const handleFollow = () => {
-  if (isFollowing) {
-    // Unfollow: remove profileUser from the following list
-    setFollowing((previous) =>
-      previous.filter(
-        (followingUser) => followingUser.id !== profileUserId
-      )
-    );
-  } else {
-    // Follow: add profileUser to the following list
-    setFollowing((previous) => [
-      ...previous,
-      profileUser, // the full user object being followed
-    ]);
+  async function handleFollow() {
+  if (!profileUserId || !token || isOwnProfile) {
+    return;
   }
 
-  setIsFollowing((prev) => !prev);
-};
+  try {
+    const method = isFollowing ? "DELETE" : "POST";
 
-  /*
-   * ---------------------------------------------------------
-   * FORK PROJECT
-   * ---------------------------------------------------------
-   */
-
-  async function handleFork(projectId, ownerId) {
-    if (!token) return;
-
-    try {
-      setForkingId(projectId);
-
-      const response = await fetch(
-        `/api/users/${ownerId}/projects/${projectId}/fork`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
+    const response = await fetch(
+      `/api/users/${profileUserId}/follow`,
+      {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Failed to fork project");
       }
+    );
 
-      const forked = await response.json();
-      navigate(`/sequencer?projectId=${forked.id}&userID=${loggedInUserId}`);
-    } catch (err) {
-      console.error("FORK ERROR:", err);
-      alert(err.message || "Failed to fork project");
-    } finally {
-      setForkingId(null);
+    if (!response.ok) {
+      const text = await response.text();
+
+      throw new Error(
+        text || "Failed to update follow status"
+      );
     }
+
+    if (isFollowing) {
+      // We just successfully unfollowed
+      setIsFollowing(false);
+
+      setFollowing((previous) =>
+        previous.filter(
+          (followingUser) => followingUser.id !== profileUserId
+        )
+      );
+    } else {
+      // We just successfully followed
+      setIsFollowing(true);
+
+      // Add the user to the following list
+      if (profileUser) {
+        setFollowing((previous) => [
+          ...previous,
+          profileUser,
+        ]);
+      }
+    }
+  } catch (err) {
+    console.error("FOLLOW ERROR:", err);
+
+    alert(
+      err.message || "Failed to update follow status"
+    );
   }
+}
 
   /*
    * ---------------------------------------------------------
