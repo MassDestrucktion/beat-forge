@@ -374,6 +374,43 @@ export default function UserPage() {
    * ---------------------------------------------------------
    */
 
+   async function handleFork(projectId, ownerId) {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      setForkingId(projectId);
+
+      const response = await fetch(
+        `/api/users/${ownerId}/projects/${projectId}/fork`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || "Failed to fork project");
+      }
+
+      const forked = await response.json();
+
+      navigate(
+        `/sequencer?projectId=${forked.id}&userID=${forked.user_id}`,
+      );
+    } catch (err) {
+      console.error("FORK ERROR:", err);
+      alert(err.message || "Failed to fork project");
+    } finally {
+      setForkingId(null);
+    }
+  }
+
   async function handleDelete(projectId) {
     if (!window.confirm("Delete this project? This cannot be undone.")) return;
 
