@@ -69,12 +69,17 @@ export async function updateProject(projectId, userId, name, tempo) {
   return project;
 }
 
-// Get all projects belonging to a user
-export async function get_user_projects(user_id) {
+// Get all projects belonging to a user.
+//
+// publicOnly=true restricts the list to PUBLIC projects — used when
+// someone other than the owner requests the profile's projects, so
+// private beats never leave the owner's account.
+export async function get_user_projects(user_id, publicOnly = false) {
   const SQL = `
         SELECT *
         FROM projects
         WHERE user_id = $1
+        ${publicOnly ? "AND is_public = TRUE" : ""}
         ORDER BY updated_at DESC
     `;
 
@@ -95,6 +100,22 @@ export async function get_project_by_id(projectId, userId) {
   const {
     rows: [project],
   } = await db.query(SQL, [projectId, userId]);
+
+  return project;
+}
+
+// Get any single project by id regardless of owner. Used for visibility
+// checks (e.g. forking) where the source's owner may not be the caller.
+export async function get_project_any_owner(projectId) {
+  const SQL = `
+        SELECT *
+        FROM projects
+        WHERE id = $1
+    `;
+
+  const {
+    rows: [project],
+  } = await db.query(SQL, [projectId]);
 
   return project;
 }
@@ -209,8 +230,9 @@ export async function getRecentProjects(limit = 12) {
 }
 
 // Fork a project — copy all data to a new project owned by newUserId,
-// linking back to the original via shared_id. Only public projects can be
-// forked; the copy inherits the source's public state.
+// linking back to the original via shared_id. The ROUTE enforces that only
+// public projects can be forked by other users (owners can fork their own).
+// The copy always starts PRIVATE — the new owner publishes it themselves.
 export async function forkProject(projectId, newUserId) {
   const newId = randomUUID();
 
@@ -239,7 +261,7 @@ export async function forkProject(projectId, newUserId) {
       track_order,
       step_notes,
       id,
-      is_public
+      FALSE -- forks always start PRIVATE; the new owner publishes them
     FROM projects
     WHERE id = $3
     RETURNING *

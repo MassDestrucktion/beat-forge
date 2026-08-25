@@ -428,17 +428,35 @@
 
 .clip-pattern-preview {
   position: absolute;
-  left: 4px;
-  right: 4px;
+  left: 0;
+  right: 0;
   bottom: 4px;
   height: 10px;
   display: flex;
-  gap: 1px;
+  overflow: hidden; /* partial trailing bars clip cleanly while resizing */
   pointer-events: none;
+}
+
+/*
+ * One segment per repeated bar. Each segment is locked to exactly one
+ * bar's width so the step dots keep a constant size no matter how long
+ * the clip is stretched — the pattern simply repeats.
+ */
+.preview-bar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 1px;
+  padding: 0 3px;
+  border-left: 1px solid rgba(0, 0, 0, 0.18); /* repeat divider */
+}
+
+.preview-bar:first-child {
+  border-left: none;
 }
 
 .preview-step {
   flex: 1;
+  min-width: 0;
   background: rgba(0, 0, 0, 0.12);
   border-radius: 1px;
 }

@@ -20,12 +20,13 @@ import {
   createProject,
   get_user_projects,
   get_project_by_id,
+  get_project_any_owner,
   update_project_by_id,
   update_project_visibility,
   delete_project,
   forkProject,
 } from "../db/queries/projects.js";
-import { requireAuth } from "../middleware/auth.js";
+import { optionalAuth, requireAuth } from "../middleware/auth.js";
 const usersRouter = Router();
 
 usersRouter.get("/search", async (req, res, next) => {
@@ -60,12 +61,18 @@ usersRouter.get("/:id", async (req, res, next) => {
   }
 });
 
-// Get user's projects
-usersRouter.get("/:id/projects", async (req, res, next) => {
+// Get a user's projects.
+//
+// The owner (identified by their token) sees everything in their library.
+// Anyone else — including logged-out visitors browsing a profile — only
+// receives that user's PUBLIC projects, so private beats stay private.
+usersRouter.get("/:id/projects", optionalAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const projects = await get_user_projects(id);
+    const isOwner = req.user?.id === id;
+
+    const projects = await get_user_projects(id, !isOwner);
 
     res.json(projects);
   } catch (error) {
@@ -123,7 +130,11 @@ usersRouter.post(
   },
 );
 
-// Fork a project — copy it to the authenticated user's library
+// Fork a project — copy it to the authenticated user's library.
+//
+// Only PUBLIC projects can be forked by other users; owners can fork
+// their own (private) beats. Forks always start PRIVATE — the new owner
+// decides when to publish.
 usersRouter.post(
   "/:id/projects/:projectId/fork",
   requireAuth,
@@ -131,6 +142,21 @@ usersRouter.post(
     try {
       const { projectId } = req.params;
       const newUserId = req.user.id;
+
+      const source = await get_project_any_owner(projectId);
+
+      if (!source) {
+        return res.status(404).json({
+          message: "Project not found",
+        });
+      }
+
+      // Private beats are only visible to their owner.
+      if (!source.is_public && req.user.id !== source.user_id) {
+        return res.status(403).json({
+          message: "This beat is private and cannot be forked",
+        });
+      }
 
       const project = await forkProject(projectId, newUserId);
 
@@ -244,10 +270,19 @@ usersRouter.post(
 
 usersRouter.put(
   "/:id/projects/:projectId",
+  requireAuth,
   requireBody(["name", "tempo", "grid", "track_settings", "arrangement"]),
   async (req, res, next) => {
     try {
       const { id: user_id, projectId: project_id } = req.params;
+
+      // Only the authenticated owner can save over this project.
+      if (req.user.id !== user_id) {
+        return res.status(403).json({
+          message: "You can only edit your own projects",
+        });
+      }
+
       console.log("user_id from params:", user_id);
 
       const existingProject = await get_project_by_id(project_id, user_id);
@@ -301,24 +336,35 @@ usersRouter.put(
   },
 );
 
-usersRouter.delete("/:id/projects/:projectId", async (req, res, next) => {
-  try {
-    const { id: user_id, projectId: project_id } = req.params;
+usersRouter.delete(
+  "/:id/projects/:projectId",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const { id: user_id, projectId: project_id } = req.params;
 
-    const deletedProject = await delete_project(project_id, user_id);
+      // Only the authenticated owner can delete this project.
+      if (req.user.id !== user_id) {
+        return res.status(403).json({
+          message: "You can only delete your own projects",
+        });
+      }
 
-    if (!deletedProject) {
-      return res.status(404).json({
-        message: "Project not found",
-      });
+      const deletedProject = await delete_project(project_id, user_id);
+
+      if (!deletedProject) {
+        return res.status(404).json({
+          message: "Project not found",
+        });
+      }
+
+      res.json(deletedProject);
+    } catch (error) {
+      console.log(error);
+      next(error);
     }
-
-    res.json(deletedProject);
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
+  },
+);
 
 // Login
 usersRouter.post(

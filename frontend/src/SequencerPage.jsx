@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 import { useNavigate, useLocation } from "react-router";
 
@@ -118,62 +118,6 @@ export default function SequencerPage() {
 
     playTrackSound,
   });
-
-  /* LIVE RECORD — the arm state is mirrored to a ref so both the on-screen
-     pads and the keyboard handler always call with the freshest value. */
-
-  const [recordArm, setRecordArm] = useState(false);
-
-  const recordArmRef = useRef(false);
-
-  useEffect(() => {
-    recordArmRef.current = recordArm;
-  }, [recordArm]);
-
-  const toggleRecordArm = () => setRecordArm((v) => !v);
-
-  /**
-   * Drop the track's sound into the grid at the step that is currently
-   * playing. No-op unless record is armed and the transport is running.
-   *
-   * The step is read straight from Tone.Transport.position (the live audio
-   * clock) and quantized to the nearest 16th. Using React state here is too
-   * slow — it lags the audible beat by a render or two, so taps land late.
-   */
-  const recordNoteAtCurrentStep = (trackIndex, note = null) => {
-    if (!recordArmRef.current) return;
-    if (Tone.Transport.state !== "started") return;
-
-    // Position in ticks from bar 0; one 16th note = PPQ / 4 ticks.
-    const ticks = Tone.Transport.position.toTicks();
-    const ticksPerStep = Tone.Transport.PPQ / 4;
-
-    // +0.5 rounds to the NEAREST step, so a tap just before or after the
-    // beat lands on the step the user was aiming for.
-    const step =
-      ((Math.floor(ticks / ticksPerStep + 0.5) % NUM_STEPS) + NUM_STEPS) %
-      NUM_STEPS;
-
-    setGrid((previous) =>
-      previous.map((track, index) => {
-        if (index !== trackIndex) return track;
-        const row = [...track];
-        row[step] = true;
-        return row;
-      }),
-    );
-
-    if (note) {
-      setStepNotes((previous) =>
-        previous.map((row, index) => {
-          if (index !== trackIndex) return row;
-          const updated = [...row];
-          updated[step] = note;
-          return updated;
-        }),
-      );
-    }
-  };
 
   const {
     projectName,
@@ -881,8 +825,6 @@ export default function SequencerPage() {
         onBpmChange={handleBpmChange}
         masterVolume={masterVolume}
         onMasterVolumeChange={handleMasterVolumeChange}
-        recordArm={recordArm}
-        onToggleRecordArm={toggleRecordArm}
       />
 
       <SaveLoadPanel
@@ -951,8 +893,6 @@ export default function SequencerPage() {
             onNudgePattern={nudgePattern}
             onSetStepsRange={setStepsRange}
             onSetStepNote={setStepNote}
-            recordArm={recordArm}
-            onRecordNote={recordNoteAtCurrentStep}
             onPreviewNote={previewTrackNote}
           />
         ))}

@@ -254,11 +254,25 @@ function Clip({
 
       {Array.isArray(clip.grid?.[0]) && (
         <div className="clip-pattern-preview" aria-hidden="true">
-          {clip.grid[0].map((active, stepIndex) => (
-            <span
-              key={stepIndex}
-              className={`preview-step ${active ? "on" : ""}`}
-            />
+          {/*
+            One fixed-width segment per bar: stretching a clip REPEATS the
+            pattern bar by bar (matching how playback loops it via
+            `% NUM_STEPS`) instead of stretching the same 16 steps across
+            the whole clip width.
+          */}
+          {Array.from({ length: effectiveBars }, (_, barIndex) => (
+            <div
+              key={barIndex}
+              className="preview-bar"
+              style={{ width: `${barWidth}px` }}
+            >
+              {clip.grid[0].map((active, stepIndex) => (
+                <span
+                  key={stepIndex}
+                  className={`preview-step ${active ? "on" : ""}`}
+                />
+              ))}
+            </div>
           ))}
         </div>
       )}

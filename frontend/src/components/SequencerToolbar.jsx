@@ -27,9 +27,6 @@ export default function SequencerToolbar({
 
   masterVolume,
   onMasterVolumeChange,
-
-  recordArm,
-  onToggleRecordArm,
 }) {
   const [bpmText, setBpmText] = useState(String(bpm));
 
@@ -75,24 +72,6 @@ export default function SequencerToolbar({
           <button onClick={onTogglePlay}>
             {isPlaying ? "⏹ Stop" : "▶ Play"}
           </button>
-
-          <button
-            onClick={onToggleRecordArm}
-            className={`record-btn ${recordArm ? "armed" : ""}`}
-            title={
-              recordArm
-                ? "Recording armed — tap a track pad or play keys to write steps"
-                : "Arm live record (tap pads/keys while playing)"
-            }
-          >
-            {recordArm ? "⏺ Recording…" : "⏺ Record"}
-          </button>
-
-          {recordArm && !isPlaying && (
-            <span className="record-hint" role="status">
-              Press ▶ Play, then tap the ⏺ pads to drop steps in time
-            </span>
-          )}
 
           <button onClick={onClearGrid}>🧹 Clear</button>
 

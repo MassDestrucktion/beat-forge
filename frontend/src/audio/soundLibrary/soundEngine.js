@@ -5,6 +5,27 @@ import { createSynthForSound } from "./createSynth";
 
 /**
  * ---------------------------------------------------------
+ * PER-ENGINE LOUDNESS TRIM (dB)
+ * ---------------------------------------------------------
+ *
+ * Several synth engines are much louder than unity by nature.
+ * Without trims, layering them with other tracks sums past the
+ * digital ceiling (±1.0) and hard-clips into distorted noise.
+ *
+ * Values mirror the proven trims from the original BeatForge
+ * build (808 bass −4 dB, bell −12 dB, shaker −8 dB).
+ *
+ * A sound definition can override its engine's trim with an
+ * explicit `synth.trim` value.
+ */
+const ENGINE_TRIM_DB = {
+  membrane: -4,
+  metal: -12,
+  noise: -8,
+};
+
+/**
+ * ---------------------------------------------------------
  * RESOLVE DESTINATION
  * ---------------------------------------------------------
  *
@@ -65,8 +86,30 @@ export function createSoundEngine(
     return null;
   }
 
-  const output =
+  let output =
     resolveDestination(destination);
+
+  /**
+   * Wrap loud engines in a trim stage so they sit at a sane level
+   * inside the mix (see ENGINE_TRIM_DB above).
+   */
+  const synthConfig =
+    sound.type === "synth"
+      ? sound.synth || {}
+      : {};
+
+  const trimDb =
+    synthConfig.trim ?? ENGINE_TRIM_DB[synthConfig.engine] ?? null;
+
+  let trimNode = null;
+
+  if (trimDb != null) {
+    trimNode = new Tone.Volume(trimDb);
+
+    trimNode.connect(output);
+
+    output = trimNode;
+  }
 
   /**
    * -------------------------------------------------------
@@ -155,6 +198,8 @@ export function createSoundEngine(
        */
       dispose() {
         player.dispose();
+
+        trimNode?.dispose?.();
       },
     };
   }

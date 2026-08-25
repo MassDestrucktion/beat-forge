@@ -118,12 +118,30 @@ export async function renderTrackToBuffer({
   return Tone.Offline((context) => {
     context.transport.bpm.value = bpm;
 
+    // Mirror the realtime master bus (see useAudioGraph) so WAV exports
+    // match what playback sounds like.
+    const masterCompressor = new Tone.Compressor({
+      threshold: -12,
+      ratio: 3,
+      attack: 0.003,
+      release: 0.25,
+    });
+
+    const masterLimiter = new Tone.Limiter(-1);
+
+    masterCompressor.connect(masterLimiter);
+
+    masterLimiter.toDestination();
+
     const offlineEngines = [];
 
     for (let trackIndex = 0; trackIndex < renderTrackCount; trackIndex++) {
       const settings = renderSettings[trackIndex];
 
-      const gain = new Tone.Gain(settings?.muted ? 0 : 1);
+      // Respect the track's volume like the live graph does.
+      const gain = new Tone.Gain(
+        settings?.muted ? 0 : settings?.volume ?? 1,
+      );
 
       const delay = new Tone.FeedbackDelay({
         delayTime: settings?.delay?.time ?? 0.25,
@@ -150,7 +168,7 @@ export async function renderTrackToBuffer({
       delay.connect(lpf);
       lpf.connect(hpf);
       hpf.connect(reverb);
-      reverb.toDestination();
+      reverb.connect(masterCompressor);
 
       const sound = getSoundById(settings?.sound);
 

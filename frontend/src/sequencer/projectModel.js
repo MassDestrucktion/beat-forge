@@ -155,7 +155,7 @@ export function createDefaultTrack(soundId = null) {
     muted: false,
     soloed: false,
 
-    volume: 1,
+    volume: 0.85,
 
     /**
      * Reverb defaults to OFF.
