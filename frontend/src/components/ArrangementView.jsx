@@ -14,12 +14,13 @@ import { TRACK_LABELS } from "../sequencer/projectModel";
 import ContextMenu from "./ContextMenu";
 import "./ArrangementView.css";
 
-const DEFAULT_BAR_WIDTH = 150; // pixels per bar (8 bars fit the panel at 100%)
+const DEFAULT_BAR_WIDTH = 150;
 const MIN_BAR_WIDTH = 25;
 const MAX_BAR_WIDTH = 200;
-const DRAG_THRESHOLD_PX = 4; // movement before a press becomes a drag
+const DRAG_THRESHOLD_PX = 4;
 
-/** Clip face color rotates per source track so layers read at a glance. */
+const HEADER_WIDTH = 140;
+
 const CLIP_HUES = [195, 265, 145, 35, 320, 170, 55, 220];
 
 const clampBarWidth = (value) =>
@@ -27,6 +28,7 @@ const clampBarWidth = (value) =>
 
 function clipColors(trackIndex) {
   const hue = CLIP_HUES[trackIndex % CLIP_HUES.length];
+
   return {
     backgroundColor: `hsl(${hue} 72% 62%)`,
     borderColor: `hsl(${hue} 72% 42%)`,
@@ -47,22 +49,13 @@ function Clip({
   const [isRenaming, setIsRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
 
-  /**
-   * Hand-rolled snap-to-grid drag.
-   *
-   * Nothing is captured or prevented until the pointer moves past the
-   * threshold, so clicks, double-clicks, context menus, and the remove
-   * button all keep working natively.
-   */
-  const [dragBars, setDragBars] = useState(null); // null = not dragging
+  const [dragBars, setDragBars] = useState(null);
   const dragState = useRef(null);
 
-  /** Live bar count while edge-resizing (null = not resizing). */
   const [resizeBars, setResizeBars] = useState(null);
   const resizeState = useRef(null);
 
   const isDragging = dragBars !== null;
-
   const effectiveBars = resizeBars ?? clip.bars;
 
   const style = {
@@ -97,6 +90,7 @@ function Clip({
 
   const handlePointerMove = (event) => {
     const state = dragState.current;
+
     if (!state || event.pointerId !== state.pointerId) {
       return;
     }
@@ -107,16 +101,21 @@ function Clip({
       if (Math.abs(dx) < DRAG_THRESHOLD_PX) {
         return;
       }
+
       state.started = true;
+
       try {
         state.el?.setPointerCapture(state.pointerId);
       } catch {
-        // Synthetic events (tests) have no active pointer to capture
+        // Synthetic events/tests may not support pointer capture.
       }
     }
 
-    // Snap to whole bars and never allow a target before bar 0
-    state.snappedBars = Math.max(-clip.x, Math.round(dx / barWidth));
+    state.snappedBars = Math.max(
+      -clip.x,
+      Math.round(dx / barWidth),
+    );
+
     setDragBars(state.snappedBars);
   };
 
@@ -125,6 +124,7 @@ function Clip({
 
     window.removeEventListener("pointermove", handlePointerMove);
     window.removeEventListener("pointerup", handlePointerUp);
+
     dragState.current = null;
 
     if (!state || event.pointerId !== state.pointerId) {
@@ -133,24 +133,28 @@ function Clip({
 
     setDragBars(null);
 
-    // Never crossed the threshold -> it was a click, not a drag
     if (!state.started) {
       return;
     }
 
     const targetX = clip.x + state.snappedBars;
+
     if (targetX !== clip.x) {
-      onMoveClip(clip.id, { x: targetX, y: clip.y });
+      onMoveClip(clip.id, {
+        x: targetX,
+        y: clip.y,
+      });
     }
   };
 
-  /* RIGHT-EDGE RESIZE (same hand-rolled pattern as the move drag) */
+  /* RIGHT-EDGE RESIZE */
 
   const handleResizeStart = (event) => {
     if (event.button !== 0) {
       return;
     }
-    // Never let a resize turn into a move drag
+
+    event.preventDefault();
     event.stopPropagation();
 
     resizeState.current = {
@@ -167,6 +171,7 @@ function Clip({
 
   const handleResizeMove = (event) => {
     const state = resizeState.current;
+
     if (!state || event.pointerId !== state.pointerId) {
       return;
     }
@@ -176,9 +181,14 @@ function Clip({
     if (!state.started && Math.abs(dx) < DRAG_THRESHOLD_PX) {
       return;
     }
+
     state.started = true;
 
-    state.newBars = Math.max(1, state.startBars + Math.round(dx / barWidth));
+    state.newBars = Math.max(
+      1,
+      state.startBars + Math.round(dx / barWidth),
+    );
+
     setResizeBars(state.newBars);
   };
 
@@ -187,6 +197,7 @@ function Clip({
 
     window.removeEventListener("pointermove", handleResizeMove);
     window.removeEventListener("pointerup", handleResizeEnd);
+
     resizeState.current = null;
 
     if (!state || event.pointerId !== state.pointerId) {
@@ -201,7 +212,6 @@ function Clip({
   };
 
   const startRename = (event) => {
-    // Prevent the clip's own double-click (open editor) from firing
     event.stopPropagation();
     setNameDraft(displayName);
     setIsRenaming(true);
@@ -209,19 +219,22 @@ function Clip({
 
   const commitRename = () => {
     const trimmed = nameDraft.trim();
+
     if (trimmed && trimmed !== displayName) {
       onRename(clip.id, trimmed);
     }
+
     setIsRenaming(false);
   };
 
   return (
     <div
       style={style}
-      className={`arrangement-clip ${isEditing ? "editing" : ""} ${isDragging ? "dragging" : ""}`}
+      className={`arrangement-clip ${
+        isEditing ? "editing" : ""
+      } ${isDragging ? "dragging" : ""}`}
       onPointerDown={handlePointerDown}
       onDoubleClick={(e) => {
-        // Keep the lane's double-click (add clip) from also firing
         e.stopPropagation();
         onEdit(clip.id);
       }}
@@ -235,8 +248,13 @@ function Clip({
           onChange={(e) => setNameDraft(e.target.value)}
           onBlur={commitRename}
           onKeyDown={(e) => {
-            if (e.key === "Enter") commitRename();
-            if (e.key === "Escape") setIsRenaming(false);
+            if (e.key === "Enter") {
+              commitRename();
+            }
+
+            if (e.key === "Escape") {
+              setIsRenaming(false);
+            }
           }}
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
@@ -254,26 +272,27 @@ function Clip({
 
       {Array.isArray(clip.grid?.[0]) && (
         <div className="clip-pattern-preview" aria-hidden="true">
-          {/*
-            One fixed-width segment per bar: stretching a clip REPEATS the
-            pattern bar by bar (matching how playback loops it via
-            `% NUM_STEPS`) instead of stretching the same 16 steps across
-            the whole clip width.
-          */}
-          {Array.from({ length: effectiveBars }, (_, barIndex) => (
-            <div
-              key={barIndex}
-              className="preview-bar"
-              style={{ width: `${barWidth}px` }}
-            >
-              {clip.grid[0].map((active, stepIndex) => (
-                <span
-                  key={stepIndex}
-                  className={`preview-step ${active ? "on" : ""}`}
-                />
-              ))}
-            </div>
-          ))}
+          {Array.from(
+            { length: effectiveBars },
+            (_, barIndex) => (
+              <div
+                key={barIndex}
+                className="preview-bar"
+                style={{
+                  width: `${barWidth}px`,
+                }}
+              >
+                {clip.grid[0].map((active, stepIndex) => (
+                  <span
+                    key={stepIndex}
+                    className={`preview-step ${
+                      active ? "on" : ""
+                    }`}
+                  />
+                ))}
+              </div>
+            ),
+          )}
         </div>
       )}
 
@@ -324,7 +343,9 @@ function SortableLane({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: trackIndex });
+  } = useSortable({
+    id: trackIndex,
+  });
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -345,23 +366,34 @@ function SortableLane({
 
   const commitRename = () => {
     const trimmed = nameDraft.trim();
+
     if (trimmed && trimmed !== trackName) {
       onRenameTrack(trackIndex, trimmed);
     }
+
     setIsRenaming(false);
   };
 
   const handleLaneDoubleClick = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const bar = Math.floor((event.clientX - rect.left) / barWidth);
-    onAddClipAtBar(trackIndex, Math.max(0, bar));
+
+    const bar = Math.floor(
+      (event.clientX - rect.left) / barWidth,
+    );
+
+    onAddClipAtBar(
+      trackIndex,
+      Math.max(0, bar),
+    );
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`track-lane ${isDragging ? "dragging" : ""}`}
+      className={`track-lane ${
+        isDragging ? "dragging" : ""
+      }`}
     >
       <div className="track-lane-header">
         <span
@@ -372,6 +404,7 @@ function SortableLane({
         >
           ⠿
         </span>
+
         {isRenaming ? (
           <input
             className="track-name-input"
@@ -380,8 +413,13 @@ function SortableLane({
             onChange={(e) => setNameDraft(e.target.value)}
             onBlur={commitRename}
             onKeyDown={(e) => {
-              if (e.key === "Enter") commitRename();
-              if (e.key === "Escape") setIsRenaming(false);
+              if (e.key === "Enter") {
+                commitRename();
+              }
+
+              if (e.key === "Escape") {
+                setIsRenaming(false);
+              }
             }}
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
@@ -395,10 +433,13 @@ function SortableLane({
             {trackName}
           </span>
         )}
+
         <div className="lane-header-buttons">
           <button
             type="button"
-            className={`lane-mute-btn ${isMuted ? "active" : ""}`}
+            className={`lane-mute-btn ${
+              isMuted ? "active" : ""
+            }`}
             onClick={(e) => {
               e.stopPropagation();
               onToggleMute(trackIndex);
@@ -407,9 +448,12 @@ function SortableLane({
           >
             {isMuted ? "🔇" : "🔊"}
           </button>
+
           <button
             type="button"
-            className={`lane-solo-btn ${isSoloed ? "active" : ""}`}
+            className={`lane-solo-btn ${
+              isSoloed ? "active" : ""
+            }`}
             onClick={(e) => {
               e.stopPropagation();
               onToggleSolo(trackIndex);
@@ -420,9 +464,12 @@ function SortableLane({
           </button>
         </div>
       </div>
+
       <div
         className="track-lane-clips"
-        style={{ backgroundSize: `${barWidth}px 100%` }}
+        style={{
+          backgroundSize: `${barWidth}px 100%`,
+        }}
         onDoubleClick={handleLaneDoubleClick}
         title="Double-click empty space to add a clip"
       >
@@ -478,73 +525,118 @@ export default function ArrangementView({
 }) {
   const [contextMenu, setContextMenu] = useState(null);
 
-  const [barWidth, setBarWidth] = useState(DEFAULT_BAR_WIDTH);
+  const [barWidth, setBarWidth] = useState(
+    DEFAULT_BAR_WIDTH,
+  );
 
-  const [showEmptyLanes, setShowEmptyLanes] = useState(false);
+  const [showEmptyLanes, setShowEmptyLanes] =
+    useState(false);
 
   const lanesRef = useRef(null);
 
   const clipsByTrack = useMemo(() => {
     const byTrack = {};
+
     for (const clip of arrangement) {
       if (!byTrack[clip.y]) {
         byTrack[clip.y] = [];
       }
+
       byTrack[clip.y].push(clip);
     }
+
     return byTrack;
   }, [arrangement]);
 
-  /**
-   * Lanes render in the user-defined trackOrder. Any track indices missing
-   * from trackOrder (e.g. newly added tracks) are appended, and any clip
-   * lanes outside the current track count are kept visible at the bottom.
-   */
   const laneOrder = useMemo(() => {
-    const all = Array.from({ length: numTracks }, (_, i) => i);
-    const valid = (trackOrder || []).filter((i) => all.includes(i));
-    const missing = all.filter((i) => !valid.includes(i));
-    const orphanedClipLanes = Object.keys(clipsByTrack)
+    const all = Array.from(
+      { length: numTracks },
+      (_, i) => i,
+    );
+
+    const valid = (trackOrder || []).filter((i) =>
+      all.includes(i),
+    );
+
+    const missing = all.filter(
+      (i) => !valid.includes(i),
+    );
+
+    const orphanedClipLanes = Object.keys(
+      clipsByTrack,
+    )
       .map(Number)
       .filter((i) => !all.includes(i));
-    return [...valid, ...missing, ...orphanedClipLanes];
-  }, [trackOrder, numTracks, clipsByTrack]);
 
-  /**
-   * Dynamic lanes: by default only tracks that actually have clips are
-   * shown. The toggle reveals every track lane.
-   */
+    return [
+      ...valid,
+      ...missing,
+      ...orphanedClipLanes,
+    ];
+  }, [
+    trackOrder,
+    numTracks,
+    clipsByTrack,
+  ]);
+
   const visibleLanes = useMemo(
     () =>
       showEmptyLanes
         ? laneOrder
-        : laneOrder.filter((i) => clipsByTrack[i]?.length > 0),
-    [showEmptyLanes, laneOrder, clipsByTrack],
+        : laneOrder.filter(
+            (i) => clipsByTrack[i]?.length > 0,
+          ),
+    [
+      showEmptyLanes,
+      laneOrder,
+      clipsByTrack,
+    ],
   );
 
-  /** Total bars visible on the timeline (with a little headroom). */
   const maxBar = useMemo(() => {
     const maxEnd = arrangement.reduce(
-      (max, clip) => Math.max(max, clip.x + clip.bars),
+      (max, clip) =>
+        Math.max(
+          max,
+          clip.x + clip.bars,
+        ),
       0,
     );
-    return Math.max(8, maxEnd + 2);
+
+    return Math.max(
+      8,
+      maxEnd + 2,
+    );
   }, [arrangement]);
 
-  /** Ruler label density: thin out labels when zoomed far out. */
-  const rulerLabelEvery = barWidth >= 60 ? 1 : barWidth >= 35 ? 2 : 4;
+  const rulerLabelEvery =
+    barWidth >= 60
+      ? 1
+      : barWidth >= 35
+        ? 2
+        : 4;
 
-  /* ZOOM */
-
-  const zoomBy = (factor) => setBarWidth((w) => clampBarWidth(w * factor));
+  const zoomBy = (factor) => {
+    setBarWidth((w) =>
+      clampBarWidth(w * factor),
+    );
+  };
 
   const zoomToFit = () => {
-    const containerWidth = lanesRef.current?.clientWidth ?? 800;
-    setBarWidth(clampBarWidth((containerWidth - 140) / maxBar));
+    const containerWidth =
+      lanesRef.current?.clientWidth ?? 800;
+
+    setBarWidth(
+      clampBarWidth(
+        (containerWidth - HEADER_WIDTH) /
+          maxBar,
+      ),
+    );
   };
 
   useEffect(() => {
     const el = lanesRef.current;
+
     if (!el) {
       return;
     }
@@ -553,40 +645,210 @@ export default function ArrangementView({
       if (!event.ctrlKey) {
         return;
       }
+
       event.preventDefault();
+
       setBarWidth((w) =>
-        clampBarWidth(w * (event.deltaY < 0 ? 1.15 : 1 / 1.15)),
+        clampBarWidth(
+          w *
+            (event.deltaY < 0
+              ? 1.15
+              : 1 / 1.15),
+        ),
       );
     };
 
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, []);
+    el.addEventListener(
+      "wheel",
+      onWheel,
+      { passive: false },
+    );
 
-  /* LANE REORDER (vertical, handle-only) */
+    return () =>
+      el.removeEventListener(
+        "wheel",
+        onWheel,
+      );
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 4 },
+      activationConstraint: {
+        distance: 4,
+      },
     }),
   );
 
   function handleLaneDragEnd(event) {
     const { active, over } = event;
+
     if (!over || active.id === over.id) {
       return;
     }
-    // Reorder by track index — SequencerPage maps them into the full order
-    onReorderTracks(active.id, over.id);
+
+    onReorderTracks(
+      active.id,
+      over.id,
+    );
   }
 
-  const handleContextMenu = (event, clipId) => {
+  const handleContextMenu = (
+    event,
+    clipId,
+  ) => {
     event.preventDefault();
+
     setContextMenu({
       x: event.clientX,
       y: event.clientY,
       clipId,
     });
+  };
+
+  /*
+   * LOOP START DRAG
+   *
+   * Loop positions are measured in timeline bars.
+   * The pointer starts at the current handle position,
+   * so zooming or horizontal scrolling doesn't introduce
+   * an offset.
+   */
+  const handleLoopStartPointerDown = (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    document.body.classList.add(
+      "arrangement-loop-dragging",
+    );
+
+    const startClientX = event.clientX;
+    const originalBar = loopStartBar;
+
+    const handleMove = (moveEvent) => {
+      moveEvent.preventDefault();
+
+      const dx =
+        moveEvent.clientX -
+        startClientX;
+
+      const endBar =
+        loopEndBar ??
+        arrangementEndBars;
+
+      const newBar = Math.max(
+        0,
+        Math.min(
+          originalBar +
+            Math.round(
+              dx / barWidth,
+            ),
+          endBar - 1,
+        ),
+      );
+
+      onSetLoopStartBar?.(newBar);
+    };
+
+    const handleUp = () => {
+      document.body.classList.remove(
+        "arrangement-loop-dragging",
+      );
+
+      window.removeEventListener(
+        "pointermove",
+        handleMove,
+      );
+
+      window.removeEventListener(
+        "pointerup",
+        handleUp,
+      );
+    };
+
+    window.addEventListener(
+      "pointermove",
+      handleMove,
+      { passive: false },
+    );
+
+    window.addEventListener(
+      "pointerup",
+      handleUp,
+    );
+  };
+
+  /*
+   * LOOP END DRAG
+   */
+  const handleLoopEndPointerDown = (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    document.body.classList.add(
+      "arrangement-loop-dragging",
+    );
+
+    const startClientX = event.clientX;
+
+    const originalBar =
+      loopEndBar ??
+      arrangementEndBars;
+
+    const handleMove = (moveEvent) => {
+      moveEvent.preventDefault();
+
+      const dx =
+        moveEvent.clientX -
+        startClientX;
+
+      const newBar = Math.max(
+        loopStartBar + 1,
+        Math.min(
+          originalBar +
+            Math.round(
+              dx / barWidth,
+            ),
+          arrangementEndBars,
+        ),
+      );
+
+      onSetLoopEndBar?.(newBar);
+    };
+
+    const handleUp = () => {
+      document.body.classList.remove(
+        "arrangement-loop-dragging",
+      );
+
+      window.removeEventListener(
+        "pointermove",
+        handleMove,
+      );
+
+      window.removeEventListener(
+        "pointerup",
+        handleUp,
+      );
+    };
+
+    window.addEventListener(
+      "pointermove",
+      handleMove,
+      { passive: false },
+    );
+
+    window.addEventListener(
+      "pointerup",
+      handleUp,
+    );
   };
 
   return (
@@ -595,59 +857,129 @@ export default function ArrangementView({
         <h2>Arrangement</h2>
 
         <div className="arrangement-header-controls">
-          <div className="zoom-controls" title="Zoom timeline (Ctrl + scroll)">
-            <button onClick={() => zoomBy(1 / 1.25)} title="Zoom out">
+          <div
+            className="zoom-controls"
+            title="Zoom timeline (Ctrl + scroll)"
+          >
+            <button
+              onClick={() =>
+                zoomBy(1 / 1.25)
+              }
+              title="Zoom out"
+            >
               −
             </button>
+
             <input
               className="zoom-level-input"
               type="number"
-              min={Math.round((MIN_BAR_WIDTH / DEFAULT_BAR_WIDTH) * 100)}
-              max={Math.round((MAX_BAR_WIDTH / DEFAULT_BAR_WIDTH) * 100)}
-              value={Math.round((barWidth / DEFAULT_BAR_WIDTH) * 100)}
+              min={Math.round(
+                (MIN_BAR_WIDTH /
+                  DEFAULT_BAR_WIDTH) *
+                  100,
+              )}
+              max={Math.round(
+                (MAX_BAR_WIDTH /
+                  DEFAULT_BAR_WIDTH) *
+                  100,
+              )}
+              value={Math.round(
+                (barWidth /
+                  DEFAULT_BAR_WIDTH) *
+                  100,
+              )}
               onChange={(e) => {
-                const pct = parseFloat(e.target.value);
-                if (!isNaN(pct) && pct > 0) {
-                  setBarWidth(clampBarWidth((pct / 100) * DEFAULT_BAR_WIDTH));
+                const pct =
+                  parseFloat(
+                    e.target.value,
+                  );
+
+                if (
+                  !isNaN(pct) &&
+                  pct > 0
+                ) {
+                  setBarWidth(
+                    clampBarWidth(
+                      (pct / 100) *
+                        DEFAULT_BAR_WIDTH,
+                    ),
+                  );
                 }
               }}
               title="Zoom percentage"
             />
-            <span className="zoom-level-suffix">%</span>
-            <button onClick={() => zoomBy(1.25)} title="Zoom in">
+
+            <span className="zoom-level-suffix">
+              %
+            </span>
+
+            <button
+              onClick={() =>
+                zoomBy(1.25)
+              }
+              title="Zoom in"
+            >
               +
             </button>
-            <button onClick={zoomToFit} title="Zoom to fit arrangement">
+
+            <button
+              onClick={zoomToFit}
+              title="Zoom to fit arrangement"
+            >
               Fit
             </button>
           </div>
 
           <button
             className="add-all-btn"
-            onClick={onAddAllToArrangement}
+            onClick={
+              onAddAllToArrangement
+            }
             title="Add all tracks with patterns as clips in the arrangement"
           >
             ➕ Add All
           </button>
 
           <button
-            className={`play-arrangement-btn ${isPlaying ? "playing" : ""}`}
-            onClick={onPlayArrangement}
+            className={`play-arrangement-btn ${
+              isPlaying
+                ? "playing"
+                : ""
+            }`}
+            onClick={
+              onPlayArrangement
+            }
           >
-            {isPlaying ? "⏹ Stop Arrangement" : "▶ Play Arrangement"}
+            {isPlaying
+              ? "⏹ Stop Arrangement"
+              : "▶ Play Arrangement"}
           </button>
 
           <button
-            className={`loop-arrangement-btn ${loopArrangement ? "active" : ""}`}
-            onClick={onToggleLoop}
-            title={loopArrangement ? "Disable loop" : "Enable loop"}
+            className={`loop-arrangement-btn ${
+              loopArrangement
+                ? "active"
+                : ""
+            }`}
+            onClick={
+              onToggleLoop
+            }
+            title={
+              loopArrangement
+                ? "Disable loop"
+                : "Enable loop"
+            }
           >
-            {loopArrangement ? "🔁 Looping" : "🔁 Loop"}
+            {loopArrangement
+              ? "🔁 Looping"
+              : "🔁 Loop"}
           </button>
 
           <button
             className="clear-arrangement-btn"
-            onClick={onClearArrangement}
+            onClick={
+              onClearArrangement
+            }
             title="Remove all clips from the arrangement"
           >
             🧹 Clear
@@ -655,175 +987,301 @@ export default function ArrangementView({
         </div>
       </div>
 
-      <div className="arrangement-lanes" ref={lanesRef}>
+      <div
+        className="arrangement-lanes"
+        ref={lanesRef}
+      >
         <div
           className="lanes-scroll-content"
-          style={{ minWidth: `${maxBar * barWidth + 130}px` }}
+          style={{
+            minWidth: `${
+              maxBar * barWidth +
+              HEADER_WIDTH
+            }px`,
+          }}
         >
+          {/* ==========================================
+              RULER
+              ========================================== */}
           <div
             className="arrangement-ruler"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const x = e.clientX - rect.left - 130; // offset past header spacer
-              const bar = Math.max(0, Math.round(x / barWidth));
+            onClick={(event) => {
+              if (
+                event.target.closest(
+                  ".loop-handle",
+                )
+              ) {
+                return;
+              }
+
+              const rect =
+                event.currentTarget.getBoundingClientRect();
+
+              const x =
+                event.clientX -
+                rect.left -
+                HEADER_WIDTH;
+
+              const bar = Math.max(
+                0,
+                Math.round(
+                  x / barWidth,
+                ),
+              );
+
               onSeekTo?.(bar);
             }}
             title="Click to seek"
           >
             <div className="ruler-header-spacer" />
+
             <div className="ruler-bars">
-              {Array.from({ length: maxBar }, (_, bar) => (
-                <div
-                  key={bar}
-                  className="ruler-bar"
-                  style={{ width: `${barWidth}px` }}
-                >
-                  {bar % rulerLabelEvery === 0 ? bar + 1 : ""}
-                </div>
-              ))}
+              {Array.from(
+                { length: maxBar },
+                (_, bar) => (
+                  <div
+                    key={bar}
+                    className="ruler-bar"
+                    style={{
+                      width: `${barWidth}px`,
+                    }}
+                  >
+                    {bar %
+                      rulerLabelEvery ===
+                    0
+                      ? bar + 1
+                      : ""}
+                  </div>
+                ),
+              )}
             </div>
-            {/* Loop region highlight */}
-            {loopArrangement && (
+          </div>
+
+          {/* ==========================================
+              LOOP OVERLAY
+              
+              IMPORTANT:
+              This is outside the ruler, so it covers
+              the complete arrangement view.
+              
+              Its coordinate system starts at the
+              LEFT EDGE of the entire arrangement.
+              ========================================== */}
+
+          {loopArrangement && (
+            <div
+              className="arrangement-loop-overlay"
+              aria-hidden="true"
+            >
               <div
                 className="loop-region-highlight"
                 style={{
-                  left: `${130 + loopStartBar * barWidth}px`,
-                  width: `${((loopEndBar ?? arrangementEndBars) - loopStartBar) * barWidth}px`,
+                  left: `${
+                    HEADER_WIDTH +
+                    loopStartBar *
+                      barWidth
+                  }px`,
+                  right: "auto",
+                  width: `${
+                    (
+                      (loopEndBar ??
+                        arrangementEndBars) -
+                      loopStartBar
+                    ) *
+                    barWidth
+                  }px`,
                 }}
               />
-            )}
-            {/* Loop start handle */}
-            {loopArrangement && (
+
+              {/* START HANDLE */}
+
               <div
                 className="loop-handle loop-start-handle"
-                style={{ left: `${130 + loopStartBar * barWidth - 4}px` }}
-                title="Drag to set loop start"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  const startX = e.clientX;
-                  const startBar = loopStartBar;
-                  const onMove = (ev) => {
-                    const dx = ev.clientX - startX;
-                    const newBar = Math.max(
-                      0,
-                      Math.min(
-                        startBar + Math.round(dx / barWidth),
-                        (loopEndBar ?? arrangementEndBars) - 1,
-                      ),
-                    );
-                    onSetLoopStartBar?.(newBar);
-                  };
-                  const onUp = () => {
-                    window.removeEventListener("pointermove", onMove);
-                    window.removeEventListener("pointerup", onUp);
-                  };
-                  window.addEventListener("pointermove", onMove);
-                  window.addEventListener("pointerup", onUp);
+                style={{
+                  left: `${
+                    HEADER_WIDTH +
+                    loopStartBar *
+                      barWidth -
+                    4
+                  }px`,
                 }}
+                title="Drag to set loop start"
+                onPointerDown={
+                  handleLoopStartPointerDown
+                }
               />
-            )}
-            {/* Loop end handle */}
-            {loopArrangement && (
+
+              {/* END HANDLE */}
+
               <div
                 className="loop-handle loop-end-handle"
                 style={{
-                  left: `${130 + (loopEndBar ?? arrangementEndBars) * barWidth - 4}px`,
+                  left: `${
+                    HEADER_WIDTH +
+                    (loopEndBar ??
+                      arrangementEndBars) *
+                      barWidth -
+                    4
+                  }px`,
                 }}
                 title="Drag to set loop end"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  const startX = e.clientX;
-                  const startBar = loopEndBar ?? arrangementEndBars;
-                  const onMove = (ev) => {
-                    const dx = ev.clientX - startX;
-                    const newBar = Math.max(
-                      loopStartBar + 1,
-                      Math.min(
-                        startBar + Math.round(dx / barWidth),
-                        arrangementEndBars,
-                      ),
-                    );
-                    onSetLoopEndBar?.(newBar);
-                  };
-                  const onUp = () => {
-                    window.removeEventListener("pointermove", onMove);
-                    window.removeEventListener("pointerup", onUp);
-                  };
-                  window.addEventListener("pointermove", onMove);
-                  window.addEventListener("pointerup", onUp);
+                onPointerDown={
+                  handleLoopEndPointerDown
+                }
+              />
+            </div>
+          )}
+
+          {/* ==========================================
+              PLAYHEAD
+              ========================================== */}
+
+          {isPlaying &&
+            playheadBars != null && (
+              <div
+                className="playhead"
+                style={{
+                  left: `${
+                    HEADER_WIDTH +
+                    playheadBars *
+                      barWidth
+                  }px`,
                 }}
               />
             )}
-          </div>
 
-          {isPlaying && playheadBars != null && (
-            <div
-              className="playhead"
-              style={{ left: `${130 + playheadBars * barWidth}px` }}
-            />
-          )}
+          {/* ==========================================
+              LANES
+              ========================================== */}
 
-          {visibleLanes.length === 0 ? (
+          {visibleLanes.length ===
+          0 ? (
             <div className="arrangement-empty-state">
-              <p>No clips in the arrangement yet.</p>
               <p>
-                Use the ➕ button on any track row to add its pattern as a clip.
+                No clips in the
+                arrangement yet.
+              </p>
+
+              <p>
+                Use the ➕ button on
+                any track row to add
+                its pattern as a clip.
               </p>
             </div>
           ) : (
-            <DndContext sensors={sensors} onDragEnd={handleLaneDragEnd}>
+            <DndContext
+              sensors={sensors}
+              onDragEnd={
+                handleLaneDragEnd
+              }
+            >
               <SortableContext
                 items={visibleLanes}
-                strategy={verticalListSortingStrategy}
+                strategy={
+                  verticalListSortingStrategy
+                }
               >
-                {visibleLanes.map((trackIndex) => (
-                  <SortableLane
-                    key={trackIndex}
-                    trackIndex={trackIndex}
-                    trackName={
-                      trackSettings?.[trackIndex]?.name ||
-                      TRACK_LABELS[trackIndex] ||
-                      `Track ${trackIndex + 1}`
-                    }
-                    clips={clipsByTrack[trackIndex] || []}
-                    barWidth={barWidth}
-                    editingClipId={editingClipId}
-                    onEditClip={onEditClip}
-                    onRemove={onRemove}
-                    onContextMenu={handleContextMenu}
-                    onRenameClip={onRenameClip}
-                    onRenameTrack={onRenameTrack}
-                    onMoveClip={onMoveClip}
-                    onAddClipAtBar={onAddClipAtBar}
-                    onResizeClip={onResizeClip}
-                    isMuted={trackSettings?.[trackIndex]?.muted || false}
-                    isSoloed={trackSettings?.[trackIndex]?.soloed || false}
-                    onToggleMute={onToggleMute}
-                    onToggleSolo={onToggleSolo}
-                  />
-                ))}
+                {visibleLanes.map(
+                  (trackIndex) => (
+                    <SortableLane
+                      key={trackIndex}
+                      trackIndex={
+                        trackIndex
+                      }
+                      trackName={
+                        trackSettings?.[
+                          trackIndex
+                        ]?.name ||
+                        TRACK_LABELS[
+                          trackIndex
+                        ] ||
+                        `Track ${
+                          trackIndex + 1
+                        }`
+                      }
+                      clips={
+                        clipsByTrack[
+                          trackIndex
+                        ] || []
+                      }
+                      barWidth={
+                        barWidth
+                      }
+                      editingClipId={
+                        editingClipId
+                      }
+                      onEditClip={
+                        onEditClip
+                      }
+                      onRemove={onRemove}
+                      onContextMenu={
+                        handleContextMenu
+                      }
+                      onRenameClip={
+                        onRenameClip
+                      }
+                      onRenameTrack={
+                        onRenameTrack
+                      }
+                      onMoveClip={
+                        onMoveClip
+                      }
+                      onAddClipAtBar={
+                        onAddClipAtBar
+                      }
+                      onResizeClip={
+                        onResizeClip
+                      }
+                      isMuted={
+                        trackSettings?.[
+                          trackIndex
+                        ]?.muted ||
+                        false
+                      }
+                      isSoloed={
+                        trackSettings?.[
+                          trackIndex
+                        ]?.soloed ||
+                        false
+                      }
+                      onToggleMute={
+                        onToggleMute
+                      }
+                      onToggleSolo={
+                        onToggleSolo
+                      }
+                    />
+                  ),
+                )}
               </SortableContext>
             </DndContext>
           )}
         </div>
       </div>
+
       {contextMenu && (
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          onClose={() => setContextMenu(null)}
+          onClose={() =>
+            setContextMenu(null)
+          }
           options={[
             {
               label: "Duplicate",
               action: () => {
-                onDuplicateClip(contextMenu.clipId);
+                onDuplicateClip(
+                  contextMenu.clipId,
+                );
                 setContextMenu(null);
               },
             },
             {
               label: "Delete",
               action: () => {
-                onRemove(contextMenu.clipId);
+                onRemove(
+                  contextMenu.clipId,
+                );
                 setContextMenu(null);
               },
             },

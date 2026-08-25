@@ -7,7 +7,7 @@
   color: white;
   display: flex;
   flex-direction: column;
-  min-height: 300px; /* Ensure it has some height */
+  min-height: 300px;
   overflow: hidden;
 }
 
@@ -50,6 +50,10 @@
   background: #4a4f5a;
   border-color: #61dafb;
 }
+
+/* =============================================
+   ZOOM CONTROLS
+   ============================================= */
 
 .zoom-controls {
   display: flex;
@@ -96,7 +100,9 @@
   color: #61dafb;
 }
 
-/* Timeline ruler */
+/* =============================================
+   TIMELINE RULER
+   ============================================= */
 
 .arrangement-ruler {
   display: flex;
@@ -104,6 +110,7 @@
   border-radius: 4px 4px 0 0;
   user-select: none;
   cursor: pointer;
+  position: relative;
 }
 
 .ruler-header-spacer {
@@ -160,6 +167,10 @@
   background-color: #21a1f1;
 }
 
+/* =============================================
+   ARRANGEMENT LANES
+   ============================================= */
+
 .arrangement-lanes {
   flex-grow: 1;
   overflow-x: auto;
@@ -169,11 +180,13 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px; /* Small gap between lanes */
+  gap: 4px;
   min-width: 100%;
 }
 
-/* Playhead (arrangement playback) */
+/* =============================================
+   PLAYHEAD
+   ============================================= */
 
 .playhead {
   position: absolute;
@@ -186,6 +199,10 @@
   z-index: 15;
 }
 
+/* =============================================
+   TRACK LANES
+   ============================================= */
+
 .track-lane {
   display: flex;
   min-height: 72px;
@@ -193,7 +210,7 @@
   border-radius: 4px;
 }
 
-/* Horizontal lane header: drag handle + readable track name */
+/* Lane header */
 
 .track-lane-header {
   display: flex;
@@ -282,6 +299,10 @@
   border-color: #f59e0b;
 }
 
+/* =============================================
+   CLEAR BUTTON
+   ============================================= */
+
 .clear-arrangement-btn {
   padding: 0.35rem 0.7rem;
   border: 1px solid #ef4444;
@@ -301,6 +322,10 @@
   border-color: #f87171;
 }
 
+/* =============================================
+   TRACK NAME INPUT
+   ============================================= */
+
 .track-name-input {
   flex: 1;
   min-width: 0;
@@ -319,15 +344,21 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
+/* =============================================
+   CLIP AREA
+   ============================================= */
+
 .track-lane-clips {
-  position: relative; /* This is crucial for absolute positioning of clips */
+  position: relative;
   flex-grow: 1;
   min-height: 100%;
   background-image: linear-gradient(#444 1px, transparent 1px);
   background-size: 100px 100%;
 }
 
-/* Clips */
+/* =============================================
+   CLIPS
+   ============================================= */
 
 .arrangement-clip {
   position: absolute;
@@ -338,11 +369,11 @@
   padding: 4px 6px;
   color: #282c34;
   font-size: 0.8rem;
-  box-sizing: border-box; /* Ensures padding and border are included in the width */
-  overflow: hidden; /* Prevent content from spilling out */
+  box-sizing: border-box;
+  overflow: hidden;
   cursor: grab;
-  user-select: none; /* Prevent text selection while dragging */
-  touch-action: none; /* Let pointer drags work on touch screens */
+  user-select: none;
+  touch-action: none;
 }
 
 .arrangement-clip.dragging {
@@ -356,10 +387,10 @@
   outline-offset: -2px;
 }
 
-/*
- * Clip names wrap at word boundaries only, up to 2 lines, then
- * ellipsis. Full name is always available in the hover tooltip.
- */
+/* =============================================
+   CLIP NAMES
+   ============================================= */
+
 .clip-name {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -368,7 +399,7 @@
   overflow-wrap: break-word;
   line-height: 1.15;
   font-weight: bold;
-  padding-right: 16px; /* Room for the hover-reveal remove button */
+  padding-right: 16px;
 }
 
 .clip-name-input {
@@ -384,7 +415,9 @@
   user-select: text;
 }
 
-/* Remove button: top-right corner, revealed on hover */
+/* =============================================
+   REMOVE BUTTON
+   ============================================= */
 
 .clip-remove-btn {
   position: absolute;
@@ -412,7 +445,6 @@
   opacity: 1;
 }
 
-/* Touch devices have no hover — always show the button */
 @media (hover: none) {
   .clip-remove-btn {
     opacity: 1;
@@ -424,7 +456,9 @@
   color: #fff;
 }
 
-/* Mini pattern preview (16 steps) along the bottom of the clip */
+/* =============================================
+   MINI PATTERN PREVIEW
+   ============================================= */
 
 .clip-pattern-preview {
   position: absolute;
@@ -433,21 +467,16 @@
   bottom: 4px;
   height: 10px;
   display: flex;
-  overflow: hidden; /* partial trailing bars clip cleanly while resizing */
+  overflow: hidden;
   pointer-events: none;
 }
 
-/*
- * One segment per repeated bar. Each segment is locked to exactly one
- * bar's width so the step dots keep a constant size no matter how long
- * the clip is stretched — the pattern simply repeats.
- */
 .preview-bar {
   flex: 0 0 auto;
   display: flex;
   gap: 1px;
   padding: 0 3px;
-  border-left: 1px solid rgba(0, 0, 0, 0.18); /* repeat divider */
+  border-left: 1px solid rgba(0, 0, 0, 0.18);
 }
 
 .preview-bar:first-child {
@@ -465,7 +494,9 @@
   background: rgba(0, 0, 0, 0.55);
 }
 
-/* Right-edge resize handle */
+/* =============================================
+   RIGHT-EDGE RESIZE HANDLE
+   ============================================= */
 
 .clip-resize-handle {
   position: absolute;
@@ -482,19 +513,34 @@
 }
 
 /* =============================================
-   LOOP REGION HIGHLIGHT & HANDLES
+   LOOP REGION
    ============================================= */
+
+/*
+ * The loop overlay belongs to the entire lanes scroll content,
+ * not just the ruler. ArrangementView.jsx positions the visual
+ * loop region using the 130px timeline offset.
+ *
+ * pointer-events are disabled so the overlay never blocks clips,
+ * lane interaction, or normal timeline clicks.
+ */
 
 .loop-region-highlight {
   position: absolute;
   top: 0;
   bottom: 0;
+  box-sizing: border-box;
   background: rgba(139, 92, 246, 0.15);
   border-left: 2px solid rgba(139, 92, 246, 0.5);
   border-right: 2px solid rgba(139, 92, 246, 0.5);
   pointer-events: none;
   z-index: 2;
 }
+
+/*
+ * Loop handles sit above the loop highlight and remain draggable.
+ * user-select prevents browser text selection while dragging.
+ */
 
 .loop-handle {
   position: absolute;
@@ -505,11 +551,28 @@
   border-radius: 2px;
   cursor: col-resize;
   z-index: 3;
+
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
 }
 
 .loop-handle:hover {
   background: #a78bfa;
   width: 10px;
+}
+
+/*
+ * Prevent accidental text highlighting anywhere in the arrangement
+ * while the user is interacting with loop handles.
+ */
+
+.arrangement-view.loop-dragging,
+.arrangement-view.loop-dragging * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: col-resize;
 }
 
 /* =============================================
