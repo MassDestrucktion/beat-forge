@@ -381,19 +381,14 @@ function SortableLane({
       (event.clientX - rect.left) / barWidth,
     );
 
-    onAddClipAtBar(
-      trackIndex,
-      Math.max(0, bar),
-    );
+    onAddClipAtBar(trackIndex, Math.max(0, bar));
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`track-lane ${
-        isDragging ? "dragging" : ""
-      }`}
+      className={`track-lane ${isDragging ? "dragging" : ""}`}
     >
       <div className="track-lane-header">
         <span
@@ -437,9 +432,7 @@ function SortableLane({
         <div className="lane-header-buttons">
           <button
             type="button"
-            className={`lane-mute-btn ${
-              isMuted ? "active" : ""
-            }`}
+            className={`lane-mute-btn ${isMuted ? "active" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onToggleMute(trackIndex);
@@ -451,9 +444,7 @@ function SortableLane({
 
           <button
             type="button"
-            className={`lane-solo-btn ${
-              isSoloed ? "active" : ""
-            }`}
+            className={`lane-solo-btn ${isSoloed ? "active" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onToggleSolo(trackIndex);
@@ -525,14 +516,13 @@ export default function ArrangementView({
 }) {
   const [contextMenu, setContextMenu] = useState(null);
 
-  const [barWidth, setBarWidth] = useState(
-    DEFAULT_BAR_WIDTH,
-  );
+  const [barWidth, setBarWidth] = useState(DEFAULT_BAR_WIDTH);
 
-  const [showEmptyLanes, setShowEmptyLanes] =
-    useState(false);
+  const [showEmptyLanes, setShowEmptyLanes] = useState(false);
 
   const lanesRef = useRef(null);
+
+  const playheadDragState = useRef(null);
 
   const clipsByTrack = useMemo(() => {
     const byTrack = {};
@@ -562,22 +552,12 @@ export default function ArrangementView({
       (i) => !valid.includes(i),
     );
 
-    const orphanedClipLanes = Object.keys(
-      clipsByTrack,
-    )
+    const orphanedClipLanes = Object.keys(clipsByTrack)
       .map(Number)
       .filter((i) => !all.includes(i));
 
-    return [
-      ...valid,
-      ...missing,
-      ...orphanedClipLanes,
-    ];
-  }, [
-    trackOrder,
-    numTracks,
-    clipsByTrack,
-  ]);
+    return [...valid, ...missing, ...orphanedClipLanes];
+  }, [trackOrder, numTracks, clipsByTrack]);
 
   const visibleLanes = useMemo(
     () =>
@@ -586,27 +566,17 @@ export default function ArrangementView({
         : laneOrder.filter(
             (i) => clipsByTrack[i]?.length > 0,
           ),
-    [
-      showEmptyLanes,
-      laneOrder,
-      clipsByTrack,
-    ],
+    [showEmptyLanes, laneOrder, clipsByTrack],
   );
 
   const maxBar = useMemo(() => {
     const maxEnd = arrangement.reduce(
       (max, clip) =>
-        Math.max(
-          max,
-          clip.x + clip.bars,
-        ),
+        Math.max(max, clip.x + clip.bars),
       0,
     );
 
-    return Math.max(
-      8,
-      maxEnd + 2,
-    );
+    return Math.max(8, maxEnd + 2);
   }, [arrangement]);
 
   const rulerLabelEvery =
@@ -628,8 +598,7 @@ export default function ArrangementView({
 
     setBarWidth(
       clampBarWidth(
-        (containerWidth - HEADER_WIDTH) /
-          maxBar,
+        (containerWidth - HEADER_WIDTH) / maxBar,
       ),
     );
   };
@@ -650,25 +619,17 @@ export default function ArrangementView({
 
       setBarWidth((w) =>
         clampBarWidth(
-          w *
-            (event.deltaY < 0
-              ? 1.15
-              : 1 / 1.15),
+          w * (event.deltaY < 0 ? 1.15 : 1 / 1.15),
         ),
       );
     };
 
-    el.addEventListener(
-      "wheel",
-      onWheel,
-      { passive: false },
-    );
+    el.addEventListener("wheel", onWheel, {
+      passive: false,
+    });
 
     return () =>
-      el.removeEventListener(
-        "wheel",
-        onWheel,
-      );
+      el.removeEventListener("wheel", onWheel);
   }, []);
 
   const sensors = useSensors(
@@ -686,16 +647,10 @@ export default function ArrangementView({
       return;
     }
 
-    onReorderTracks(
-      active.id,
-      over.id,
-    );
+    onReorderTracks(active.id, over.id);
   }
 
-  const handleContextMenu = (
-    event,
-    clipId,
-  ) => {
+  const handleContextMenu = (event, clipId) => {
     event.preventDefault();
 
     setContextMenu({
@@ -706,12 +661,111 @@ export default function ArrangementView({
   };
 
   /*
-   * LOOP START DRAG
+   * PLAYHEAD DRAG
    *
-   * Loop positions are measured in timeline bars.
-   * The pointer starts at the current handle position,
-   * so zooming or horizontal scrolling doesn't introduce
-   * an offset.
+   * The red playhead can be dragged to any bar.
+   * We use clientX + the timeline's bounding rect so this
+   * continues to work correctly while horizontally scrolling.
+   */
+  const handlePlayheadPointerDown = (event) => {
+    if (event.button !== 0 || !onSeekTo) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    document.body.classList.add(
+      "arrangement-playhead-dragging",
+    );
+
+    playheadDragState.current = {
+      pointerId: event.pointerId,
+    };
+
+    const updatePlayheadFromPointer = (clientX) => {
+      const content = lanesRef.current;
+
+      if (!content) {
+        return;
+      }
+
+      const rect = content.getBoundingClientRect();
+
+      /*
+       * clientX is relative to the viewport.
+       * scrollLeft must be added because the timeline content
+       * can be horizontally scrolled.
+       */
+      const timelineX =
+        clientX -
+        rect.left +
+        content.scrollLeft -
+        HEADER_WIDTH;
+
+      const bar = Math.max(
+        0,
+        Math.min(
+          maxBar,
+          Math.round(timelineX / barWidth),
+        ),
+      );
+
+      onSeekTo(bar);
+    };
+
+    const handleMove = (moveEvent) => {
+      const state = playheadDragState.current;
+
+      if (!state || moveEvent.pointerId !== state.pointerId) {
+        return;
+      }
+
+      moveEvent.preventDefault();
+
+      updatePlayheadFromPointer(moveEvent.clientX);
+    };
+
+    const handleUp = (upEvent) => {
+      const state = playheadDragState.current;
+
+      if (!state || upEvent.pointerId !== state.pointerId) {
+        return;
+      }
+
+      document.body.classList.remove(
+        "arrangement-playhead-dragging",
+      );
+
+      playheadDragState.current = null;
+
+      window.removeEventListener(
+        "pointermove",
+        handleMove,
+      );
+
+      window.removeEventListener(
+        "pointerup",
+        handleUp,
+      );
+    };
+
+    updatePlayheadFromPointer(event.clientX);
+
+    window.addEventListener(
+      "pointermove",
+      handleMove,
+      { passive: false },
+    );
+
+    window.addEventListener(
+      "pointerup",
+      handleUp,
+    );
+  };
+
+  /*
+   * LOOP START DRAG
    */
   const handleLoopStartPointerDown = (event) => {
     if (event.button !== 0) {
@@ -743,9 +797,7 @@ export default function ArrangementView({
         0,
         Math.min(
           originalBar +
-            Math.round(
-              dx / barWidth,
-            ),
+            Math.round(dx / barWidth),
           endBar - 1,
         ),
       );
@@ -813,9 +865,7 @@ export default function ArrangementView({
         loopStartBar + 1,
         Math.min(
           originalBar +
-            Math.round(
-              dx / barWidth,
-            ),
+            Math.round(dx / barWidth),
           arrangementEndBars,
         ),
       );
@@ -890,14 +940,9 @@ export default function ArrangementView({
               )}
               onChange={(e) => {
                 const pct =
-                  parseFloat(
-                    e.target.value,
-                  );
+                  parseFloat(e.target.value);
 
-                if (
-                  !isNaN(pct) &&
-                  pct > 0
-                ) {
+                if (!isNaN(pct) && pct > 0) {
                   setBarWidth(
                     clampBarWidth(
                       (pct / 100) *
@@ -932,9 +977,7 @@ export default function ArrangementView({
 
           <button
             className="add-all-btn"
-            onClick={
-              onAddAllToArrangement
-            }
+            onClick={onAddAllToArrangement}
             title="Add all tracks with patterns as clips in the arrangement"
           >
             ➕ Add All
@@ -942,13 +985,9 @@ export default function ArrangementView({
 
           <button
             className={`play-arrangement-btn ${
-              isPlaying
-                ? "playing"
-                : ""
+              isPlaying ? "playing" : ""
             }`}
-            onClick={
-              onPlayArrangement
-            }
+            onClick={onPlayArrangement}
           >
             {isPlaying
               ? "⏹ Stop Arrangement"
@@ -957,13 +996,9 @@ export default function ArrangementView({
 
           <button
             className={`loop-arrangement-btn ${
-              loopArrangement
-                ? "active"
-                : ""
+              loopArrangement ? "active" : ""
             }`}
-            onClick={
-              onToggleLoop
-            }
+            onClick={onToggleLoop}
             title={
               loopArrangement
                 ? "Disable loop"
@@ -977,9 +1012,7 @@ export default function ArrangementView({
 
           <button
             className="clear-arrangement-btn"
-            onClick={
-              onClearArrangement
-            }
+            onClick={onClearArrangement}
             title="Remove all clips from the arrangement"
           >
             🧹 Clear
@@ -1000,16 +1033,14 @@ export default function ArrangementView({
             }px`,
           }}
         >
-          {/* ==========================================
-              RULER
-              ========================================== */}
+          {/* RULER */}
+
           <div
             className="arrangement-ruler"
             onClick={(event) => {
               if (
-                event.target.closest(
-                  ".loop-handle",
-                )
+                event.target.closest(".loop-handle") ||
+                event.target.closest(".playhead")
               ) {
                 return;
               }
@@ -1024,9 +1055,7 @@ export default function ArrangementView({
 
               const bar = Math.max(
                 0,
-                Math.round(
-                  x / barWidth,
-                ),
+                Math.round(x / barWidth),
               );
 
               onSeekTo?.(bar);
@@ -1046,9 +1075,7 @@ export default function ArrangementView({
                       width: `${barWidth}px`,
                     }}
                   >
-                    {bar %
-                      rulerLabelEvery ===
-                    0
+                    {bar % rulerLabelEvery === 0
                       ? bar + 1
                       : ""}
                   </div>
@@ -1057,16 +1084,7 @@ export default function ArrangementView({
             </div>
           </div>
 
-          {/* ==========================================
-              LOOP OVERLAY
-              
-              IMPORTANT:
-              This is outside the ruler, so it covers
-              the complete arrangement view.
-              
-              Its coordinate system starts at the
-              LEFT EDGE of the entire arrangement.
-              ========================================== */}
+          {/* LOOP OVERLAY */}
 
           {loopArrangement && (
             <div
@@ -1093,8 +1111,6 @@ export default function ArrangementView({
                 }}
               />
 
-              {/* START HANDLE */}
-
               <div
                 className="loop-handle loop-start-handle"
                 style={{
@@ -1110,8 +1126,6 @@ export default function ArrangementView({
                   handleLoopStartPointerDown
                 }
               />
-
-              {/* END HANDLE */}
 
               <div
                 className="loop-handle loop-end-handle"
@@ -1132,48 +1146,47 @@ export default function ArrangementView({
             </div>
           )}
 
-          {/* ==========================================
-              PLAYHEAD
-              ========================================== */}
+          {/* PLAYHEAD */}
 
-          {isPlaying &&
-            playheadBars != null && (
-              <div
-                className="playhead"
-                style={{
-                  left: `${
-                    HEADER_WIDTH +
-                    playheadBars *
-                      barWidth
-                  }px`,
-                }}
-              />
-            )}
+          {playheadBars != null && (
+            <div
+              className={`playhead ${
+                isPlaying ? "playing" : ""
+              }`}
+              style={{
+                left: `${
+                  HEADER_WIDTH +
+                  playheadBars * barWidth
+                }px`,
+              }}
+              onPointerDown={
+                handlePlayheadPointerDown
+              }
+              title="Drag to seek"
+              role="slider"
+              aria-label="Arrangement playhead"
+              aria-valuenow={playheadBars}
+              tabIndex={0}
+            />
+          )}
 
-          {/* ==========================================
-              LANES
-              ========================================== */}
+          {/* LANES */}
 
-          {visibleLanes.length ===
-          0 ? (
+          {visibleLanes.length === 0 ? (
             <div className="arrangement-empty-state">
               <p>
-                No clips in the
-                arrangement yet.
+                No clips in the arrangement yet.
               </p>
 
               <p>
-                Use the ➕ button on
-                any track row to add
-                its pattern as a clip.
+                Use the ➕ button on any track row
+                to add its pattern as a clip.
               </p>
             </div>
           ) : (
             <DndContext
               sensors={sensors}
-              onDragEnd={
-                handleLaneDragEnd
-              }
+              onDragEnd={handleLaneDragEnd}
             >
               <SortableContext
                 items={visibleLanes}
@@ -1185,9 +1198,7 @@ export default function ArrangementView({
                   (trackIndex) => (
                     <SortableLane
                       key={trackIndex}
-                      trackIndex={
-                        trackIndex
-                      }
+                      trackIndex={trackIndex}
                       trackName={
                         trackSettings?.[
                           trackIndex
@@ -1204,9 +1215,7 @@ export default function ArrangementView({
                           trackIndex
                         ] || []
                       }
-                      barWidth={
-                        barWidth
-                      }
+                      barWidth={barWidth}
                       editingClipId={
                         editingClipId
                       }
@@ -1235,14 +1244,12 @@ export default function ArrangementView({
                       isMuted={
                         trackSettings?.[
                           trackIndex
-                        ]?.muted ||
-                        false
+                        ]?.muted || false
                       }
                       isSoloed={
                         trackSettings?.[
                           trackIndex
-                        ]?.soloed ||
-                        false
+                        ]?.soloed || false
                       }
                       onToggleMute={
                         onToggleMute
