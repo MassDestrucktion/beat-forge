@@ -11,6 +11,7 @@ import FeaturedProjects from "./featuredprojects";
 
 
 
+import { useEffect } from "react";
 
 export default function App() {
   
